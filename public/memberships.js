@@ -72,19 +72,20 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementB
 /* Add an always-accessible upgrade entry without changing existing navigation handlers. */
 const entry=document.createElement('button');entry.type='button';entry.textContent='✦ Memberships';entry.setAttribute('aria-label','Explore RhymeOrbit memberships');
 entry.style.cssText='position:fixed;bottom:18px;left:18px;z-index:1100;border:1px solid #b18be9;background:#20162d;color:#f4e7ff;padding:11px 16px;border-radius:30px;font-weight:700;box-shadow:0 8px 26px #0008';
-entry.onclick=()=>{if(window.roMembershipSignedIn)render('plans')};entry.hidden=true;document.body.appendChild(entry);
+entry.onclick=()=>{if(window.roMembershipSignedIn)render('plans')};entry.hidden=true;entry.style.display='none';document.body.appendChild(entry);
 function membershipVisibility(){
  const signedIn=Boolean(window.roMembershipSignedIn);
  entry.hidden=!signedIn;
+ entry.style.display=signedIn?'block':'none';
  const badge=document.getElementById('roMembershipUsage');
- if(badge)badge.hidden=!signedIn;
+ if(badge){badge.hidden=!signedIn;badge.style.display=signedIn&&badge.textContent?'block':'none'}
  if(!signedIn)document.getElementById('roPricingBackdrop')?.remove();
 }
 window.roRefreshMembershipVisibility=membershipVisibility;
 membershipVisibility();
 const usageBadge=document.createElement('div');usageBadge.id='roMembershipUsage';
 usageBadge.style.cssText='position:fixed;bottom:18px;left:185px;z-index:1099;border:1px solid #ffffff29;background:#17141d;color:#d8c9ed;padding:11px;border-radius:30px;font-size:12px;pointer-events:none';
-usageBadge.textContent='';usageBadge.hidden=true;document.body.appendChild(usageBadge);membershipVisibility();
+usageBadge.textContent='';usageBadge.hidden=true;usageBadge.style.display='none';document.body.appendChild(usageBadge);membershipVisibility();
 let authListenerAttached=false;
 async function syncMembershipAuth(){
  try{
@@ -92,7 +93,7 @@ async function syncMembershipAuth(){
   if(!client?.auth)return;
   const {data,error}=await client.auth.getSession();
   if(error)return;
-  window.roMembershipSignedIn=Boolean(data?.session?.access_token);
+  window.roMembershipSignedIn=Boolean(data?.session?.access_token || (typeof state!=='undefined'&&state.user?.id));
   membershipVisibility();
   if(window.roMembershipSignedIn)loadUsage();
   if(!authListenerAttached){
