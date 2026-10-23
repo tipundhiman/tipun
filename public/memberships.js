@@ -85,6 +85,33 @@ membershipVisibility();
 const usageBadge=document.createElement('div');usageBadge.id='roMembershipUsage';
 usageBadge.style.cssText='position:fixed;bottom:18px;left:185px;z-index:1099;border:1px solid #ffffff29;background:#17141d;color:#d8c9ed;padding:11px;border-radius:30px;font-size:12px;pointer-events:none';
 usageBadge.textContent='';usageBadge.hidden=true;document.body.appendChild(usageBadge);membershipVisibility();
+let authListenerAttached=false;
+async function syncMembershipAuth(){
+ try{
+  const client=window.sb;
+  if(!client?.auth)return;
+  const {data,error}=await client.auth.getSession();
+  if(error)return;
+  window.roMembershipSignedIn=Boolean(data?.session?.access_token);
+  membershipVisibility();
+  if(window.roMembershipSignedIn)loadUsage();
+  if(!authListenerAttached){
+   authListenerAttached=true;
+   client.auth.onAuthStateChange((_event,session)=>{
+    window.roMembershipSignedIn=Boolean(session?.access_token);
+    membershipVisibility();
+    if(session?.access_token)loadUsage();
+   });
+  }
+ }catch(e){console.warn('Membership auth check failed',e)}
+}
+syncMembershipAuth();
+let authRetryCount=0;
+const authRetry=setInterval(()=>{
+ if(authListenerAttached||authRetryCount++>=20){clearInterval(authRetry);return}
+ syncMembershipAuth();
+},500);
+window.addEventListener('focus',syncMembershipAuth);
 loadUsage();
 /* The music endpoint is the source of truth. Surface the upgrade when it rejects quota. */
 const originalFetch=window.fetch.bind(window);
