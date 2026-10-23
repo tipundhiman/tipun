@@ -193,10 +193,12 @@ export async function handleApi(req, res) {
     }
     if (req.method === 'GET' && path === '/api/music/status') {
       return send(res, 200, {
-        configured: false,
-        provider: null,
-        supportsVocals: false,
-        message: 'Full-song generation is not enabled yet.'
+        configured: Boolean(env('TREBLO_API_KEY')),
+        provider: env('TREBLO_API_KEY') ? 'Treblo' : null,
+        supportsVocals: Boolean(env('TREBLO_API_KEY')),
+        publicGenerationEnabled: false,
+        checkoutEnabled: false,
+        message: env('TREBLO_API_KEY') ? 'Treblo is configured for admin testing only; public generation and payments are not yet enabled.' : 'Treblo API key is not configured; music generation is unavailable.'
       });
     }
     if (req.method === 'GET' && path === '/api/music/credits') {
