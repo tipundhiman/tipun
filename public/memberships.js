@@ -47,7 +47,7 @@ function render(reason){
  wrap.querySelector('.ro-price-close').focus();
 }
 /* Read actual monthly usage from the authenticated backend; never trust browser-stored plan data. */
-async function loadUsage(){
+async async function loadUsage(){
  let token=null;
  try{
    if(typeof sb!=='undefined'&&sb){const session=await sb.auth.getSession();token=session.data.session?.access_token}
