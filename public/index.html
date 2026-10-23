@@ -665,16 +665,30 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
   const trebleStorageKey='ro_treblo_last_task';
   function showTrebloPlayer(box,url,id){
     box.replaceChildren();
-    const title=document.createElement('div');title.textContent='✓ Your song is ready!';title.style.marginBottom='8px';
+    const card=document.createElement('section');
+    card.style.cssText='padding:20px;border:1px solid #555;border-radius:18px;margin-top:14px;background:linear-gradient(135deg,#282231,#17171e)';
+    const cover=document.createElement('div');
+    cover.style.cssText='width:150px;height:150px;border-radius:14px;background:radial-gradient(circle at 30% 25%,#e3c99c,#785e83 55%,#292536);display:flex;align-items:center;justify-content:center;font-size:62px;margin-bottom:16px';
+    cover.textContent='♫';cover.setAttribute('role','img');cover.setAttribute('aria-label','RhymeOrbit default music artwork');
+    const name=document.createElement('h3');
+    name.textContent=localStorage.getItem('ro_treblo_song_title_'+id)||'My AI Song';
+    name.style.cssText='margin:0 0 5px;font-size:21px';
+    const subtitle=document.createElement('p');subtitle.textContent='RhymeOrbit · Generated with Treblo';subtitle.style.cssText='color:#aaa;margin:0 0 16px';
     const audio=document.createElement('audio');audio.controls=true;audio.preload='metadata';audio.src=url;audio.style.width='100%';
-    const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Open / Download Song';link.className='btn gold';link.style.display='inline-block';link.style.marginTop='8px';
-    const info=document.createElement('p');info.textContent='Treblo audio links expire. Download your song soon. Task ID: '+id;info.style.fontSize='12px';
-    box.append(title,audio,link,info);
+    const row=document.createElement('div');row.style.cssText='display:flex;gap:10px;flex-wrap:wrap;margin-top:12px';
+    const back=document.createElement('button');back.type='button';back.className='btn';back.textContent='↶ 10 sec';back.onclick=()=>{audio.currentTime=Math.max(0,audio.currentTime-10)};
+    const forward=document.createElement('button');forward.type='button';forward.className='btn';forward.textContent='10 sec ↷';forward.onclick=()=>{if(Number.isFinite(audio.duration))audio.currentTime=Math.min(audio.duration,audio.currentTime+10)};
+    const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='↓ Open / Download';link.className='btn gold';
+    const rename=document.createElement('button');rename.type='button';rename.className='btn';rename.textContent='✎ Rename';rename.onclick=()=>{const next=prompt('Song title',name.textContent);if(next&&next.trim()){name.textContent=next.trim().slice(0,100);localStorage.setItem('ro_treblo_song_title_'+id,name.textContent)}};
+    row.append(back,forward,link,rename);
+    const info=document.createElement('p');info.textContent='Save your song soon: Treblo audio URLs can expire. Task ID: '+id;info.style.cssText='font-size:12px;color:#aaa;margin-top:14px;overflow-wrap:anywhere';
+    card.append(cover,name,subtitle,audio,row,info);box.append(card);
   }
   window.roRecoverTrebloSong=async function(id){
     const box=document.getElementById('roMurekaResult');
     if(!box)return toast('Open AI Studio first');
     id=String(id||document.getElementById('roTrebloTaskId')?.value||localStorage.getItem(trebleStorageKey)||'').trim();
+    if(!id)return toast('Enter the task ID from Treblo, or generate a new song to save its ID automatically.');
     if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id))return toast('Enter a valid Treblo task ID');
     if(!sb)return toast('Log in first');
     const session=(await sb.auth.getSession()).data.session;
@@ -710,6 +724,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       if(!response.ok)throw Error(data.error||'Could not start song');
       if(!data.id)throw Error('Provider did not return a task ID');
       localStorage.setItem(trebleStorageKey,String(data.id));
+      localStorage.setItem('ro_treblo_song_title_'+data.id,(document.getElementById('songTitle')?.value||'My AI Song').trim().slice(0,100));
       await window.roRecoverTrebloSong(data.id);
     }catch(e){box.textContent=e.message||'Song generation failed'}
   };
