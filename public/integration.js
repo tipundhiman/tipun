@@ -20,7 +20,7 @@ function roWelcomeBack(){
  const index=(previous+1)%taglines.length;sessionStorage.setItem('roWelcomeLastIndex',String(index));
  const gender=String(user.gender||'prefer_not_to_say').toLowerCase();
  const salutation=gender==='male'?'Hello handsome':gender==='female'?'Hello beautiful':'Hello creator';
- const greeting=salutation+(name?', '+name:'')+'! Welcome to RhymeOrbit. '+taglines[index];
+ const greeting=salutation+'! Welcome to RhymeOrbit. '+taglines[index];
  toast(greeting);
  const serial=++roWelcomeSerial;
  try{if('speechSynthesis' in window){
