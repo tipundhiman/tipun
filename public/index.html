@@ -659,10 +659,37 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const page=previousStudio();
     const anchor='<div id="roCanvasGenerationStatus"';
     if(!page.includes(anchor))return page;
-    const extra='<div class="field" style="margin-top:12px"><label for="roMusicStyle">Music style (Treblo)</label><input id="roMusicStyle" maxlength="1024" placeholder="Hindi pop, guitar, male vocals, 95 BPM"></div><p class="muted small" style="margin:8px 0">Admin-only Treblo trial test (100 credits per new song).</p><div class="field" style="margin-top:12px"><label for="roTrebloTaskId">Already generated? Recover by task ID (no credits charged)</label><input id="roTrebloTaskId" placeholder="Treblo task ID" autocomplete="off"></div><button class="btn" type="button" onclick="roRecoverTrebloSong()">↻ Recover Existing Song</button><div id="roMurekaResult" style="margin-top:12px" aria-live="polite"></div>';
+    const extra='<div class="field" style="margin-top:12px"><label for="roMusicStyle">Music style (Treblo)</label><input id="roMusicStyle" maxlength="1024" placeholder="Hindi pop, guitar, 95 BPM"></div><div class="field" style="margin-top:12px"><label for="roVocalVoice">Singer voice</label><select id="roVocalVoice"><option value="auto">Auto</option><option value="male">Male voice</option><option value="female">Female voice</option><option value="duet">Male + Female duet</option></select></div><p class="muted small" style="margin:8px 0">Admin-only Treblo trial test (100 credits per new song). Voice is a prompt preference, not guaranteed.</p><div class="field" style="margin-top:12px"><label for="roTrebloTaskId">Already generated? Recover by task ID (no credits charged)</label><input id="roTrebloTaskId" placeholder="Treblo task ID" autocomplete="off"></div><button class="btn" type="button" onclick="roRecoverTrebloSong()">↻ Recover Existing Song</button><div id="roMurekaResult" style="margin-top:12px" aria-live="polite"></div><section id="roSongLibrary" class="panel" style="margin-top:22px;padding:16px"><h3>♫ My Generated Songs</h3><p class="muted small">Saved on this browser. Open a song to refresh its audio link.</p><div id="roSongLibraryItems"></div></section>';
     return page.replace(anchor,extra+anchor);
   };
   const trebleStorageKey='ro_treblo_last_task';
+  const roLibraryKey=()=> 'ro_treblo_library_'+(state.user?.id||'guest');
+  function roLibraryRead(){try{return JSON.parse(localStorage.getItem(roLibraryKey())||'[]')}catch{return []}}
+  function roLibraryUpsert(id,patch={}){
+    const items=roLibraryRead().filter(x=>x.id!==id);
+    const previous=roLibraryRead().find(x=>x.id===id)||{};
+    items.unshift({...previous,...patch,id,updatedAt:new Date().toISOString()});
+    localStorage.setItem(roLibraryKey(),JSON.stringify(items.slice(0,100)));
+    window.roRenderSongLibrary();
+  }
+  window.roRenderSongLibrary=function(){
+    const root=document.getElementById('roSongLibraryItems');if(!root)return;
+    root.replaceChildren();
+    const items=roLibraryRead();
+    if(!items.length){root.textContent='No songs saved here yet. Recover an existing task ID to add it.';return}
+    for(const item of items){
+      const row=document.createElement('div');row.style.cssText='padding:12px 0;border-top:1px solid #444;display:flex;align-items:center;gap:12px;flex-wrap:wrap';
+      const art=document.createElement('span');art.textContent='♫';art.style.cssText='width:44px;height:44px;display:grid;place-items:center;border-radius:10px;background:#4b3c59;font-size:24px';
+      const title=document.createElement('div');title.style.flex='1';title.style.minWidth='140px';
+      const name=document.createElement('strong');name.textContent=item.title||'My AI Song';
+      const info=document.createElement('div');info.textContent=(item.voice||'Auto')+' · '+(item.status||'Saved')+' · '+item.id;info.style.cssText='font-size:11px;color:#aaa;overflow-wrap:anywhere';
+      title.append(name,info);
+      const play=document.createElement('button');play.type='button';play.className='btn';play.textContent='▶ Open / Play';play.onclick=()=>window.roRecoverTrebloSong(item.id);
+      row.append(art,title,play);root.append(row);
+    }
+  };
+  const originalStudioForSongLibrary=window.studio;
+  window.studio=function(...args){const page=originalStudioForSongLibrary.apply(this,args);queueMicrotask(()=>window.roRenderSongLibrary());return page};
   function showTrebloPlayer(box,url,id){
     box.replaceChildren();
     const card=document.createElement('section');
@@ -679,10 +706,11 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const back=document.createElement('button');back.type='button';back.className='btn';back.textContent='↶ 10 sec';back.onclick=()=>{audio.currentTime=Math.max(0,audio.currentTime-10)};
     const forward=document.createElement('button');forward.type='button';forward.className='btn';forward.textContent='10 sec ↷';forward.onclick=()=>{if(Number.isFinite(audio.duration))audio.currentTime=Math.min(audio.duration,audio.currentTime+10)};
     const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='↓ Open / Download';link.className='btn gold';
-    const rename=document.createElement('button');rename.type='button';rename.className='btn';rename.textContent='✎ Rename';rename.onclick=()=>{const next=prompt('Song title',name.textContent);if(next&&next.trim()){name.textContent=next.trim().slice(0,100);localStorage.setItem('ro_treblo_song_title_'+id,name.textContent)}};
+    const rename=document.createElement('button');rename.type='button';rename.className='btn';rename.textContent='✎ Rename';rename.onclick=()=>{const next=prompt('Song title',name.textContent);if(next&&next.trim()){name.textContent=next.trim().slice(0,100);localStorage.setItem('ro_treblo_song_title_'+id,name.textContent);roLibraryUpsert(id,{title:name.textContent})}};
     row.append(back,forward,link,rename);
     const info=document.createElement('p');info.textContent='Save your song soon: Treblo audio URLs can expire. Task ID: '+id;info.style.cssText='font-size:12px;color:#aaa;margin-top:14px;overflow-wrap:anywhere';
     card.append(cover,name,subtitle,audio,row,info);box.append(card);
+    roLibraryUpsert(id,{title:name.textContent,status:'Ready',url});
   }
   window.roRecoverTrebloSong=async function(id){
     const box=document.getElementById('roMurekaResult');
@@ -694,6 +722,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const session=(await sb.auth.getSession()).data.session;
     if(!session?.access_token)return toast('Log in first');
     localStorage.setItem(trebleStorageKey,id);
+    roLibraryUpsert(id,{title:localStorage.getItem('ro_treblo_song_title_'+id)||'My AI Song',status:'Checking'});
     box.textContent='Checking existing song '+id+'…';
     try{
       for(let attempt=0;attempt<90;attempt++){
@@ -719,12 +748,13 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     if(!session?.access_token)return toast('Log in first');
     box.textContent='Starting your Treblo song…';
     try{
-      const response=await fetch('/api/music/generate',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({lyrics,prompt:style})});
+      const response=await fetch('/api/music/generate',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({lyrics,prompt:style,voice:document.getElementById('roVocalVoice')?.value||'auto'})});
       const data=await response.json();
       if(!response.ok)throw Error(data.error||'Could not start song');
       if(!data.id)throw Error('Provider did not return a task ID');
       localStorage.setItem(trebleStorageKey,String(data.id));
       localStorage.setItem('ro_treblo_song_title_'+data.id,(document.getElementById('songTitle')?.value||'My AI Song').trim().slice(0,100));
+      roLibraryUpsert(String(data.id),{title:localStorage.getItem('ro_treblo_song_title_'+data.id),voice:document.getElementById('roVocalVoice')?.value||'auto',status:'Processing'});
       await window.roRecoverTrebloSong(data.id);
     }catch(e){box.textContent=e.message||'Song generation failed'}
   };
