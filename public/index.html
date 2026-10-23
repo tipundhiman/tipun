@@ -584,7 +584,17 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     return html.replace(anchor, controls + anchor);
   };
   window.roCanvasSongNotice = function () {
-    toast('Song audio generation is not connected yet. Your lyrics can be saved now.');
+    const style = document.getElementById('roMusicStyle');
+    if (!style) return toast('Music generator is unavailable. Refresh the page.');
+    if (!style.value.trim()) {
+      const brief = document.getElementById('roCanvasPrompt')?.value.trim() || '';
+      if (brief) style.value = brief.slice(0, 1024);
+    }
+    if (!style.value.trim()) {
+      style.focus();
+      return toast('Add a music style first, then generate your song.');
+    }
+    return window.roStartMurekaTest();
   };
   window.roGenerateCanvasLyrics = async function () {
     const topic = document.getElementById('roCanvasPrompt')?.value.trim();
@@ -649,7 +659,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const page=previousStudio();
     const anchor='<div id="roCanvasGenerationStatus"';
     if(!page.includes(anchor))return page;
-    const extra='<div class="field" style="margin-top:12px"><label for="roMusicStyle">Music style (Mureka test)</label><input id="roMusicStyle" maxlength="1024" placeholder="Hindi pop, guitar, male vocals, 95 BPM"></div><button class="btn gold" type="button" onclick="roStartMurekaTest()">♫ Test Real Song (admin only, paid API)</button><div id="roMurekaResult" style="margin-top:12px" aria-live="polite"></div>';
+    const extra='<div class="field" style="margin-top:12px"><label for="roMusicStyle">Music style (Mureka test)</label><input id="roMusicStyle" maxlength="1024" placeholder="Hindi pop, guitar, male vocals, 95 BPM"></div><p class="muted small" style="margin:8px 0">Admin-only paid Mureka test. Use the Generate Song button above.</p><div id="roMurekaResult" style="margin-top:12px" aria-live="polite"></div>';
     return page.replace(anchor,extra+anchor);
   };
   window.roStartMurekaTest=async function(){
