@@ -769,7 +769,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       const info=document.createElement('div');info.textContent=(item.voice||'Auto')+' · '+(item.status||'Saved')+' · '+item.id;info.style.cssText='font-size:11px;color:#aaa;overflow-wrap:anywhere';
       title.append(name,info);
       const play=document.createElement('button');play.type='button';play.className='btn';play.textContent='▶ Open / Play';play.onclick=()=>window.roRecoverTrebloSong(item.id);
-      row.append(art,title,play);root.append(row);
+      const remove=document.createElement('button');remove.type='button';remove.className='btn';remove.textContent='Delete';remove.onclick=()=>window.roDeleteSong(item.id);row.append(art,title,play,remove);root.append(row);
     }
   };
   const originalStudioForSongLibrary=window.studio;
@@ -797,9 +797,27 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const existing=roLibraryRead().find(x=>x.id===id)||{};
     const response=await fetch('/api/music/library',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({taskId:id,title:details.title||existing.title||'My AI Song',voice:details.voice||existing.voice||'auto'})});
     const result=await response.json();
-    if(!response.ok){toast(result.error||'Cloud save failed');return}
+    if(!response.ok){roLibraryUpsert(id,{cloudSaved:false,status:'Cloud save failed'});toast(result.error||'Cloud save failed');return {ok:false,error:result.error||'Cloud save failed'}}
     roLibraryUpsert(id,{cloudSaved:result.cloudSaved,status:result.cloudSaved?'Cloud saved':'Pending cloud save',url:result.url||existing.url});
     if(result.warning)toast('Cloud backup pending: '+result.warning);
+    return {ok:!!result.cloudSaved,warning:result.warning||null};
+  };
+  window.roDeleteSong=async function(id){
+    const song=roLibraryRead().find(x=>x.id===id);
+    if(!song)return;
+    if(!confirm('Permanently delete "'+(song.title||'My AI Song')+'" from your cloud library and archived audio? This cannot be undone.'))return;
+    const token=await roCloudToken();
+    if(!token)return toast('Log in to delete your song');
+    try{
+      const response=await fetch('/api/music/library',{method:'DELETE',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({taskId:id})});
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok){toast(result.error||'Server deletion failed. Song was not removed from this browser.');return}
+      localStorage.setItem(roLibraryKey(),JSON.stringify(roLibraryRead().filter(x=>x.id!==id)));
+      if(localStorage.getItem(trebleStorageKey)===id)localStorage.removeItem(trebleStorageKey);
+      localStorage.removeItem('ro_treblo_song_title_'+id);
+      window.roRenderMyStudioSongs?.();window.roRenderSongLibrary?.();
+      toast('Song deleted from cloud storage and your library');
+    }catch(e){toast('Server request failed; song was not deleted')}
   };
   const roOldRenderCloud=window.render;
   window.render=function(...args){
@@ -843,6 +861,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       const actions=document.createElement('div');actions.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
       const play=document.createElement('button');play.className='btn';play.textContent='▶ Play in AI Studio';play.onclick=()=>{go('studio');setTimeout(()=>window.roRecoverTrebloSong(song.id),100)};
       actions.append(play);
+      const remove=document.createElement('button');remove.className='btn';remove.textContent='🗑 Delete song';remove.onclick=()=>window.roDeleteSong(song.id);actions.append(remove);
       if(song.url){
         const audio=document.createElement('audio');audio.controls=true;audio.preload='metadata';audio.src=song.url;audio.style.cssText='width:100%;margin-top:10px';details.append(audio);roAttachTime(audio);
       }
@@ -892,7 +911,10 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const info=document.createElement('p');info.textContent='Save your song soon: Treblo audio URLs can expire. Task ID: '+id;info.style.cssText='font-size:12px;color:#aaa;margin-top:14px;overflow-wrap:anywhere';
     card.append(cover,name,subtitle,audio,row,info);box.append(card);roAttachTime(audio);
     roLibraryUpsert(id,{title:name.textContent,status:'Ready',url});
-    window.roSaveSongToCloud(id,{title:name.textContent}).catch(e=>console.warn('Cloud archive:',e));
+    const notice=document.createElement('p');notice.className='muted small';notice.textContent='Saving permanent copy to cloud…';card.append(notice);
+    window.roSaveSongToCloud(id,{title:name.textContent}).then(result=>{
+      notice.textContent=result?.ok?'✓ Permanently saved to cloud storage':('Cloud backup not confirmed. '+(result?.error||result?.warning||'Check Supabase setup or retry recovery.'));
+    }).catch(e=>{notice.textContent='Cloud backup failed: '+(e.message||'Server request failed');console.warn('Cloud archive:',e)});
   }
   window.roRecoverTrebloSong=async function(id){
     const box=document.getElementById('roMurekaResult');
@@ -910,7 +932,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       for(let attempt=0;attempt<90;attempt++){
         const response=await fetch('/api/music/prediction/'+encodeURIComponent(id),{headers:{Authorization:'Bearer '+session.access_token}});
         const task=await response.json();
-        if(!response.ok)throw Error(task.error||'Unable to fetch song');
+        if(!response.ok)throw Error((task.error||'Unable to fetch song')+' (HTTP '+response.status+')');
         if(task.status==='failed')throw Error(task.error||'Song generation failed');
         if(task.status==='succeeded'&&task.output){showTrebloPlayer(box,String(task.output),id);return;}
         box.textContent='Your song is still processing… Task ID: '+id;

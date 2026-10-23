@@ -249,6 +249,26 @@ export async function handleApi(req, res) {
       if(!save.ok)return send(res,503,{error:'Unable to save cloud song record',detail:save.data?.message});
       return send(res,200,{id,cloudSaved:!!storagePath,warning,url:await signedAudio(storagePath)});
     }
+    if (req.method === 'DELETE' && path === '/api/music/library') {
+      const user=await auth(req,res);if(!user)return;
+      const id=String(data.taskId||'').trim();
+      if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id))return send(res,400,{error:'Invalid song task ID'});
+      const found=await supaFetch('/rest/v1/generated_songs?user_id=eq.'+encodeURIComponent(user.id)+'&task_id=eq.'+encodeURIComponent(id)+'&select=storage_path&limit=1');
+      if(!found.ok)return send(res,503,{error:'Cloud song library unavailable'});
+      if(!found.data?.length)return send(res,404,{error:'Song is not stored in your cloud library'});
+      const storagePath=found.data[0].storage_path;
+      if(storagePath){
+        const c=config();
+        const removed=await fetch(c.url+'/storage/v1/object/song-audio/'+storagePath.split('/').map(encodeURIComponent).join('/'),{
+          method:'DELETE',headers:{apikey:c.service,Authorization:'Bearer '+c.service},
+          signal:AbortSignal.timeout(12000)
+        }).catch(()=>null);
+        if(!removed?.ok)return send(res,502,{error:'Audio could not be deleted from cloud storage. Song record was kept.'});
+      }
+      const deleted=await supaFetch('/rest/v1/generated_songs?user_id=eq.'+encodeURIComponent(user.id)+'&task_id=eq.'+encodeURIComponent(id),{method:'DELETE',headers:{Prefer:'return=minimal'}});
+      if(!deleted.ok)return send(res,503,{error:'Audio removed, but database record deletion failed. Retry deletion.'});
+      return send(res,200,{deleted:true,id,archivedAudioDeleted:!!storagePath});
+    }
     if (req.method === 'GET' && path === '/api/music/history') {
       if (!rate(req, res)) return;
       const user = await auth(req, res);
