@@ -735,6 +735,18 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
   };
   const trebleStorageKey='ro_treblo_last_task';
   const roLibraryKey=()=> 'ro_treblo_library_'+(state.user?.id||'guest');
+  // Move legacy/guest entries into the signed-in library without erasing originals.
+  function roMergeLegacySongEntries(){
+    if(!state.user?.id)return;
+    const destination=roLibraryKey();
+    const keys=['ro_treblo_library_guest','ro_treblo_library_undefined','ro_treblo_library_null'];
+    const merged=new Map();
+    for(const key of [destination,...keys]){
+      try{const rows=JSON.parse(localStorage.getItem(key)||'[]');if(Array.isArray(rows))for(const row of rows){if(row?.id&&!merged.has(row.id))merged.set(row.id,row)}}catch{}
+    }
+    if(merged.size)localStorage.setItem(destination,JSON.stringify([...merged.values()].slice(0,100)));
+  }
+
   function roLibraryRead(){try{return JSON.parse(localStorage.getItem(roLibraryKey())||'[]')}catch{return []}}
   function roLibraryUpsert(id,patch={}){
     const items=roLibraryRead().filter(x=>x.id!==id);
@@ -744,6 +756,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     window.roRenderSongLibrary();
   }
   window.roRenderSongLibrary=function(){
+    roMergeLegacySongEntries();
     const root=document.getElementById('roSongLibraryItems');if(!root)return;
     root.replaceChildren();
     const items=roLibraryRead();
@@ -760,7 +773,9 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     }
   };
   const originalStudioForSongLibrary=window.studio;
-  window.studio=function(...args){const page=originalStudioForSongLibrary.apply(this,args);queueMicrotask(()=>window.roRenderSongLibrary());return page};
+  window.studio=function(...args){return originalStudioForSongLibrary.apply(this,args)};
+  const roBaseRenderWithLibrary=window.render;
+  window.render=function(...args){const result=roBaseRenderWithLibrary.apply(this,args);if(state.page==='studio')window.roRenderSongLibrary();return result};
   function showTrebloPlayer(box,url,id){
     box.replaceChildren();
     const card=document.createElement('section');
