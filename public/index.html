@@ -73,6 +73,7 @@ function askHelp(){const q=$('helpInput').value.toLowerCase().trim();if(!q)retur
 function supportEmail(){const m=$('supportInput').value.trim();if(!m)return toast('Describe your request first');location.href='mailto:dtipun@gmail.com?subject='+encodeURIComponent('RhymeOrbit support')+'&body='+encodeURIComponent(m)}
 window.addEventListener('keydown',e=>{if(e.key==='Escape')closeAuth()});
 const initial=location.hash.slice(1);if(['home','discover','studio','projects','listen','community','match','profile','help','about','privacy','terms'].includes(initial))state.page=initial;render();
+</script>
   
 <!-- RHYMEORBIT ADMIN DASHBOARD -->
 <style>
@@ -516,4 +517,4 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
 })();
 </script>
 <!-- END RHYMEORBIT ADMIN DASHBOARD -->
-</script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script src="/integration.js"></script><script src="/social.js"></script><script src="/media.js"></script></body></html>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script src="/integration.js"></script><script src="/social.js"></script><script src="/media.js"></script></body></html>
