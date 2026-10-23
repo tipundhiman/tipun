@@ -641,4 +641,52 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     }
   };
 })();
+</script><script>
+/* Admin-only Mureka test. Public generation stays gated on server. */
+(function(){
+  const previousStudio=studio;
+  studio=function(){
+    const page=previousStudio();
+    const anchor='<div id="roCanvasGenerationStatus"';
+    if(!page.includes(anchor))return page;
+    const extra='<div class="field" style="margin-top:12px"><label for="roMusicStyle">Music style (Mureka test)</label><input id="roMusicStyle" maxlength="1024" placeholder="Hindi pop, guitar, male vocals, 95 BPM"></div><button class="btn gold" type="button" onclick="roStartMurekaTest()">♫ Test Real Song (admin only, paid API)</button><div id="roMurekaResult" style="margin-top:12px" aria-live="polite"></div>';
+    return page.replace(anchor,extra+anchor);
+  };
+  window.roStartMurekaTest=async function(){
+    const lyrics=document.getElementById('songLyrics')?.value.trim()||'';
+    const style=document.getElementById('roMusicStyle')?.value.trim()||'';
+    const box=document.getElementById('roMurekaResult');
+    if(!box)return;
+    if(lyrics.length<20||style.length<5)return toast('Add lyrics and a music style first');
+    if(!confirm('Start ONE paid Mureka V7.6 song generation? Provider charges may apply.'))return;
+    const session=(await sb.auth.getSession()).data.session;
+    if(!session?.access_token)return toast('Log in first');
+    box.textContent='Starting your song…';
+    try{
+      const headers={'Content-Type':'application/json',Authorization:'Bearer '+session.access_token};
+      const start=await fetch('/api/music/generate',{method:'POST',headers,body:JSON.stringify({lyrics,prompt:style})});
+      const data=await start.json();
+      if(!start.ok)throw Error(data.error||'Could not start song');
+      box.textContent='Song is processing. Please keep this page open.';
+      for(let attempt=0;attempt<90;attempt++){
+        await new Promise(resolve=>setTimeout(resolve,5000));
+        const response=await fetch('/api/music/prediction/'+encodeURIComponent(data.id),{headers:{Authorization:headers.Authorization}});
+        const task=await response.json();
+        if(!response.ok)throw Error(task.error||'Status unavailable');
+        if(task.status==='failed')throw Error(task.error||'Song generation failed');
+        if(task.status==='succeeded'){
+          if(!task.output)throw Error('Song finished but no playable audio URL was returned. Check task output.');
+          const url=String(task.output);
+          if(!/^https:\/\//.test(url))throw Error('Invalid audio URL');
+          box.replaceChildren();
+          const audio=document.createElement('audio');audio.controls=true;audio.src=url;audio.style.width='100%';
+          const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Open / Download Song';link.className='btn gold';
+          box.append(audio,link);
+          return;
+        }
+      }
+      box.textContent='Still processing. Check Mureka dashboard for the task result.';
+    }catch(e){box.textContent=e.message||'Song generation failed'}
+  };
+})();
 </script></body></html>
