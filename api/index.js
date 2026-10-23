@@ -168,43 +168,6 @@ export async function handleApi(req, res) {
         aiConfigured: !!env('GEMINI_API_KEY')
       });
     }
-    if (req.method === 'GET' && path === '/api/ccmixter') {
-      if (!rate(req, res)) return;
-      const mood = String(raw.searchParams.get('mood') || 'all').toLowerCase();
-      const allowed = { all: '', chill: 'ambient', romantic: 'love', party: 'dance', focus: 'instrumental', jazz: 'jazz', rock: 'rock' };
-      if (!Object.hasOwn(allowed, mood)) return send(res, 400, { error: 'Invalid mood' });
-      const offset = Math.min(200, Math.max(0, Number.parseInt(raw.searchParams.get('offset') || '0', 10) || 0));
-      const query = new URL('https://ccmixter.org/api/query');
-      for (const [k, v] of Object.entries({ f: 'json', dataview: 'info', lic: 'by', limit: '20', offset: String(offset), sort: 'num_scores', ord: 'DESC' })) query.searchParams.set(k, v);
-      if (allowed[mood]) query.searchParams.set('tags', allowed[mood]);
-      try {
-        const upstream = await fetch(query, { headers: { Accept: 'application/json', 'User-Agent': 'RhymeOrbit/1.0 (music discovery)' }, signal: AbortSignal.timeout(9000) });
-        if (!upstream.ok) return send(res, 502, { error: 'ccMixter API is currently unavailable (' + upstream.status + ')' });
-        const rawText = await upstream.text();
-        if (rawText.length > 900000) return send(res, 502, { error: 'Music catalog response too large' });
-        let payload;
-        try { payload = JSON.parse(rawText); } catch { return send(res, 502, { error: 'ccMixter did not return valid JSON' }); }
-        const rows = Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : [];
-        const safeUrl = value => {
-          try { const u = new URL(String(value || '')); return u.protocol === 'https:' && (u.hostname === 'ccmixter.org' || u.hostname.endsWith('.ccmixter.org')) ? u.href : null; }
-          catch { return null; }
-        };
-        const items = rows.map(row => {
-          const files = Array.isArray(row.files) ? row.files : Array.isArray(row.upload_files) ? row.upload_files : [];
-          const file = files.find(x => /audio\/(mpeg|mp3|ogg|wav)|\.mp3(\?|$)|\.ogg(\?|$)/i.test([x.file_format_info?.media_type,x.file_mime,x.file_name,x.download_url].join(' '))) || files[0] || {};
-          const audio = safeUrl(file.download_url || file.file_download_url || file.download_link || row.file_download_url);
-          const license = safeUrl(row.license_url || row.upload_license_url || row.lic_url);
-          const licenseCode = String(row.license_name || row.license_code || row.lic_name || '');
-          const isBy = (license && /^https:\/\/creativecommons\.org\/licenses\/by\/\d/i.test(license)) || (!license && /^attribution(?:\s|$)|^cc\s*by(?:\s|$)/i.test(licenseCode));
-          const page = safeUrl(row.upload_url || row.file_page_url || row.url) || (Number.isSafeInteger(Number(row.upload_id)) ? 'https://ccmixter.org/files/' + encodeURIComponent(String(row.user_name || row.upload_user || '')) + '/' + encodeURIComponent(String(row.upload_id)) : null);
-          if (!audio || !page || !isBy) return null;
-          return { id: String(row.upload_id || row.id || audio).slice(0,100), title: String(row.upload_name || row.title || 'Untitled').slice(0,150), artist: String(row.user_real_name || row.user_name || row.upload_user || 'ccMixter artist').slice(0,100), audio, page, license: license || 'https://creativecommons.org/licenses/by/4.0/', licenseName: 'CC BY', tags: String(row.upload_tags || row.tags || '').slice(0,250) };
-        }).filter(Boolean);
-        return send(res, 200, { items, mood, source: 'ccMixter', note: 'Only verified CC BY metadata with direct audio is returned. Check attribution before publishing.' });
-      } catch (error) {
-        return send(res, 502, { error: 'ccMixter could not be reached. Please retry later.' });
-      }
-    }
     if (req.method === 'GET' && path === '/api/youtube') {
       if (!rate(req, res)) return;
       const key = env('YOUTUBE_API_KEY');
