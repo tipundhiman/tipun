@@ -615,16 +615,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
 /* RhymeOrbit quick upgrade: in-canvas lyrics generation. */
 (function () {
   'use strict';
-  const previousStudio = studio;
-  studio = function () {
-    let html = previousStudio();
-    const anchor = '<div class="row"><span id="roAutosaveStatus"';
-    if (html.includes('id="roCanvasGenerate"') || !html.includes(anchor)) return html;
-    const controls = '<div class="field" style="margin-top:17px"><label for="roCanvasPrompt">Describe your song</label><textarea id="roCanvasPrompt" style="min-height:90px" maxlength="1500" placeholder="e.g. A heartfelt Haryanvi friendship song, powerful chorus, male voice..."></textarea></div>' +
-      '<div class="row" style="margin:12px 0 18px;align-items:center"><button class="btn gold" type="button" id="roCanvasGenerate" onclick="roGenerateCanvasLyrics()">✧ Generate Lyrics</button><button class="btn" type="button" onclick="roCanvasSongNotice()">♫ Generate Song</button></div>' +
-      '<div id="roCanvasGenerationStatus" aria-live="polite" style="margin-bottom:12px"></div>';
-    return html.replace(anchor, controls + anchor);
-  };
+  // AI Studio fields and buttons are rendered by the canonical studio() template above.
   const roVibeExamples=[
     'a rainy midnight drive','first love in a small town','Haryanvi friendship anthem',
     'missing home during Diwali','a late-night heartbreak','a playful wedding dance',

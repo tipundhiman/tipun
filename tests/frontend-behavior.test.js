@@ -84,3 +84,12 @@ test('Membership popup blocks guests, shows all three plans and closes on signou
  runInContext('window.roCloseMemberships()',ctx);
  assert.equal(dialogs[0].removed,true);
 });
+
+test('AI Studio has a single canonical set of song-generation controls',()=>{
+ const app=start();
+ app.exec("state.user={id:'real-user',name:'Test Creator'};state.page='studio'");
+ const studio=app.exec('studio()');
+ for(const id of ['roCanvasGenerate','roCanvasPrompt','roCanvasGenerationStatus']){
+  assert.equal(studio.split('id="'+id+'"').length-1,1,'Duplicate or missing '+id);
+ }
+});
