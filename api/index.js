@@ -374,12 +374,18 @@ export async function handleApi(req, res) {
         }
         reservationId = reserved.data;
       }
-      const response = await fetch('https://api.treblo.com/v1/generations/v3', {
+      let response;
+      try {
+        response = await fetch('https://api.treblo.com/v1/generations/v3', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + env('TREBLO_API_KEY'), 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: voice === 'auto' ? prompt : prompt + '. Vocal direction: ' + (voice === 'duet' ? 'male and female duet, distinct alternating singers' : voice + ' lead singer only') + '.', lyrics, instrumental: false }),
         signal: AbortSignal.timeout(25000)
       });
+      } catch (error) {
+        if (reservationId) await rpc('ro_finish_song', { p_user: user.id, p_reservation: reservationId, p_task: null, p_success: false });
+        throw error;
+      }
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.task_id) {
         if (reservationId) await rpc('ro_finish_song', { p_user: user.id, p_reservation: reservationId, p_task: null, p_success: false });
