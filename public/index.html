@@ -615,7 +615,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       'Return only the lyrics.'
     ].filter(Boolean).join('\n');
     button.disabled = true;
-    result.textContent = 'Generating lyrics with Gemini…';
+    result.textContent = '✦ Creating your lyrics…';
     try {
       const session = (await sb.auth.getSession()).data.session;
       if (!session?.access_token) throw new Error('Session expired. Log in again.');
