@@ -11,6 +11,13 @@ async function aiGenerate(kind,input){const key=env('GEMINI_API_KEY');if(!key)re
 const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({systemInstruction:{parts:[{text:prompts[kind]}]},contents:[{parts:[{text:input.slice(0,12000)}]}],generationConfig:{maxOutputTokens:1100,temperature:.75}}),signal:AbortSignal.timeout(30000)});
 const result=await r.json();if(!r.ok)return {error:result.error?.message||'AI provider failed'};return {text:result.candidates?.[0]?.content?.parts?.map(x=>x.text||'').join('')||'No text returned'};}
 export async function handleApi(req,res){try{
+  const incomingUrl = req.url || '';
+  const originalUrl = req.headers['x-vercel-original-url'] || '';
+  const requestPath = originalUrl || incomingUrl;
+
+  if (incomingUrl === '/api/index.js' || incomingUrl === '/index.js') {
+    req.url = requestPath === incomingUrl ? '/api/health' : requestPath;
+  }
   if(req.url==='/api/index.js'){
     const originalUrl=req.headers['x-vercel-original-url'];
     if(originalUrl)req.url=originalUrl;
