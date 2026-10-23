@@ -228,6 +228,8 @@ export async function handleApi(req, res) {
       return send(res,200,{items});
     }
     if (req.method === 'POST' && path === '/api/music/library') {
+      if (!rate(req, res)) return;
+      const data = await body(req);
       const user=await auth(req,res);if(!user)return;
       if(!await isAdmin(user.id))return send(res,403,{error:'Admin testing only'});
       const id=String(data.taskId||'').trim();
@@ -250,6 +252,8 @@ export async function handleApi(req, res) {
       return send(res,200,{id,cloudSaved:!!storagePath,warning,url:await signedAudio(storagePath)});
     }
     if (req.method === 'DELETE' && path === '/api/music/library') {
+      if (!rate(req, res)) return;
+      const data = await body(req);
       const user=await auth(req,res);if(!user)return;
       const id=String(data.taskId||'').trim();
       if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id))return send(res,400,{error:'Invalid song task ID'});
