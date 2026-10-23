@@ -962,18 +962,35 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
 #roOrbitHelpAnswer{margin:12px 0;white-space:pre-wrap;line-height:1.55;max-height:190px;overflow:auto}
 @media(max-width:640px){#roOrbitHelpButton{right:12px;bottom:14px;padding:11px 14px}#roOrbitHelpPanel{right:12px;bottom:68px}}
 </style>
-<button id="roOrbitHelpButton" type="button" onclick="roToggleOrbitHelp()" aria-label="Open Orbit Help">✦ Orbit Help</button>
-<section id="roOrbitHelpPanel" hidden role="dialog" aria-label="Orbit Help assistant">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><strong style="font-size:18px">✦ Orbit Help</strong><button class="btn sm" type="button" onclick="roToggleOrbitHelp(false)" aria-label="Close help">✕</button></div>
-<p style="color:#bcb4b9">Ask about AI Studio, generated songs, uploads, or your account.</p>
-<textarea id="roOrbitHelpQuestion" placeholder="How do I find my saved songs?"></textarea>
-<div style="display:flex;gap:8px;margin-top:10px"><button class="btn gold sm" type="button" onclick="roAskOrbitHelp()">Ask assistant ↗</button><button class="btn sm" type="button" onclick="roToggleOrbitHelp(false);go('help')">Help Center</button></div>
+<button id="roOrbitHelpButton" type="button" onclick="roToggleOrbitHelp()" aria-label="Chat with Riya Grover">✦ Ask Riya</button>
+<section id="roOrbitHelpPanel" hidden role="dialog" aria-label="Riya Grover AI assistant">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><strong style="font-size:18px">✦ Riya Grover · AI Guide</strong><button class="btn sm" type="button" onclick="roToggleOrbitHelp(false)" aria-label="Close help">✕</button></div>
+<p style="color:#bcb4b9">Ask Riya anything, in your language. She can explain RhymeOrbit, music, and more.</p>
+<textarea id="roOrbitHelpQuestion" placeholder="Riya, RhymeOrbit dusre AI se kaise alag hai?"></textarea>
+<div style="display:flex;gap:8px;margin-top:10px"><button class="btn gold sm" type="button" onclick="roAskOrbitHelp()">Ask Riya ↗</button><button class="btn sm" type="button" onclick="roToggleOrbitHelp(false);go('help')">Help Center</button></div>
 <div id="roOrbitHelpAnswer" role="status" aria-live="polite"></div>
 </section>
 <script>
 function roToggleOrbitHelp(force){const panel=document.getElementById('roOrbitHelpPanel');if(!panel)return;panel.hidden=typeof force==='boolean'?!force:!panel.hidden;if(!panel.hidden)document.getElementById('roOrbitHelpQuestion')?.focus()}
-async function roAskOrbitHelp(){const q=document.getElementById('roOrbitHelpQuestion')?.value.trim(),out=document.getElementById('roOrbitHelpAnswer');if(!q||!out)return;out.textContent='Thinking…';const low=q.toLowerCase();const known=low.includes('song')||low.includes('music')?'Your generated songs are in My Studio. Use AI Studio to generate or recover an existing song with its task ID.':low.includes('upload')||low.includes('media')?'Open Media to upload and manage your photos, videos and audio files.':low.includes('logout')||low.includes('sign out')?'Use the Log out button at the top-right.':low.includes('login')||low.includes('account')?'Use Log in or Join the orbit in the top navigation.':low.includes('lyric')?'Open AI Studio, describe your idea and select Generate Lyrics.':'I can help with songs, lyrics, Media, My Studio and account navigation. You can also open the Help Center.';
-try{if(typeof sb==='undefined'||!sb){out.textContent=known;return}const {data:{session}}=await sb.auth.getSession();if(!session){out.textContent=known;return}const response=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({type:'help',prompt:'You are Orbit Help, a friendly concise RhymeOrbit website assistant. Answer this question in the same language as asked. Website features: AI Studio generates lyrics and songs via Treblo; My Studio saves songs; Media is for user-uploaded photos, videos, audio; logout top-right. Never invent account status or actions. Question: '+q})});const data=await response.json();const answer=data.result||data.text||data.output||data.response;if(!response.ok||typeof answer!=='string')throw Error('No AI response');out.textContent=answer.slice(0,2000)}catch(e){out.textContent=known}}
+async function roAskOrbitHelp(){
+ const q=document.getElementById('roOrbitHelpQuestion')?.value.trim();
+ const out=document.getElementById('roOrbitHelpAnswer');
+ if(!q||!out)return;
+ if(q.length>4000){out.textContent='Please shorten your question to 4,000 characters.';return}
+ out.textContent='Riya is thinking…';
+ const btn=document.querySelector('#roOrbitHelpPanel button[onclick="roAskOrbitHelp()"]');
+ if(btn)btn.disabled=true;
+ try{
+   if(typeof sb==='undefined'||!sb)throw Error('AI service is unavailable. Please try again later.');
+   const session=(await sb.auth.getSession()).data?.session;
+   if(!session?.access_token){out.textContent='Please log in to chat with Riya Grover. You can still explore the Help Center without logging in.';return}
+   const response=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({kind:'help',input:q})});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok)throw Error(data.error||'Riya is temporarily unavailable.');
+   out.textContent=typeof data.text==='string'&&data.text.trim()?data.text.slice(0,6000):'Riya could not generate a reply. Please try again.';
+ }catch(e){out.textContent=e.message||'Riya is temporarily unavailable.'}
+ finally{if(btn)btn.disabled=false}
+}
 </script>
 
 <style>
