@@ -256,12 +256,13 @@ export async function handleApi(req, res) {
       if (!await isAdmin(user.id)) return send(res, 403, { error: 'Music generation is in admin testing' });
       if (!env('TREBLO_API_KEY')) return send(res, 503, { error: 'Treblo API key is not configured' });
       const lyrics = String(data.lyrics || '').trim();
+      const voice = ['male','female','duet','auto'].includes(data.voice) ? data.voice : 'auto';
       const prompt = String(data.prompt || '').trim();
       if (lyrics.length < 20 || lyrics.length > 5000 || prompt.length < 5 || prompt.length > 1024) return send(res, 400, { error: 'Enter lyrics (20–5000 characters) and music style (5–1024 characters)' });
       const response = await fetch('https://api.treblo.com/v1/generations/v3', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + env('TREBLO_API_KEY'), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, lyrics, instrumental: false }),
+        body: JSON.stringify({ prompt: voice === 'auto' ? prompt : prompt + '. Vocal direction: ' + (voice === 'duet' ? 'male and female duet, distinct alternating singers' : voice + ' lead singer only') + '.', lyrics, instrumental: false }),
         signal: AbortSignal.timeout(25000)
       });
       const result = await response.json().catch(() => ({}));
