@@ -3,31 +3,43 @@ let sb=null,remoteReady=false;
 async function initBackend(){try{const c=await (await fetch('/api/config')).json();if(!c.supabaseUrl||!c.supabaseAnonKey){console.info('Backend configuration missing');return}if(!window.supabase){toast('Authentication library unavailable');return}sb=window.supabase.createClient(c.supabaseUrl,c.supabaseAnonKey);remoteReady=true;const {data:{session}}=await sb.auth.getSession();await syncSession(session);sb.auth.onAuthStateChange((event,s)=>{if(event==='PASSWORD_RECOVERY'){state.authMode='change';setTimeout(renderAuth,0)}setTimeout(()=>syncSession(s),0)});}catch(e){console.error('Backend initialization:',e)}}
 async function syncSession(session){if(!remoteReady)return;if(!session){state.user=null;state.projects=[];render();return}const {data:profile}=await sb.from('profiles').select('username,display_name,bio').eq('id',session.user.id).maybeSingle();state.user={id:session.user.id,name:profile?.display_name||session.user.user_metadata?.display_name||'Creator',username:profile?.username||'',email:session.user.email,bio:profile?.bio||'',firstName:session.user.user_metadata?.first_name||'',lastName:session.user.user_metadata?.last_name||'',homeState:session.user.user_metadata?.home_state||''};const {data:projects,error}=await sb.from('projects').select('id,title,lyrics,genre,mood,language,updated_at').order('updated_at',{ascending:false});if(error)console.error(error);state.projects=projects||[];render();roWelcomeBack()}
 let roWelcomedUser=null;
-let roWelcomeIndex=0;
+let roWelcomeSerial=0;
 function roWelcomeBack(){
  const user=state.user;if(!user||roWelcomedUser===user.id)return;
  roWelcomedUser=user.id;
- const clean=s=>String(s||'').trim().replace(/[^\\p{L}\\p{N} .'-]/gu,'').slice(0,50);
- const first=clean(user.firstName||user.name?.split(' ')[0]||'Creator');
- const last=clean(user.lastName||(!user.firstName?user.name?.split(' ').slice(1).join(' '):''));
- const full=(first+' '+last).trim()||'Creator';
+ const safe=s=>String(s||'').trim().replace(/[^\p{L}\p{N} .'-]/gu,'').slice(0,55);
+ const display=safe(user.name);
+ const first=safe(user.firstName)||safe(display.split(/\s+/)[0]);
+ const last=safe(user.lastName)||(!user.firstName?safe(display.split(/\s+/).slice(1).join(' ')):'');
+ const full=[first,last].filter(Boolean).join(' ').trim();
+ const name=full&&full.toLowerCase()!=='creator'&&full.length>1?full:'';
  const hour=Number(new Intl.DateTimeFormat('en-GB',{hour:'numeric',hourCycle:'h23',timeZone:'Asia/Kolkata'}).format(new Date()));
  const daypart=hour>=5&&hour<12?'Good morning':hour>=12&&hour<17?'Good afternoon':hour>=17&&hour<21?'Good evening':'Good night';
  const taglines=['Let your next melody become magic!','Your creativity deserves the spotlight!','A beautiful song begins with one idea!','Keep singing, keep shining, keep creating!','Your music journey starts with a spark!','Make something wonderful today!','Every great artist starts with a dream!'];
- let lastIndex=Number(sessionStorage.getItem('roWelcomeLastIndex')||'-1');
- roWelcomeIndex=(lastIndex+1)%taglines.length;
- sessionStorage.setItem('roWelcomeLastIndex',String(roWelcomeIndex));
- const greeting=daypart+', '+full+'! Welcome to RhymeOrbit. '+taglines[roWelcomeIndex];
+ const previous=Number(sessionStorage.getItem('roWelcomeLastIndex')||'-1');
+ const index=(previous+1)%taglines.length;sessionStorage.setItem('roWelcomeLastIndex',String(index));
+ const greeting=daypart+(name?', '+name:'')+'! Welcome to RhymeOrbit. '+taglines[index];
  toast(greeting);
+ const serial=++roWelcomeSerial;
  try{if('speechSynthesis' in window){
-  window.speechSynthesis.cancel();const say=()=>{const utterance=new SpeechSynthesisUtterance(greeting);const voices=window.speechSynthesis.getVoices();const preferred=voices.find(v=>/female|zira|heera|samantha|google uk english female|veena|neerja/i.test(v.name)&&/en/i.test(v.lang))||voices.find(v=>/en-IN/i.test(v.lang))||voices.find(v=>/en/i.test(v.lang));if(preferred)utterance.voice=preferred;utterance.lang=preferred?.lang||'en-IN';utterance.rate=1.18;utterance.pitch=1.18;utterance.volume=.85;window.speechSynthesis.speak(utterance)};if(window.speechSynthesis.getVoices().length)say();else{window.speechSynthesis.addEventListener('voiceschanged',say,{once:true});setTimeout(say,600)}}
- }catch(e){console.warn('Voice welcome unavailable',e)}
+   window.speechSynthesis.cancel();
+   const say=()=>{if(serial!==roWelcomeSerial||roWelcomedUser!==user.id)return;
+     const utterance=new SpeechSynthesisUtterance(greeting);
+     const voices=window.speechSynthesis.getVoices();
+     const preferred=voices.find(v=>/female|zira|heera|samantha|veena|neerja/i.test(v.name)&&/en/i.test(v.lang))||voices.find(v=>/en-IN/i.test(v.lang))||voices.find(v=>/en/i.test(v.lang));
+     if(preferred)utterance.voice=preferred;
+     utterance.lang=preferred?.lang||'en-IN';utterance.rate=1.16;utterance.pitch=1.13;utterance.volume=.85;
+     window.speechSynthesis.speak(utterance);
+   };
+   // Speak only once; don't schedule both a voice-load event and a fallback timer.
+   say();
+ }}catch(e){console.warn('Voice welcome unavailable',e)}
 }
 
 openAuth=function(mode='signup'){if(!remoteReady)return toast('Login is not configured. Set up Supabase first.');state.authMode=mode;renderAuth()};
 renderAuth=function(){const mode=state.authMode,login=mode==='login',signup=mode==='signup',forgot=mode==='forgot',change=mode==='change';$('overlay').innerHTML=`<div class="modal-layer" onclick="if(event.target===this)closeAuth()"><div class="modal" role="dialog" aria-modal="true"><button class="btn sm close" onclick="closeAuth()">✕</button><div class="eyebrow">RHYMEORBIT ACCOUNT</div><h2>${signup?'Join the orbit.':forgot?'Reset password.':change?'New password.':'Welcome back.'}</h2><p class="muted">${forgot?'We’ll email a secure reset link.':signup?'Create a real account. Verify your email to activate it.':change?'Choose a strong new password.':'Log in with your username and password.'}</p><form onsubmit="submitAuth(event)">${signup?`<div class="field"><label>First name</label><input id="authFirstName" required maxlength="40" autocomplete="given-name"></div><div class="field"><label>Last name</label><input id="authLastName" required maxlength="40" autocomplete="family-name"></div><div class="field"><label>State / Region</label><input id="authHomeState" required maxlength="80" autocomplete="address-level1" placeholder="e.g. Haryana"></div>`:''}${signup?`<div class="field"><label>Username (3–24 characters, letters/numbers/_)</label><input id="authUsername" required pattern="[a-zA-Z0-9_]{3,24}" autocomplete="username"></div>`:''}${signup||forgot?`<div class="field"><label>Email</label><input id="authEmail" type="email" required autocomplete="email"></div>`:''}${login?`<div class="field"><label>Username</label><input id="authUsername" required autocomplete="username"></div>`:''}${!forgot?`<div class="field"><label>${change?'New password':'Password'}</label><input id="authPassword" type="password" minlength="8" required autocomplete="${signup||change?'new-password':'current-password'}"></div>`:''}<button class="btn gold" type="submit" style="width:100%">${signup?'Create account':forgot?'Send reset link':change?'Update password':'Log in'} ↗</button></form><div class="row" style="margin-top:16px">${login?`<button class="navlink" onclick="state.authMode='forgot';renderAuth()">Forgot password?</button>`:''}<button class="navlink" onclick="state.authMode='${signup?'login':'signup'}';renderAuth()">${signup?'Already registered? Log in':'Create account'}</button></div><p class="muted small">Password reset requires access to your registered email.</p></div></div>`};
 submitAuth=async function(e){e.preventDefault();if(!sb)return;const mode=state.authMode;const password=$('authPassword')?.value;const email=$('authEmail')?.value.trim().toLowerCase();const username=$('authUsername')?.value.trim().toLowerCase();const firstName=$('authFirstName')?.value.trim()||'';const lastName=$('authLastName')?.value.trim()||'';const homeState=$('authHomeState')?.value.trim()||'';const name=(firstName+' '+lastName).trim();try{let result;if(mode==='signup'){result=await sb.auth.signUp({email,password,options:{data:{username,display_name:name,first_name:firstName,last_name:lastName,home_state:homeState},emailRedirectTo:location.origin+'/#projects'}});if(result.error)throw result.error;closeAuth();toast('Account requested. Check your email to verify it.');return}if(mode==='forgot'){result=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+'/#profile'});if(result.error)throw result.error;closeAuth();toast('If this email is registered, a reset link will arrive.');return}if(mode==='change'){result=await sb.auth.updateUser({password});if(result.error)throw result.error;closeAuth();toast('Password updated');return}const r=await fetch('/api/username-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});const data=await r.json();if(!r.ok)throw Error(data.error||'Login failed');result=await sb.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});if(result.error)throw result.error;closeAuth();toast('Welcome back ✦');await syncSession(result.data.session);go(state.pending||'projects');state.pending=null}catch(err){toast(err.message||'Authentication failed')}};
-logout=async function(){if(!sb)return;await sb.auth.signOut();roWelcomedUser=null;state.user=null;state.projects=[];state.editId=null;go('home');toast('Signed out')};
+logout=async function(){if(!sb)return;await sb.auth.signOut();roWelcomeSerial++;window.speechSynthesis?.cancel();roWelcomedUser=null;state.user=null;state.projects=[];state.editId=null;go('home');toast('Signed out')};
 saveProject=async function(){if(!requireUser('studio')||!sb)return;const title=$('songTitle').value.trim(),lyrics=$('songLyrics').value.trim();if(!title||!lyrics)return toast('Add title and lyrics');const payload={user_id:state.user.id,title,lyrics,genre:$('songGenre').value,mood:$('songMood').value,language:$('songLanguage').value,updated_at:new Date().toISOString()};if(state.editId)payload.id=state.editId;const {error}=await sb.from('projects').upsert(payload);if(error)return toast('Save failed: '+error.message);state.editId=null;await syncSession((await sb.auth.getSession()).data.session);go('projects');toast('Saved securely to your account')};
 deleteProject=async function(id){if(!confirm('Delete this project permanently?'))return;const {error}=await sb.from('projects').delete().eq('id',id);if(error)return toast(error.message);await syncSession((await sb.auth.getSession()).data.session);toast('Project deleted')};
 saveProfile=async function(){const n=$('profileName').value.trim(),bio=$('profileBio').value.trim();if(!n)return toast('Enter a display name');const {error}=await sb.from('profiles').update({display_name:n,bio}).eq('id',state.user.id);if(error)return toast(error.message);await syncSession((await sb.auth.getSession()).data.session);toast('Profile updated')};
