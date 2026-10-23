@@ -19,7 +19,7 @@ function open(){
  const el=document.createElement('div');el.id='roCreatorKit';el.className='ro-kit-shade';
  el.innerHTML=`<section class="ro-kit-panel" role="dialog" aria-modal="true" aria-labelledby="roKitTitle">
  <div style="display:flex;justify-content:space-between;align-items:start;gap:10px"><div><small style="color:#dfc49b;letter-spacing:2px">RHYMEORBIT CREATOR KIT · BETA</small><h2 id="roKitTitle">Your artist press kit ✦</h2></div><button class="secondary" id="roKitClose" aria-label="Close" style="background:none;border:0;color:white;font-size:28px">×</button></div>
- <p class="ro-kit-help">Make a beautiful, downloadable EPK/portfolio. Your edits stay in this browser until exported. Beta access is free while we build secure membership entitlements.</p>
+ <p class="ro-kit-help">Make a beautiful, downloadable EPK/portfolio. Your edits stay in this browser until exported. Beta access is currently free.</p>
  <label for="roKitName">Artist name</label><input id="roKitName" maxlength="80" value="${escapeHtml(user.name||'')}">
  <label for="roKitBio">Artist bio</label><textarea id="roKitBio" maxlength="1200" placeholder="Tell listeners about your sound...">${escapeHtml(user.bio||'')}</textarea>
  <label for="roKitGenre">Genre / sound</label><input id="roKitGenre" maxlength="120" placeholder="Indie pop • Haryanvi • Hip-hop">
@@ -46,7 +46,7 @@ window.roOpenCreatorKit=open;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('roCreatorKit')?.remove()});
 // Creator Kit is accessible only from authenticated creator experiences; no floating guest CTA.
 function syncCreatorKitVisibility(){
- if(!window.roMembershipSignedIn)document.getElementById('roCreatorKit')?.remove();
+ if(!(typeof state!=='undefined'&&state.user))document.getElementById('roCreatorKit')?.remove();
 }
 window.roRefreshCreatorKitVisibility=syncCreatorKitVisibility;
 syncCreatorKitVisibility();
