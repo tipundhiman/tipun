@@ -20,3 +20,50 @@ function showMusicStatus(j){const el=$('musicResult');if(!el)return;const url=Ar
 async function uploadMedia(e){e.preventDefault();if(!sb||!state.user)return toast('Please sign in');const f=$('mediaFile').files?.[0],title=$('mediaTitle').value.trim();if(!f||!title)return toast('Choose a file and title');const kind=mediaKind(f),allowed=['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','audio/mpeg','audio/wav','audio/ogg'];if(!kind||!allowed.includes(f.type)||f.size>50*1024*1024)return toast('Unsupported format or file larger than 50 MB');const ext=({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif','video/mp4':'mp4','video/webm':'webm','audio/mpeg':'mp3','audio/wav':'wav','audio/ogg':'ogg'})[f.type];const path=state.user.id+'/'+crypto.randomUUID()+'.'+ext;toast('Uploading media…');const uploaded=await sb.storage.from('creator-media').upload(path,f,{contentType:f.type,upsert:false});if(uploaded.error)return toast('Upload failed: '+uploaded.error.message);const {error}=await sb.from('creator_media').insert({owner:state.user.id,storage_path:path,title,kind,mime_type:f.type,size_bytes:f.size});if(error){await sb.storage.from('creator-media').remove([path]);return toast('Could not save media: '+error.message)}$('mediaTitle').value='';$('mediaFile').value='';toast('Media uploaded successfully');await loadMedia()}
 async function loadMedia(){if(!sb||!state.user)return;const {data,error}=await sb.from('creator_media').select('id,owner,storage_path,kind,title,mime_type,created_at').eq('owner',state.user.id).order('created_at',{ascending:false}).limit(100);const box=$('mediaLibrary');if(!box)return;if(error){box.innerHTML=`<div class="note">${esc(error.message)} — run media.sql in Supabase.</div>`;return}mediaList=data||[];box.innerHTML=mediaList.length?mediaList.map(m=>{const url=sb.storage.from('creator-media').getPublicUrl(m.storage_path).data.publicUrl;return `<article class="panel tile">${m.kind==='image'?`<img loading="lazy" alt="${esc(m.title)}" src="${esc(url)}" style="width:100%;height:190px;object-fit:cover;border-radius:12px">`:m.kind==='video'?`<video controls preload="metadata" src="${esc(url)}" style="width:100%;height:190px;border-radius:12px"></video>`:`<div class="art"><span class="articon">♫</span></div><audio controls preload="none" src="${esc(url)}" style="width:100%"></audio>`}<h3 style="margin:12px 0">${esc(m.title)}</h3><span class="badge">${esc(m.kind)}</span><div class="card-actions"><a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Open / download ↗</a><button class="btn sm" onclick="deleteMedia('${m.id}')">Delete</button></div></article>`}).join(''):'<div class="empty" style="grid-column:1/-1">No media uploaded yet. Your creations will appear here.</div>'}
 async function deleteMedia(id){const m=mediaList.find(x=>x.id===id);if(!m||!confirm('Delete this media permanently?'))return;const {error}=await sb.storage.from('creator-media').remove([m.storage_path]);if(error)return toast(error.message);const d=await sb.from('creator_media').delete().eq('id',id);if(d.error)return toast(d.error.message);toast('Media deleted');await loadMedia()}
+
+/* RhymeOrbit: selected language for AI generation */
+(function () {
+  function selectedLanguage() {
+    return document.getElementById("songLanguage")?.value || "Hindi";
+  }
+
+  function languagePrompt(topic, type) {
+    const language = selectedLanguage();
+
+    return [
+      "Create " + type + " in " + language + ".",
+      "User's topic: " + topic,
+      "Use natural, authentic " + language + " vocabulary.",
+      "Maintain meaningful rhymes, emotion and flow.",
+      "Avoid forced rhymes, awkward expressions and random words.",
+      "Do not switch languages unless the user requests it.",
+      "For Haryanvi, prefer natural Sonipat-Rohtak style.",
+      "For Hindi or Haryanvi, prefer Devanagari script.",
+      "Return the creative writing, not a long introduction."
+    ].join("\n");
+  }
+
+  window.generateShayari = function () {
+    const topic = document.getElementById("shayariPrompt")?.value.trim();
+
+    if (!topic) return toast("Enter a shayari topic");
+
+    runAI(
+      "shayari",
+      languagePrompt(topic, "expressive shayari"),
+      "shayariOutput"
+    );
+  };
+
+  window.generateLyrics = function () {
+    const topic = document.getElementById("generatePrompt")?.value.trim();
+
+    if (!topic) return toast("Describe the song first");
+
+    runAI(
+      "lyrics",
+      languagePrompt(topic, "original song lyrics"),
+      "generatedLyrics"
+    );
+  };
+})();
