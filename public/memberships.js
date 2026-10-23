@@ -32,9 +32,14 @@ function render(reason){
  <p class="ro-price-muted">${annual&&p.annual?'₹'+p.annual*12+' billed yearly':'Monthly membership'}</p><p><strong>${p.credits.toLocaleString('en-IN')} credits</strong> / month<br><span class="ro-price-muted">≈ ${p.songs} standard songs (100 credits each)</span></p>
  <ul>${p.perks.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul>
  <button type="button" disabled>${i===0?'Free plan':'Checkout coming soon'}</button></article>`).join('')}</div>
+ <p id="roLaunchReadiness" class="ro-price-foot" aria-live="polite">Checking music generation availability…</p>
  <p class="ro-price-foot">Preview only — payments are not enabled. Song credits and paid benefits activate only after provider capacity, billing and entitlements are verified. Annual plans renew credits monthly. Future features are labeled Coming Soon.</p>
  </section>`;
  document.body.appendChild(wrap);\n loadUsage();
+ fetch('/api/music/status').then(r=>r.ok?r.json():null).then(d=>{
+   const el=wrap.querySelector('#roLaunchReadiness');
+   if(el)el.textContent=d?.message||'Music generation availability could not be verified.';
+ }).catch(()=>{const el=wrap.querySelector('#roLaunchReadiness');if(el)el.textContent='Music generation availability could not be verified.';});
  wrap.querySelector('.ro-price-close').onclick=()=>wrap.remove();
  wrap.addEventListener('click',e=>{if(e.target===wrap)wrap.remove()});
  wrap.querySelectorAll('[data-cycle]').forEach(b=>b.onclick=()=>{annual=b.dataset.cycle==='annual';render(reason)});
