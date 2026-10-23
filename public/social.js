@@ -30,7 +30,6 @@ async function refreshMessages(){if(!activeChat||!state.user)return;const {data,
 async function sendMessage(e){e.preventDefault();if(!activeChat||!state.user)return toast('Choose a mutual match first');const body=$('chatInput').value.trim();if(!body)return;const {error}=await sb.from('creator_messages').insert({sender:state.user.id,recipient:activeChat,body});if(error)return toast('Message blocked: '+error.message);$('chatInput').value='';await refreshMessages()}
 const previousGo=go;go=function(page){if(page==='chat'){if(!state.user)return openAuth('login');state.page='chat';history.replaceState(null,'','#chat');render();window.scrollTo(0,0);return}return previousGo(page)};
 const oldRender=render;render=function(){if(state.page==='chat'){$('root').innerHTML=header()+chat()+footer();return}oldRender()};
-const previousHeader=header;header=function(){let h=previousHeader();if(state.user)h=h.replace('My Studio ↗','My Studio ↗');return h};
 const previousSidebar=appSidebar;appSidebar=function(){return previousSidebar().replace('<span class="sidebar-label">EXPLORE</span>','<span class="sidebar-label">EXPLORE</span><button class="side-link" onclick="go(&quot;chat&quot;)"><span>✉</span> Messages</button>')};
 // Listen & Chill is owned by public/index.html (ccMixter audio-only).
 // Do not override its listen() function from the social integration.
