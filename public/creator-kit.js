@@ -44,5 +44,12 @@ function open(){
 }
 window.roOpenCreatorKit=open;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('roCreatorKit')?.remove()});
-const button=document.createElement('button');button.type='button';button.textContent='✦ Creator Kit';button.style.cssText='position:fixed;bottom:65px;left:18px;z-index:1100;border:1px solid #d5b68b;background:#211b1c;color:#f8e4c5;padding:10px 16px;border-radius:30px;font-weight:700;box-shadow:0 8px 26px #0008';button.onclick=open;document.body.appendChild(button);
+const button=document.createElement('button');button.type='button';button.textContent='✦ Creator Kit';button.style.cssText='position:fixed;bottom:65px;left:18px;z-index:1100;border:1px solid #d5b68b;background:#211b1c;color:#f8e4c5;padding:10px 16px;border-radius:30px;font-weight:700;box-shadow:0 8px 26px #0008';button.onclick=open;button.hidden=true;document.body.appendChild(button);
+function syncCreatorKitVisibility(){
+ const signedIn=Boolean(window.roMembershipSignedIn);
+ button.hidden=!signedIn;
+ if(!signedIn)document.getElementById('roCreatorKit')?.remove();
+}
+window.roRefreshCreatorKitVisibility=syncCreatorKitVisibility;
+syncCreatorKitVisibility();
 })();
