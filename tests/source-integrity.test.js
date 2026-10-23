@@ -12,7 +12,7 @@ const html = read('public/index.html');
 const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
 const scriptParts = scripts.map((match, index) => {
   const src = match[1].match(/\bsrc=["']([^"']+)["']/i)?.[1] || null;
-  return { index, src, inline: match[2], local: src?.startsWith('/') ? src.split('?')[0] : null };
+  return { index, src, inline: match[2], structured: /type=["']application\/ld\+json["']/i.test(match[1]), local: src?.startsWith('/') ? src.split('?')[0] : null };
 });
 
 function allJS(dir) {
@@ -32,7 +32,7 @@ test('Every JavaScript file passes the Node syntax check', () => {
 test('Inline and local frontend scripts parse in actual HTML load order', () => {
   let combined = '';
   for (const part of scriptParts) {
-    const source = part.local ? read('public' + part.local) : part.src ? '' : part.inline;
+    const source = part.structured ? '' : part.local ? read('public' + part.local) : part.src ? '' : part.inline;
     if (!source.trim()) continue;
     assert.doesNotThrow(() => new Script(source, { filename: part.local || 'inline-' + part.index }), 'Invalid script ' + (part.local || part.index));
     combined += '\n' + source;
@@ -79,4 +79,26 @@ test('Music generation remains protected by server-side checks', () => {
   assert.match(api, /PUBLIC_MUSIC_GENERATION_ENABLED/);
   assert.match(api, /ro_reserve_song/);
   assert.match(api, /instrumental: false/);
+});
+
+test('SEO structured data and public legal links exist',()=>{
+ const structured=scriptParts.filter(x=>x.structured);
+ assert.equal(structured.length,1);
+ const data=JSON.parse(structured[0].inline);
+ assert.equal(data['@type'],'WebSite');
+ assert.equal(data.url,'https://rhymeorbit.in/');
+ assert.match(html,/rel="canonical" href="https:\/\/rhymeorbit\.in\/"/);
+ for(const name of ['privacy','terms','copyright','features']){
+  const content=read('public/'+name+'.html');
+  assert.match(content,/rel="canonical"/);
+  assert.match(content,/<h1>/);
+ }
+ assert.match(read('public/robots.txt'),/sitemap\.xml/);
+ assert.match(read('public/sitemap.xml'),/<urlset/);
+});
+test('No fictional demo catalog or old assistant name is visible in main UI',()=>{
+ assert.doesNotMatch(html,/YOUR CREATIVE SPACE/);
+ assert.doesNotMatch(html,/FEATURED DEMO CREATOR/);
+ assert.doesNotMatch(html,/Riya Grover/);
+ assert.match(html,/riya-chat\.js/);
 });

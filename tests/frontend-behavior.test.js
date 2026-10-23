@@ -93,3 +93,20 @@ test('AI Studio has a single canonical set of song-generation controls',()=>{
   assert.equal(studio.split('id="'+id+'"').length-1,1,'Duplicate or missing '+id);
  }
 });
+
+test('Riya chat uses authenticated requests and text-only bubbles',()=>{
+ const chat=read('public/riya-chat.js');
+ assert.match(html,/Chat with Riya/);
+ assert.match(chat,/kind:'help'/);
+ assert.match(chat,/session\?\.access_token/);
+ assert.match(chat,/textContent=/);
+ assert.doesNotMatch(chat,/innerHTML/);
+});
+test('Discover replaces fictional tracks with real feature destinations',()=>{
+ const app=start();
+ app.exec("state.page='discover';render()");
+ assert.match(app.node.innerHTML,/Creator community/);
+ assert.match(app.node.innerHTML,/Listen & Chill/);
+ assert.doesNotMatch(app.node.innerHTML,/DEMO SUGGESTION|FEATURED DEMO CREATOR/);
+ assert.doesNotMatch(app.node.innerHTML,/YOUR CREATIVE SPACE/);
+});
