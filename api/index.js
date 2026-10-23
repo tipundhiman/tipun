@@ -115,7 +115,7 @@ const rpc = (name, params) => supaFetch('/rest/v1/rpc/' + name, {
 const bearer = req => String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
 async function auth(req, res) {
   const user = await userFromToken(bearer(req));
-  if (!user?.id) { send(res, 401, { error: 'Sign in required' }); return null; }
+  if (!user?.id) { send(res, 401, { error: 'Sign in required or Supabase authentication unavailable' }); return null; }
   return user;
 }
 async function isAdmin(userId) {
@@ -397,9 +397,10 @@ export async function handleApi(req, res) {
     }
     return send(res, 404, { error: 'Unknown endpoint' });
   } catch (error) {
+    console.error('[RhymeOrbit API]',req.method,path,error?.name||'Error',error?.message||'unknown');
     const invalid = error.message === 'Request too large' || error.message === 'Invalid JSON';
     return send(res, invalid ? (error.message === 'Request too large' ? 413 : 400) : 500, {
-      error: invalid ? error.message : 'Server request failed'
+      error: invalid ? error.message : (path.startsWith('/api/music/') ? (error.name === 'TimeoutError' || error.name === 'AbortError' ? 'Music service timed out. Retry recovery; no new generation needed.' : 'Music server error. Check Vercel function logs.') : 'Server request failed'), code: invalid ? 'INVALID_REQUEST' : (error.name === 'TimeoutError' || error.name === 'AbortError' ? 'UPSTREAM_TIMEOUT' : 'SERVER_ERROR')
     });
   }
 }
