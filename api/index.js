@@ -196,7 +196,7 @@ export async function handleApi(req, res) {
         configured: Boolean(env('TREBLO_API_KEY')),
         provider: env('TREBLO_API_KEY') ? 'Treblo' : null,
         supportsVocals: Boolean(env('TREBLO_API_KEY')),
-        publicGenerationEnabled: false,
+        publicGenerationEnabled: env('PUBLIC_MUSIC_GENERATION_ENABLED') === 'true' && Boolean(env('TREBLO_API_KEY')),
         checkoutEnabled: false,
         message: env('TREBLO_API_KEY') ? 'Treblo is configured for admin testing only; public generation and payments are not yet enabled.' : 'Treblo API key is not configured; music generation is unavailable.'
       });
@@ -355,12 +355,25 @@ export async function handleApi(req, res) {
     if (path === '/api/music/generate') {
       const user = await auth(req, res);
       if (!user) return;
-      if (!await isAdmin(user.id)) return send(res, 403, { error: 'Music generation is in admin testing' });
+      const admin = await isAdmin(user.id);
+      const publicEnabled = env('PUBLIC_MUSIC_GENERATION_ENABLED') === 'true';
+      if (!admin && !publicEnabled) return send(res, 503, { error: 'Music generation is not open to public users yet' });
       if (!env('TREBLO_API_KEY')) return send(res, 503, { error: 'Treblo API key is not configured' });
       const lyrics = String(data.lyrics || '').trim();
       const voice = ['male','female','duet','auto'].includes(data.voice) ? data.voice : 'auto';
       const prompt = String(data.prompt || '').trim();
       if (lyrics.length < 20 || lyrics.length > 5000 || prompt.length < 5 || prompt.length > 1024) return send(res, 400, { error: 'Enter lyrics (20–5000 characters) and music style (5–1024 characters)' });
+      let reservationId = null;
+      if (!admin) {
+        const reserved = await rpc('ro_reserve_song', { p_user: user.id });
+        if (!reserved.ok || typeof reserved.data !== 'string') {
+          const msg = JSON.stringify(reserved.data || {});
+          return send(res, /quota exhausted|subscription inactive/i.test(msg) ? 403 : 503, {
+            error: /quota exhausted/i.test(msg) ? 'Monthly song limit reached. Explore Premium or Pro.' : 'Music quota unavailable. Please try again later.'
+          });
+        }
+        reservationId = reserved.data;
+      }
       const response = await fetch('https://api.treblo.com/v1/generations/v3', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + env('TREBLO_API_KEY'), 'Content-Type': 'application/json' },
@@ -368,7 +381,14 @@ export async function handleApi(req, res) {
         signal: AbortSignal.timeout(25000)
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.task_id) return send(res, response.status === 429 ? 429 : 502, { error: result.error?.message || result.detail || result.message || 'Treblo could not start song generation' });
+      if (!response.ok || !result.task_id) {
+        if (reservationId) await rpc('ro_finish_song', { p_user: user.id, p_reservation: reservationId, p_task: null, p_success: false });
+        return send(res, response.status === 429 ? 429 : 502, { error: result.error?.message || result.detail || result.message || 'Treblo could not start song generation' });
+      }
+      if (reservationId) {
+        const finalized = await rpc('ro_finish_song', { p_user: user.id, p_reservation: reservationId, p_task: String(result.task_id), p_success: true });
+        if (!finalized.ok || finalized.data !== true) return send(res, 503, { error: 'Song submitted but usage confirmation failed. Contact support with task ID: ' + String(result.task_id) });
+      }
       return send(res, 200, { id: String(result.task_id), status: 'processing' });
     }
     if (path === '/api/ai') {
