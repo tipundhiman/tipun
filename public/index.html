@@ -782,7 +782,8 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const token=await roCloudToken();if(!token)return;
     try{
       const response=await fetch('/api/music/library',{headers:{Authorization:'Bearer '+token}});
-      if(!response.ok)return;
+      if(!response.ok){const failure=await response.json().catch(()=>({}));console.warn('Cloud song library:',failure.error||response.status);window.roCloudLibraryError=failure.error||'Cloud song library unavailable';window.roRenderMyStudioSongs?.();return;}
+      window.roCloudLibraryError=null;
       const data=await response.json();
       for(const item of data.items||[]){
         const existing=roLibraryRead().find(x=>x.id===item.id)||{};
@@ -803,7 +804,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
   const roOldRenderCloud=window.render;
   window.render=function(...args){
     const result=roOldRenderCloud.apply(this,args);
-    if(state.page==='studio'&&state.user)window.roLoadCloudSongs();
+    if(['studio','projects'].includes(state.page)&&state.user)window.roLoadCloudSongs();
     return result;
   };
 
@@ -830,7 +831,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     root.replaceChildren();
     roMergeLegacySongEntries();
     const items=roLibraryRead();
-    if(!items.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Your generated songs will appear here automatically after generation or recovery.';root.append(empty);return}
+    if(!items.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Your generated songs will appear here automatically after generation or recovery.';root.append(empty);if(window.roCloudLibraryError){const note=document.createElement('p');note.className='muted';note.textContent='Cloud sync unavailable: '+window.roCloudLibraryError+'. Your songs may still exist. Use the recovery task ID in AI Studio.';root.append(note)}return}
     for(const song of items){
       const card=document.createElement('article');card.className='panel';
       card.style.cssText='animation:roSongAppear .55s ease both;display:flex;gap:16px;align-items:center;flex-wrap:wrap;overflow:hidden';
