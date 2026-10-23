@@ -73,4 +73,447 @@ function askHelp(){const q=$('helpInput').value.toLowerCase().trim();if(!q)retur
 function supportEmail(){const m=$('supportInput').value.trim();if(!m)return toast('Describe your request first');location.href='mailto:dtipun@gmail.com?subject='+encodeURIComponent('RhymeOrbit support')+'&body='+encodeURIComponent(m)}
 window.addEventListener('keydown',e=>{if(e.key==='Escape')closeAuth()});
 const initial=location.hash.slice(1);if(['home','discover','studio','projects','listen','community','match','profile','help','about','privacy','terms'].includes(initial))state.page=initial;render();
+  
+<!-- RHYMEORBIT ADMIN DASHBOARD -->
+<style>
+#roAdminEntry{
+  position:fixed;bottom:22px;left:22px;z-index:40;
+  border:1px solid #e5c9a280;
+  background:#211c22;color:#e5c9a2;
+  border-radius:40px;padding:13px 20px;
+  font:700 13px Manrope,sans-serif;
+  box-shadow:0 12px 35px #0009;
+  cursor:pointer;
+}
+#roAdminOverlay{
+  position:fixed;inset:0;z-index:1000;
+  background:#08090cf5;overflow:auto;
+  color:#f8f7f4;padding:25px;
+  font-family:'DM Sans',sans-serif;
+}
+.ro-admin-wrap{max-width:1150px;margin:0 auto}
+.ro-admin-top{
+  display:flex;justify-content:space-between;
+  align-items:center;gap:15px;flex-wrap:wrap;
+  margin-bottom:28px
+}
+.ro-admin-title{
+  font:700 clamp(27px,4vw,43px) Manrope,sans-serif;
+  letter-spacing:-1.5px;margin:10px 0
+}
+.ro-admin-grid{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:15px;margin:25px 0
+}
+.ro-admin-card{
+  background:linear-gradient(145deg,#1c1a20,#111216);
+  border:1px solid #ffffff20;
+  border-radius:19px;padding:23px;min-width:0
+}
+.ro-admin-card strong{
+  display:block;font:700 32px Manrope,sans-serif;
+  color:#e5c9a2;margin:12px 0
+}
+.ro-admin-muted{color:#a9a6af;font-size:13px;line-height:1.7}
+.ro-admin-table-wrap{overflow-x:auto}
+.ro-admin-table{
+  width:100%;border-collapse:collapse;
+  text-align:left;font-size:12px
+}
+.ro-admin-table th,.ro-admin-table td{
+  padding:13px;border-bottom:1px solid #ffffff16;
+  white-space:nowrap
+}
+.ro-admin-table th{color:#e5c9a2}
+.ro-admin-input{
+  background:#0d0e12;color:#fff;
+  border:1px solid #ffffff35;border-radius:11px;
+  padding:13px;width:100%;margin:7px 0 15px;
+  font:inherit
+}
+.ro-admin-label{display:block;font-size:12px;color:#d2c6b8}
+.ro-admin-btn{
+  background:#e5c9a2;color:#18130f;
+  border:0;border-radius:30px;
+  padding:12px 19px;font-weight:700;
+  cursor:pointer
+}
+.ro-admin-btn.secondary{
+  background:#ffffff13;color:#fff;
+  border:1px solid #ffffff30
+}
+.ro-admin-status{min-height:22px;margin-top:12px;color:#e5c9a2}
+@media(max-width:760px){
+  .ro-admin-grid{grid-template-columns:1fr}
+  #roAdminOverlay{padding:15px}
+  #roAdminEntry{bottom:12px;left:12px}
+}
+</style>
+
+<script>
+(function(){
+  'use strict';
+
+  let adminOpen = false;
+  let adminVerified = false;
+  let lastUserId = null;
+
+  const safe = value => String(value ?? '')
+    .replace(/[&<>"']/g, c => ({
+      '&':'&amp;',
+      '<':'&lt;',
+      '>':'&gt;',
+      '"':'&quot;',
+      "'":'&#39;'
+    }[c]));
+
+  function supabaseClient(){
+    try{
+      if(typeof sb !== 'undefined' && sb?.auth) return sb;
+    }catch(e){}
+    return window.sb?.auth ? window.sb : null;
+  }
+
+  async function sessionInfo(){
+    const client = supabaseClient();
+    if(!client) return null;
+    const result = await client.auth.getSession();
+    const session = result.data?.session;
+    if(result.error || !session?.access_token) return null;
+    return session;
+  }
+
+  async function adminRequest(path, options = {}){
+    const session = await sessionInfo();
+    if(!session) throw new Error('Please log in again.');
+
+    const response = await fetch(path,{
+      ...options,
+      headers:{
+        'Authorization':'Bearer '+session.access_token,
+        'Content-Type':'application/json',
+        ...(options.headers || {})
+      },
+      cache:'no-store'
+    });
+
+    const result = await response.json().catch(()=>({}));
+
+    if(!response.ok){
+      throw new Error(result.error || 'Request failed');
+    }
+    return result;
+  }
+
+  async function checkAdmin(){
+    const button = document.getElementById('roAdminEntry');
+    try{
+      const session = await sessionInfo();
+      const userId = session?.user?.id || null;
+
+      if(!userId){
+        adminVerified = false;
+        lastUserId = null;
+        button?.remove();
+        if(adminOpen) closeAdmin();
+        return;
+      }
+
+      if(userId !== lastUserId){
+        adminVerified = false;
+        button?.remove();
+        if(adminOpen) closeAdmin();
+      }
+      lastUserId = userId;
+
+      const result = await adminRequest('/api/admin/overview');
+      adminVerified = result.isAdmin === true;
+
+      if(adminVerified && !document.getElementById('roAdminEntry')){
+        const entry = document.createElement('button');
+        entry.id = 'roAdminEntry';
+        entry.textContent = '♛ Admin Dashboard';
+        entry.onclick = openAdmin;
+        document.body.appendChild(entry);
+      }
+
+      if(!adminVerified) button?.remove();
+
+    }catch(e){
+      adminVerified = false;
+      document.getElementById('roAdminEntry')?.remove();
+      if(adminOpen) closeAdmin();
+    }
+  }
+
+  function closeAdmin(){
+    adminOpen = false;
+    document.getElementById('roAdminOverlay')?.remove();
+  }
+
+  function countItems(items, test){
+    return Array.isArray(items) ? items.filter(test).length : 0;
+  }
+
+  function table(headers, rows){
+    if(!rows.length){
+      return '<p class="ro-admin-muted">No records found.</p>';
+    }
+    return '<div class="ro-admin-table-wrap"><table class="ro-admin-table"><thead><tr>'+
+      headers.map(h=>'<th>'+safe(h)+'</th>').join('')+
+      '</tr></thead><tbody>'+
+      rows.map(row=>'<tr>'+
+        row.map(value=>'<td>'+safe(value)+'</td>').join('')+
+      '</tr>').join('')+
+      '</tbody></table></div>';
+  }
+
+  async function openAdmin(){
+    if(adminOpen) return;
+
+    adminOpen = true;
+    const overlay = document.createElement('div');
+    overlay.id = 'roAdminOverlay';
+    overlay.innerHTML = `
+      <div class="ro-admin-wrap">
+        <div class="ro-admin-top">
+          <div>
+            <div class="eyebrow">RHYMEORBIT / PRIVATE CONTROL CENTER</div>
+            <h1 class="ro-admin-title">Admin <span class="serif">Dashboard.</span></h1>
+          </div>
+          <button class="ro-admin-btn secondary" id="roAdminClose">✕ Close</button>
+        </div>
+        <div id="roAdminContent" class="ro-admin-card">Loading secure dashboard...</div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    document.getElementById('roAdminClose').onclick = closeAdmin;
+    await loadAdmin();
+  }
+
+  async function loadAdmin(){
+    const target = document.getElementById('roAdminContent');
+    if(!target) return;
+
+    try{
+      const data = await adminRequest('/api/admin/overview');
+
+      if(data.isAdmin !== true){
+        throw new Error('Admin access not verified.');
+      }
+
+      const subscriptions = data.subscriptions || [];
+      const usage = data.monthlyUsage || [];
+      const generations = data.recentGenerations || [];
+
+      const premium = countItems(subscriptions,
+        x=>x.plan === 'premium' && x.status === 'active');
+
+      const completed = countItems(generations,
+        x=>x.status === 'completed');
+
+      const used = usage.reduce(
+        (sum,x)=>sum + Number(x.songs_used || 0),0
+      );
+
+      const reserved = usage.reduce(
+        (sum,x)=>sum + Number(x.songs_reserved || 0),0
+      );
+
+      target.className = '';
+      target.innerHTML = `
+        <div class="ro-admin-grid">
+          <div class="ro-admin-card">
+            <span class="ro-admin-muted">Premium subscriptions in loaded records</span>
+            <strong>${premium}</strong>
+          </div>
+          <div class="ro-admin-card">
+            <span class="ro-admin-muted">Songs used in loaded monthly records</span>
+            <strong>${used}</strong>
+          </div>
+          <div class="ro-admin-card">
+            <span class="ro-admin-muted">Reserved song credits in loaded records</span>
+            <strong>${reserved}</strong>
+          </div>
+        </div>
+
+        <div class="ro-admin-grid">
+          <div class="ro-admin-card">
+            <span class="ro-admin-muted">Admin accounts in response</span>
+            <strong>${Number(data.adminCount || 0)}</strong>
+          </div>
+          <div class="ro-admin-card">
+            <span class="ro-admin-muted">Completed generations in loaded records</span>
+            <strong>${completed}</strong>
+          </div>
+          <div class="ro-admin-card">
+            <span class="ro-admin-muted">Reporting month (UTC)</span>
+            <strong style="font-size:23px">${safe(data.monthStart || '-')}</strong>
+          </div>
+        </div>
+
+        <section class="ro-admin-card" style="margin-bottom:20px">
+          <div class="eyebrow">SUBSCRIPTION MANAGEMENT</div>
+          <h2>Manage creator plans</h2>
+          <p class="ro-admin-muted">
+            Use the Supabase Auth user UUID to manage an existing user.
+            This is a manual admin action, not a payment confirmation.
+          </p>
+          <form id="roSubscriptionForm">
+            <label class="ro-admin-label" for="roTargetUser">User ID (UUID)</label>
+            <input class="ro-admin-input" id="roTargetUser"
+              required placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+
+            <label class="ro-admin-label" for="roPlan">Subscription plan</label>
+            <select class="ro-admin-input" id="roPlan">
+              <option value="free">Free — 3 songs/month</option>
+              <option value="premium">Premium</option>
+            </select>
+
+            <label class="ro-admin-label" for="roLimit">Monthly song limit</label>
+            <input class="ro-admin-input" id="roLimit"
+              type="number" min="1" max="10000" value="3" required>
+
+            <label class="ro-admin-label" for="roExpiry">
+              Expiration (optional)
+            </label>
+            <input class="ro-admin-input" id="roExpiry"
+              type="datetime-local">
+
+            <button class="ro-admin-btn" type="submit">
+              Save subscription ↗
+            </button>
+            <p id="roAdminStatus" class="ro-admin-status" role="status"></p>
+          </form>
+        </section>
+
+        <section class="ro-admin-card" style="margin-bottom:20px">
+          <div class="ro-admin-top">
+            <h2>Subscriptions</h2>
+            <span class="ro-admin-muted">Up to 100 latest records</span>
+          </div>
+          ${table(
+            ['User ID','Plan','Status','Monthly limit'],
+            subscriptions.map(x=>[
+              x.user_id,x.plan,x.status,
+              x.plan==='free' ? 3 : (x.monthly_song_limit ?? '-')
+            ])
+          )}
+        </section>
+
+        <section class="ro-admin-card" style="margin-bottom:20px">
+          <h2>Monthly music usage</h2>
+          ${table(
+            ['User ID','Used','Reserved'],
+            usage.map(x=>[
+              x.user_id,x.songs_used,x.songs_reserved
+            ])
+          )}
+        </section>
+
+        <section class="ro-admin-card">
+          <h2>Recent AI song generations</h2>
+          ${table(
+            ['Generation ID','User ID','Status','Credit status'],
+            generations.map(x=>[
+              x.id,x.user_id,x.status,x.credit_status
+            ])
+          )}
+        </section>
+
+        <p class="ro-admin-muted" style="margin-top:18px">
+          Dashboard lists are limited to 100 rows per category.
+          Figures shown here are based on returned records,
+          not necessarily platform-wide totals.
+        </p>
+
+        <button class="ro-admin-btn secondary"
+          id="roAdminRefresh" style="margin-top:15px">
+          ↻ Refresh dashboard
+        </button>
+      `;
+
+      document.getElementById('roAdminRefresh').onclick = loadAdmin;
+
+      const plan = document.getElementById('roPlan');
+      const limit = document.getElementById('roLimit');
+
+      plan.onchange = ()=>{
+        if(plan.value === 'free'){
+          limit.value = '3';
+          limit.disabled = true;
+        }else{
+          limit.disabled = false;
+          limit.value = '10';
+        }
+      };
+      plan.onchange();
+
+      document.getElementById('roSubscriptionForm').onsubmit =
+        async function(event){
+          event.preventDefault();
+
+          const status = document.getElementById('roAdminStatus');
+          const submit = this.querySelector('button[type="submit"]');
+          const userId = document.getElementById('roTargetUser').value.trim();
+          const selectedPlan = plan.value;
+          const monthlyLimit = selectedPlan === 'free'
+            ? 3 : Number(limit.value);
+
+          const expiryValue = document.getElementById('roExpiry').value;
+          const expiresAt = expiryValue
+            ? new Date(expiryValue).toISOString() : null;
+
+          if(!confirm(
+            'Update this user to '+selectedPlan+
+            ' with '+monthlyLimit+' songs per month?'
+          )) return;
+
+          submit.disabled = true;
+          status.textContent = 'Saving...';
+
+          try{
+            await adminRequest('/api/admin/subscription',{
+              method:'POST',
+              body:JSON.stringify({
+                userId,
+                plan:selectedPlan,
+                monthlyLimit,
+                expiresAt
+              })
+            });
+            status.textContent = 'Subscription updated successfully.';
+            setTimeout(loadAdmin,1000);
+          }catch(error){
+            status.textContent = error.message;
+          }finally{
+            submit.disabled = false;
+          }
+        };
+
+    }catch(error){
+      if(target){
+        target.className = 'ro-admin-card';
+        target.textContent = 'Dashboard unavailable: '+error.message;
+      }
+    }
+  }
+
+  window.RhymeOrbitAdmin = {
+    refresh:checkAdmin,
+    open:async()=>{
+      await checkAdmin();
+      if(adminVerified) await openAdmin();
+    }
+  };
+
+  // Check access after the Supabase integration loads.
+  setTimeout(checkAdmin,2000);
+
+  // Detect login/logout changes without modifying existing auth code.
+  setInterval(checkAdmin,15000);
+
+})();
+</script>
+<!-- END RHYMEORBIT ADMIN DASHBOARD -->
 </script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script src="/integration.js"></script><script src="/social.js"></script><script src="/media.js"></script></body></html>
