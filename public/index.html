@@ -569,4 +569,76 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
 })();
 </script>
 <!-- END RHYMEORBIT ADMIN DASHBOARD -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script src="/integration.js"></script><script src="/social.js"></script><script src="/media.js"></script></body></html>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script src="/integration.js"></script><script src="/social.js"></script><script src="/media.js"></script><script>
+/* RhymeOrbit quick upgrade: in-canvas lyrics generation. */
+(function () {
+  'use strict';
+  const previousStudio = studio;
+  studio = function () {
+    let html = previousStudio();
+    const anchor = '<div class="row"><button class="btn gold" onclick="saveProject()"';
+    if (!html.includes(anchor)) return html;
+    const controls = '<div class="field" style="margin-top:17px"><label for="roCanvasPrompt">Describe your song</label><textarea id="roCanvasPrompt" style="min-height:90px" maxlength="1500" placeholder="e.g. A heartfelt Haryanvi friendship song, powerful chorus, male voice..."></textarea></div>' +
+      '<div class="row" style="margin:12px 0 18px;align-items:center"><button class="btn gold" type="button" id="roCanvasGenerate" onclick="roGenerateCanvasLyrics()">✧ Generate Lyrics</button><button class="btn" type="button" onclick="roCanvasSongNotice()">♫ Generate Song</button></div>' +
+      '<div id="roCanvasGenerationStatus" aria-live="polite" style="margin-bottom:12px"></div>';
+    return html.replace(anchor, controls + anchor);
+  };
+  window.roCanvasSongNotice = function () {
+    toast('Song audio generation is not connected yet. Your lyrics can be saved now.');
+  };
+  window.roGenerateCanvasLyrics = async function () {
+    const topic = document.getElementById('roCanvasPrompt')?.value.trim();
+    const lyricsBox = document.getElementById('songLyrics');
+    const result = document.getElementById('roCanvasGenerationStatus');
+    const button = document.getElementById('roCanvasGenerate');
+    if (!topic || !lyricsBox || !result || !button) {
+      toast('Describe your song first');
+      return;
+    }
+    if (lyricsBox.value.trim() && !confirm('Replace your current lyrics with newly generated lyrics? Save or copy them first if needed.')) return;
+    if (!sb || !state.user) {
+      toast('Log in to generate lyrics');
+      return;
+    }
+    const language = document.getElementById('songLanguage')?.value || 'Hindi';
+    const genre = document.getElementById('songGenre')?.value || 'Pop';
+    const mood = document.getElementById('songMood')?.value || 'Dreamy';
+    const instructions = [
+      'Write original, complete song lyrics.',
+      'Language: ' + language,
+      'Genre: ' + genre,
+      'Mood: ' + mood,
+      'Song idea: ' + topic,
+      'Use natural vocabulary and meaningful rhymes, with [Verse], [Chorus] and optional [Bridge] sections.',
+      'Avoid unnatural forced rhymes and lengthy explanations.',
+      language === 'Haryanvi' ? 'Use authentic Sonipat-Rohtak Haryanvi in Devanagari; avoid generic Hindi.' : '',
+      'Return only the lyrics.'
+    ].filter(Boolean).join('\n');
+    button.disabled = true;
+    result.textContent = 'Generating lyrics with Gemini…';
+    try {
+      const session = (await sb.auth.getSession()).data.session;
+      if (!session?.access_token) throw new Error('Session expired. Log in again.');
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token
+        },
+        body: JSON.stringify({kind:'lyrics', input:instructions})
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Lyrics generation failed');
+      if (!data.text || typeof data.text !== 'string') throw new Error('No lyrics returned');
+      lyricsBox.value = data.text.trim();
+      lyricsBox.dispatchEvent(new Event('input', {bubbles:true}));
+      result.textContent = 'Lyrics generated. Review them, then save your project.';
+      toast('Lyrics added to your canvas ✦');
+    } catch (error) {
+      result.textContent = error.message || 'Could not generate lyrics';
+    } finally {
+      button.disabled = false;
+    }
+  };
+})();
+</script></body></html>
