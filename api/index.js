@@ -85,7 +85,8 @@ async function trebleAudio(id) {
   const status=await fetch('https://api.treblo.com/v1/generations/status/'+encodeURIComponent(id),{headers,signal:AbortSignal.timeout(10000)});
   if(!status.ok)throw Error('Treblo status lookup failed');
   const st=await status.json();
-  if(st.status!=='SUCCESS'&&st.state!=='SUCCESS')return null;
+  const raw = typeof st === 'string' ? st : (st.status || st.state || '');
+  if(raw !== 'SUCCESS')return null;
   const result=await fetch('https://api.treblo.com/v1/generations/'+encodeURIComponent(id),{headers,signal:AbortSignal.timeout(10000)});
   if(!result.ok)throw Error('Treblo song lookup failed');
   const song=await result.json();
