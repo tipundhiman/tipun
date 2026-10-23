@@ -208,7 +208,19 @@ export async function handleApi(req, res) {
       if (!rate(req, res)) return;
       const user = await auth(req, res);
       if (!user) return;
-      return send(res, 503, { error: 'Legacy instrumental generation is disabled until secure provider integration.' });
+      if (!await isAdmin(user.id)) return send(res, 403, { error: 'Admin test only' });
+      const id = decodeURIComponent(path.slice('/api/music/prediction/'.length));
+      if (!/^[a-zA-Z0-9_-]{1,100}$/.test(id)) return send(res, 400, { error: 'Invalid task ID' });
+      if (!env('MUREKA_API_KEY')) return send(res, 503, { error: 'Mureka key missing' });
+      const response = await fetch('https://api.mureka.ai/v1/song/query/' + encodeURIComponent(id), {
+        headers: { Authorization: 'Bearer ' + env('MUREKA_API_KEY') },
+        signal: AbortSignal.timeout(12000)
+      });
+      const result = await response.json();
+      if (!response.ok) return send(res, 502, { error: result.error?.message || 'Mureka status unavailable' });
+      const urls = (result.choices || []).map(x => x.url || x.audio_url || x.mp3_url).filter(x => typeof x === 'string' && /^https:\/\//.test(x));
+      const status = result.status === 'succeeded' ? 'succeeded' : ['failed','timeouted','cancelled'].includes(result.status) ? 'failed' : 'processing';
+      return send(res, 200, { id, status, output: urls[0] || null, error: result.failed_reason || null });
     }
     if (req.method !== 'POST') return send(res, 404, { error: 'Not found' });
     if (!rate(req, res)) return;
@@ -234,7 +246,20 @@ export async function handleApi(req, res) {
     if (path === '/api/music/generate') {
       const user = await auth(req, res);
       if (!user) return;
-      return send(res, 503, { error: 'Full-song generation with vocals is not enabled yet. No credits were charged.' });
+      if (!await isAdmin(user.id)) return send(res, 403, { error: 'Music generation is in admin testing' });
+      if (!env('MUREKA_API_KEY')) return send(res, 503, { error: 'Mureka API key is not configured' });
+      const lyrics = String(data.lyrics || '').trim();
+      const prompt = String(data.prompt || '').trim();
+      if (lyrics.length < 20 || lyrics.length > 5000 || prompt.length < 5 || prompt.length > 1024) return send(res, 400, { error: 'Enter lyrics (20–5000 characters) and music style (5–1024 characters)' });
+      const response = await fetch('https://api.mureka.ai/v1/song/generate', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + env('MUREKA_API_KEY'), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'mureka-7.6', n: 1, lyrics, prompt, stream: false }),
+        signal: AbortSignal.timeout(25000)
+      });
+      const result = await response.json();
+      if (!response.ok || !result.id) return send(res, 502, { error: result.error?.message || 'Mureka could not start song generation' });
+      return send(res, 200, { id: String(result.id), status: result.status || 'preparing' });
     }
     if (path === '/api/ai') {
       const user = await auth(req, res);
