@@ -96,3 +96,24 @@ function roMediaSongList(){
 const roOriginalMediaRender=render;
 render=function(){roOriginalMediaRender();if(state.page==='media')roMediaSongList()};
 window.addEventListener('hashchange',()=>{const target=location.hash.slice(1);if(target==='media'&&state.page!=='media')go('media');else if(target&&target!==state.page&&['home','studio','projects','listen','discover','community','profile','help'].includes(target))go(target)});
+
+const roBaseMediaCloudList=roMediaSongList;
+roMediaSongList=function(){
+  roBaseMediaCloudList();
+  if(!state.user||!sb)return;
+  authToken().then(async token=>{
+    if(!token)return;
+    const response=await fetch('/api/music/library',{headers:{Authorization:'Bearer '+token}});
+    if(!response.ok)return;
+    const data=await response.json();
+    const key='ro_treblo_library_'+state.user.id;
+    let local=[];try{local=JSON.parse(localStorage.getItem(key)||'[]')}catch{}
+    let changed=false;
+    for(const song of data.items||[]){
+      const index=local.findIndex(x=>x.id===song.id);
+      if(index<0){local.push(song);changed=true}
+      else if(song.url&&local[index].url!==song.url){local[index]={...local[index],...song};changed=true}
+    }
+    if(changed){localStorage.setItem(key,JSON.stringify(local));roBaseMediaCloudList()}
+  }).catch(()=>{});
+};

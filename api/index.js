@@ -66,6 +66,48 @@ async function supaFetch(endpoint, opts = {}) {
   catch { data = txt ? { error: txt.slice(0, 200) } : null; }
   return { ok: response.ok, status: response.status, data };
 }
+
+async function cloudSongs(userId) {
+  return supaFetch('/rest/v1/generated_songs?user_id=eq.'+encodeURIComponent(userId)+'&select=task_id,title,voice,status,storage_path,created_at&order=created_at.desc&limit=100');
+}
+async function signedAudio(path) {
+  if(!path)return null;
+  const c=config();
+  const response=await fetch(c.url+'/storage/v1/object/sign/song-audio/'+path.split('/').map(encodeURIComponent).join('/'),{
+    method:'POST',headers:{apikey:c.service,Authorization:'Bearer '+c.service,'Content-Type':'application/json'},
+    body:JSON.stringify({expiresIn:3600}),signal:AbortSignal.timeout(8000)
+  });
+  const data=await response.json().catch(()=>({}));
+  return response.ok&&data.signedURL?c.url+'/storage/v1'+data.signedURL:null;
+}
+async function trebleAudio(id) {
+  const headers={Authorization:'Bearer '+env('TREBLO_API_KEY')};
+  const status=await fetch('https://api.treblo.com/v1/generations/status/'+encodeURIComponent(id),{headers,signal:AbortSignal.timeout(10000)});
+  if(!status.ok)throw Error('Treblo status lookup failed');
+  const st=await status.json();
+  if(st.status!=='SUCCESS'&&st.state!=='SUCCESS')return null;
+  const result=await fetch('https://api.treblo.com/v1/generations/'+encodeURIComponent(id),{headers,signal:AbortSignal.timeout(10000)});
+  if(!result.ok)throw Error('Treblo song lookup failed');
+  const song=await result.json();
+  return (song.song_paths||[]).find(url=>typeof url==='string'&&url.startsWith('https://'))||null;
+}
+async function archiveAudio(userId,id,url) {
+  const c=config(),path=userId+'/'+id+'.mp3';
+  const download=await fetch(url,{signal:AbortSignal.timeout(16000)});
+  if(!download.ok)throw Error('Treblo audio download failed');
+  const mime=(download.headers.get('content-type')||'').toLowerCase();
+  if(!mime.includes('audio/')&&!mime.includes('octet-stream'))throw Error('Provider returned non-audio data');
+  if(Number(download.headers.get('content-length')||0)>20_000_000)throw Error('Audio exceeds 20 MB storage limit');
+  const bytes=await download.arrayBuffer();
+  if(bytes.byteLength>20_000_000||bytes.byteLength<1000)throw Error('Invalid audio size');
+  const upload=await fetch(c.url+'/storage/v1/object/song-audio/'+path,{
+    method:'POST',headers:{apikey:c.service,Authorization:'Bearer '+c.service,'Content-Type':mime.includes('mpeg')?'audio/mpeg':'application/octet-stream','x-upsert':'true'},
+    body:bytes,signal:AbortSignal.timeout(16000)
+  });
+  if(!upload.ok)throw Error('Cloud audio upload failed');
+  return path;
+}
+
 const rpc = (name, params) => supaFetch('/rest/v1/rpc/' + name, {
   method: 'POST',
   body: JSON.stringify(params)
@@ -173,6 +215,39 @@ export async function handleApi(req, res) {
       const used = u?.songs_used || 0;
       const reserved = u?.songs_reserved || 0;
       return send(res, 200, { plan: s?.plan || 'free', monthlyLimit: limit, used, reserved, remaining: Math.max(0, limit - used - reserved), monthStart: month });
+    }
+
+    if (req.method === 'GET' && path === '/api/music/library') {
+      const user=await auth(req,res);if(!user)return;
+      const found=await cloudSongs(user.id);
+      if(!found.ok)return send(res,503,{error:'Cloud song library not set up. Run the Supabase migration SQL first.'});
+      const items=await Promise.all(found.data.map(async row=>({
+        id:row.task_id,title:row.title,voice:row.voice,status:row.status,
+        url:await signedAudio(row.storage_path),cloudSaved:!!row.storage_path
+      })));
+      return send(res,200,{items});
+    }
+    if (req.method === 'POST' && path === '/api/music/library') {
+      const user=await auth(req,res);if(!user)return;
+      if(!await isAdmin(user.id))return send(res,403,{error:'Admin testing only'});
+      const id=String(data.taskId||'').trim();
+      if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id))return send(res,400,{error:'Invalid Treblo task ID'});
+      const existing=await supaFetch('/rest/v1/generated_songs?user_id=eq.'+encodeURIComponent(user.id)+'&task_id=eq.'+encodeURIComponent(id)+'&select=storage_path&limit=1');
+      if(!existing.ok)return send(res,503,{error:'Cloud library table missing. Run the SQL migration.'});
+      let storagePath=existing.data?.[0]?.storage_path||null;
+      let warning=null;
+      if(!storagePath){
+        try{const url=await trebleAudio(id);if(url)storagePath=await archiveAudio(user.id,id,url);else warning='Treblo song still processing; try recovery again when ready.'}
+        catch(e){warning=e.message||'Audio archival failed'}
+      }
+      const title=String(data.title||'My AI Song').trim().slice(0,100)||'My AI Song';
+      const voice=['male','female','duet','auto'].includes(data.voice)?data.voice:'auto';
+      const save=await supaFetch('/rest/v1/generated_songs?on_conflict=user_id,task_id',{
+        method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},
+        body:JSON.stringify({user_id:user.id,task_id:id,title,voice,status:storagePath?'ready':'pending',storage_path:storagePath})
+      });
+      if(!save.ok)return send(res,503,{error:'Unable to save cloud song record',detail:save.data?.message});
+      return send(res,200,{id,cloudSaved:!!storagePath,warning,url:await signedAudio(storagePath)});
     }
     if (req.method === 'GET' && path === '/api/music/history') {
       if (!rate(req, res)) return;
