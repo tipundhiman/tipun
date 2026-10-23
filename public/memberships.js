@@ -31,19 +31,20 @@ function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':
 async function showBalance(){
  const el=document.getElementById('roMembershipBalance');
  if(!el)return;
+ const unavailable=()=>{if(document.getElementById('roMembershipBalance')===el)el.textContent='Song balance unavailable right now; please try again later.'};
  try{
   const client=(typeof sb!=='undefined'&&sb?.auth)?sb:window.sb;
-  if(!client?.auth)return;
+  if(!client?.auth){unavailable();return;}
   const result=await client.auth.getSession();
   const token=result?.data?.session?.access_token;
-  if(!token)return;
+  if(!token){unavailable();return;}
   const response=await fetch('/api/music/credits',{headers:{Authorization:'Bearer '+token}});
-  if(!response.ok)return;
+  if(!response.ok){unavailable();return;}
   const data=await response.json();
   if(Number.isFinite(data.remaining)&&Number.isFinite(data.monthlyLimit)){
    el.textContent='Your plan: '+String(data.plan||'free').toUpperCase()+' · '+Math.max(0,data.remaining)+' of '+data.monthlyLimit+' songs remaining this month';
-  }
- }catch(e){console.warn('Membership balance unavailable',e)}
+  }else unavailable();
+ }catch(e){unavailable();console.warn('Membership balance unavailable',e)}
 }
 function openMemberships(reason){
  if(typeof state==='undefined'||!state.user)return;
@@ -71,5 +72,6 @@ function openMemberships(reason){
  showBalance();
 }
 window.roOpenPricing=openMemberships;
+window.roCloseMemberships=()=>document.getElementById('roMembershipOverlay')?.remove();
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('roMembershipOverlay')?.remove()});
 })();
