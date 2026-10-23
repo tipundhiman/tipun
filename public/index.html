@@ -788,6 +788,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
         const existing=roLibraryRead().find(x=>x.id===item.id)||{};
         roLibraryUpsert(item.id,{...existing,...item,status:item.cloudSaved?'Cloud saved':item.status});
       }
+      if(state.page==='projects')window.roRenderMyStudioSongs?.();
     }catch(e){console.warn('Cloud songs unavailable',e)}
   };
   window.roSaveSongToCloud=async function(id,details={}){
@@ -806,6 +807,68 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     return result;
   };
 
+  function roClock(sec){if(!Number.isFinite(sec)||sec<0)return '0:00';return Math.floor(sec/60)+':'+String(Math.floor(sec%60)).padStart(2,'0')}
+  function roAttachTime(audio){
+    if(!audio||audio.dataset.roTimeAttached)return;
+    audio.dataset.roTimeAttached='1';
+    const timer=document.createElement('div');
+    timer.className='ro-audio-clock';
+    timer.style.cssText='font-size:13px;color:#dfc69d;margin:3px 0 12px;font-variant-numeric:tabular-nums';
+    timer.textContent='0:00 / --:--';
+    audio.insertAdjacentElement('afterend',timer);
+    const update=()=>timer.textContent=roClock(audio.currentTime)+' / '+(Number.isFinite(audio.duration)?roClock(audio.duration):'--:--');
+    ['loadedmetadata','durationchange','timeupdate','seeked','pause','ended'].forEach(event=>audio.addEventListener(event,update));
+    update();
+  }
+  window.roAttachSongTimers=function(root=document){
+    root.querySelectorAll('audio').forEach(roAttachTime);
+  };
+
+
+  window.roRenderMyStudioSongs=function(){
+    const root=document.getElementById('roMyStudioSongs');if(!root)return;
+    root.replaceChildren();
+    roMergeLegacySongEntries();
+    const items=roLibraryRead();
+    if(!items.length){const empty=document.createElement('p');empty.className='muted';empty.textContent='Your generated songs will appear here automatically after generation or recovery.';root.append(empty);return}
+    for(const song of items){
+      const card=document.createElement('article');card.className='panel';
+      card.style.cssText='animation:roSongAppear .55s ease both;display:flex;gap:16px;align-items:center;flex-wrap:wrap;overflow:hidden';
+      const art=document.createElement('div');art.textContent='♫';art.style.cssText='width:76px;height:76px;flex-shrink:0;display:grid;place-items:center;font-size:32px;border-radius:18px;background:linear-gradient(135deg,#b98cce,#e8c99e,#5a3b80);color:#211827;animation:roSongFloat 3s ease-in-out infinite';
+      const details=document.createElement('div');details.style.cssText='flex:1;min-width:180px';
+      const title=document.createElement('h3');title.textContent=song.title||'My AI Song';title.style.margin='0 0 6px';
+      const meta=document.createElement('p');meta.className='muted small';meta.style.margin='0';meta.textContent=(song.voice||'Auto')+' · '+(song.cloudSaved?'Cloud saved':song.status||'Saved')+(Number.isFinite(song.duration)?' · '+roClock(song.duration):'');
+      details.append(title,meta);
+      const actions=document.createElement('div');actions.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
+      const play=document.createElement('button');play.className='btn';play.textContent='▶ Play in AI Studio';play.onclick=()=>{go('studio');setTimeout(()=>window.roRecoverTrebloSong(song.id),100)};
+      actions.append(play);
+      if(song.url){
+        const audio=document.createElement('audio');audio.controls=true;audio.preload='metadata';audio.src=song.url;audio.style.cssText='width:100%;margin-top:10px';details.append(audio);roAttachTime(audio);
+      }
+      card.append(art,details,actions);root.append(card);
+    }
+  };
+  const roBaseProjectsSongs=window.projects;
+  window.projects=function(...args){
+    const page=roBaseProjectsSongs.apply(this,args);
+    if(!state.user)return page;
+    const section='<section class="panel" style="margin:24px 0"><div class="eyebrow">YOUR MUSIC COLLECTION</div><h2 style="margin:12px 0 18px">♫ My Generated Songs</h2><div id="roMyStudioSongs"></div></section>';
+    return page.replace('</main>',section+'</main>');
+  };
+  const roBaseRenderStudioSongs=window.render;
+  window.render=function(...args){
+    const result=roBaseRenderStudioSongs.apply(this,args);
+    if(state.page==='projects'){
+      window.roRenderMyStudioSongs();
+      window.roLoadCloudSongs?.().then(()=>window.roRenderMyStudioSongs()).catch(()=>{});
+    }
+    window.roAttachSongTimers();
+    return result;
+  };
+  const songCss=document.createElement('style');
+  songCss.textContent='@keyframes roSongAppear{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}@keyframes roSongFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}@media(prefers-reduced-motion:reduce){#roMyStudioSongs *{animation:none!important}}#roMyStudioSongs{display:grid;gap:14px}';
+  document.head.append(songCss);
+
   function showTrebloPlayer(box,url,id){
     box.replaceChildren();
     const card=document.createElement('section');
@@ -818,6 +881,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     name.style.cssText='margin:0 0 5px;font-size:21px';
     const subtitle=document.createElement('p');subtitle.textContent='RhymeOrbit · Generated with Treblo';subtitle.style.cssText='color:#aaa;margin:0 0 16px';
     const audio=document.createElement('audio');audio.controls=true;audio.preload='metadata';audio.src=url;audio.style.width='100%';
+    audio.addEventListener('loadedmetadata',()=>{if(Number.isFinite(audio.duration))roLibraryUpsert(id,{duration:Math.round(audio.duration)})});
     const row=document.createElement('div');row.style.cssText='display:flex;gap:10px;flex-wrap:wrap;margin-top:12px';
     const back=document.createElement('button');back.type='button';back.className='btn';back.textContent='↶ 10 sec';back.onclick=()=>{audio.currentTime=Math.max(0,audio.currentTime-10)};
     const forward=document.createElement('button');forward.type='button';forward.className='btn';forward.textContent='10 sec ↷';forward.onclick=()=>{if(Number.isFinite(audio.duration))audio.currentTime=Math.min(audio.duration,audio.currentTime+10)};
@@ -825,7 +889,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const rename=document.createElement('button');rename.type='button';rename.className='btn';rename.textContent='✎ Rename';rename.onclick=()=>{const next=prompt('Song title',name.textContent);if(next&&next.trim()){name.textContent=next.trim().slice(0,100);localStorage.setItem('ro_treblo_song_title_'+id,name.textContent);roLibraryUpsert(id,{title:name.textContent});window.roSaveSongToCloud(id,{title:name.textContent}).catch(()=>{})}};
     row.append(back,forward,link,rename);
     const info=document.createElement('p');info.textContent='Save your song soon: Treblo audio URLs can expire. Task ID: '+id;info.style.cssText='font-size:12px;color:#aaa;margin-top:14px;overflow-wrap:anywhere';
-    card.append(cover,name,subtitle,audio,row,info);box.append(card);
+    card.append(cover,name,subtitle,audio,row,info);box.append(card);roAttachTime(audio);
     roLibraryUpsert(id,{title:name.textContent,status:'Ready',url});
     window.roSaveSongToCloud(id,{title:name.textContent}).catch(e=>console.warn('Cloud archive:',e));
   }
