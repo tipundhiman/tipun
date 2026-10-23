@@ -7,14 +7,6 @@ let roWelcomeSerial=0;
 function roWelcomeBack(){
  const user=state.user;if(!user||roWelcomedUser===user.id)return;
  roWelcomedUser=user.id;
- const safe=s=>String(s||'').trim().replace(/[^\p{L}\p{N} .'-]/gu,'').slice(0,55);
- const display=safe(user.name);
- const first=safe(user.firstName)||safe(display.split(/\s+/)[0]);
- const last=safe(user.lastName)||(!user.firstName?safe(display.split(/\s+/).slice(1).join(' ')):'');
- const full=[first,last].filter(Boolean).join(' ').trim();
- const name=full&&full.toLowerCase()!=='creator'&&full.length>1?full:'';
- const hour=Number(new Intl.DateTimeFormat('en-GB',{hour:'numeric',hourCycle:'h23',timeZone:'Asia/Kolkata'}).format(new Date()));
- const daypart=hour>=5&&hour<12?'Good morning':hour>=12&&hour<17?'Good afternoon':hour>=17&&hour<21?'Good evening':'Good night';
  const taglines=['Let your next melody become magic!','Your creativity deserves the spotlight!','A beautiful song begins with one idea!','Keep singing, keep shining, keep creating!','Your music journey starts with a spark!','Make something wonderful today!','Every great artist starts with a dream!'];
  const previous=Number(sessionStorage.getItem('roWelcomeLastIndex')||'-1');
  const index=(previous+1)%taglines.length;sessionStorage.setItem('roWelcomeLastIndex',String(index));
