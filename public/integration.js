@@ -29,9 +29,8 @@ function roWelcomeBack(){
      const utterance=new SpeechSynthesisUtterance(greeting);
      const voices=window.speechSynthesis.getVoices();
      const preferred=voices.find(v=>/female|zira|heera|samantha|veena|neerja|victoria|karen|moira|aria|jenny/i.test(v.name)&&/^en/i.test(v.lang));
-     if(!preferred){console.info('Female English TTS voice unavailable on this device; spoken welcome skipped.');return;}
      if(preferred)utterance.voice=preferred;
-     utterance.lang=preferred.lang;utterance.rate=1.16;utterance.pitch=1.13;utterance.volume=.85;
+     utterance.lang=preferred?.lang||'en-IN';utterance.rate=1.16;utterance.pitch=1.13;utterance.volume=.85;
      window.speechSynthesis.speak(utterance);
    };
    // Speak only once; don't schedule both a voice-load event and a fallback timer.
