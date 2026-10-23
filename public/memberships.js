@@ -27,18 +27,39 @@ function render(reason){
  <div style="text-align:center"><div style="font-size:11px;letter-spacing:3px;color:#e5c9a2">RHYMEORBIT MEMBERSHIPS</div>
  <h2 id="roPriceTitle">${reason==='limit'?'Your 3 free songs are used 🎵':'Find your next sound ✦'}</h2>
  <p class="ro-price-muted">${reason==='limit'?'You can keep enjoying our community and writing tools. Explore plans for more music.':'Create music, connect with creators and grow your orbit.'}</p></div>
- <div class="ro-price-toggle"><button type="button" data-cycle="monthly" aria-pressed="${!annual}">Monthly</button><button type="button" data-cycle="annual" aria-pressed="${annual}">Annual · Save up to 8%</button></div>
+ <p id="roLiveUsage" class="ro-price-muted" style="text-align:center" aria-live="polite">Sign in to see your actual song balance.</p>\n <div class="ro-price-toggle"><button type="button" data-cycle="monthly" aria-pressed="${!annual}">Monthly</button><button type="button" data-cycle="annual" aria-pressed="${annual}">Annual · Save up to 8%</button></div>
  <div class="ro-price-grid">${plans.map((p,i)=>`<article class="ro-price-card ${i===1?'popular':i===2?'pro':''}"><div style="color:#e5c9a2;font-size:11px">${esc(p.tag)}</div><h3>${esc(p.name)}</h3><div class="ro-price-amount">₹${annual?p.annual:p.monthly}<small style="font-size:13px;color:#aaa5b5">/mo</small></div>
  <p class="ro-price-muted">${annual&&p.annual?'₹'+p.annual*12+' billed yearly':'Monthly membership'}</p><p><strong>${p.credits.toLocaleString('en-IN')} credits</strong> / month<br><span class="ro-price-muted">≈ ${p.songs} standard songs (100 credits each)</span></p>
  <ul>${p.perks.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul>
  <button type="button" disabled>${i===0?'Free plan':'Checkout coming soon'}</button></article>`).join('')}</div>
  <p class="ro-price-foot">Preview only — payments are not enabled. Song credits and paid benefits activate only after provider capacity, billing and entitlements are verified. Annual plans renew credits monthly. Future features are labeled Coming Soon.</p>
  </section>`;
- document.body.appendChild(wrap);
+ document.body.appendChild(wrap);\n loadUsage();
  wrap.querySelector('.ro-price-close').onclick=()=>wrap.remove();
  wrap.addEventListener('click',e=>{if(e.target===wrap)wrap.remove()});
  wrap.querySelectorAll('[data-cycle]').forEach(b=>b.onclick=()=>{annual=b.dataset.cycle==='annual';render(reason)});
  wrap.querySelector('.ro-price-close').focus();
+}
+/* Read actual monthly usage from the authenticated backend; never trust browser-stored plan data. */
+async function loadUsage(){
+ let token=null;
+ try{
+   if(typeof sb!=='undefined'&&sb){const session=await sb.auth.getSession();token=session.data.session?.access_token}
+ }catch{}
+ if(!token)return;
+ try{
+   const response=await fetch('/api/music/credits',{headers:{Authorization:'Bearer '+token}});
+   if(!response.ok)return;
+   const usage=await response.json();
+   if(!Number.isFinite(usage.monthlyLimit)||!Number.isFinite(usage.remaining))return;
+   const count=document.getElementById('roLiveUsage');
+   if(count){
+     count.textContent='Your current plan: '+String(usage.plan||'free').toUpperCase()+
+       ' · '+Math.max(0,usage.remaining)+' of '+usage.monthlyLimit+' songs remaining this month.';
+   }
+   const badge=document.getElementById('roMembershipUsage');
+   if(badge)badge.textContent=Math.max(0,usage.remaining)+'/'+usage.monthlyLimit+' songs left';
+ }catch{}
 }
 window.roOpenPricing=render;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('roPricingBackdrop')?.remove()});
@@ -46,6 +67,10 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementB
 const entry=document.createElement('button');entry.type='button';entry.textContent='✦ Memberships';entry.setAttribute('aria-label','Explore RhymeOrbit memberships');
 entry.style.cssText='position:fixed;bottom:18px;left:18px;z-index:1100;border:1px solid #b18be9;background:#20162d;color:#f4e7ff;padding:11px 16px;border-radius:30px;font-weight:700;box-shadow:0 8px 26px #0008';
 entry.onclick=()=>render('plans');document.body.appendChild(entry);
+const usageBadge=document.createElement('div');usageBadge.id='roMembershipUsage';
+usageBadge.style.cssText='position:fixed;bottom:18px;left:185px;z-index:1099;border:1px solid #ffffff29;background:#17141d;color:#d8c9ed;padding:11px;border-radius:30px;font-size:12px;pointer-events:none';
+usageBadge.textContent='';document.body.appendChild(usageBadge);
+loadUsage();
 /* The music endpoint is the source of truth. Surface the upgrade when it rejects quota. */
 const originalFetch=window.fetch.bind(window);
 window.fetch=async function(input,init){const response=await originalFetch(input,init);try{
