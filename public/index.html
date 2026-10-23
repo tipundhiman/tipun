@@ -659,8 +659,40 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const page=previousStudio();
     const anchor='<div id="roCanvasGenerationStatus"';
     if(!page.includes(anchor))return page;
-    const extra='<div class="field" style="margin-top:12px"><label for="roMusicStyle">Music style (Mureka test)</label><input id="roMusicStyle" maxlength="1024" placeholder="Hindi pop, guitar, male vocals, 95 BPM"></div><p class="muted small" style="margin:8px 0">Admin-only paid Mureka test. Use the Generate Song button above.</p><div id="roMurekaResult" style="margin-top:12px" aria-live="polite"></div>';
+    const extra='<div class="field" style="margin-top:12px"><label for="roMusicStyle">Music style (Treblo)</label><input id="roMusicStyle" maxlength="1024" placeholder="Hindi pop, guitar, male vocals, 95 BPM"></div><p class="muted small" style="margin:8px 0">Admin-only Treblo trial test (100 credits per new song).</p><div class="field" style="margin-top:12px"><label for="roTrebloTaskId">Already generated? Recover by task ID (no credits charged)</label><input id="roTrebloTaskId" placeholder="Treblo task ID" autocomplete="off"></div><button class="btn" type="button" onclick="roRecoverTrebloSong()">↻ Recover Existing Song</button><div id="roMurekaResult" style="margin-top:12px" aria-live="polite"></div>';
     return page.replace(anchor,extra+anchor);
+  };
+  const trebleStorageKey='ro_treblo_last_task';
+  function showTrebloPlayer(box,url,id){
+    box.replaceChildren();
+    const title=document.createElement('div');title.textContent='✓ Your song is ready!';title.style.marginBottom='8px';
+    const audio=document.createElement('audio');audio.controls=true;audio.preload='metadata';audio.src=url;audio.style.width='100%';
+    const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Open / Download Song';link.className='btn gold';link.style.display='inline-block';link.style.marginTop='8px';
+    const info=document.createElement('p');info.textContent='Treblo audio links expire. Download your song soon. Task ID: '+id;info.style.fontSize='12px';
+    box.append(title,audio,link,info);
+  }
+  window.roRecoverTrebloSong=async function(id){
+    const box=document.getElementById('roMurekaResult');
+    if(!box)return toast('Open AI Studio first');
+    id=String(id||document.getElementById('roTrebloTaskId')?.value||localStorage.getItem(trebleStorageKey)||'').trim();
+    if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id))return toast('Enter a valid Treblo task ID');
+    if(!sb)return toast('Log in first');
+    const session=(await sb.auth.getSession()).data.session;
+    if(!session?.access_token)return toast('Log in first');
+    localStorage.setItem(trebleStorageKey,id);
+    box.textContent='Checking existing song '+id+'…';
+    try{
+      for(let attempt=0;attempt<90;attempt++){
+        const response=await fetch('/api/music/prediction/'+encodeURIComponent(id),{headers:{Authorization:'Bearer '+session.access_token}});
+        const task=await response.json();
+        if(!response.ok)throw Error(task.error||'Unable to fetch song');
+        if(task.status==='failed')throw Error(task.error||'Song generation failed');
+        if(task.status==='succeeded'&&task.output){showTrebloPlayer(box,String(task.output),id);return;}
+        box.textContent='Your song is still processing… Task ID: '+id;
+        if(attempt<89)await new Promise(resolve=>setTimeout(resolve,5000));
+      }
+      box.textContent='Still processing. Task ID saved: '+id+'. Use Recover Existing Song later; do not regenerate.';
+    }catch(e){box.textContent=(e.message||'Could not fetch song')+' — Task ID: '+id;}
   };
   window.roStartMurekaTest=async function(){
     const lyrics=document.getElementById('songLyrics')?.value.trim()||'';
@@ -668,34 +700,17 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const box=document.getElementById('roMurekaResult');
     if(!box)return;
     if(lyrics.length<20||style.length<5)return toast('Add lyrics and a music style first');
-    if(!confirm('Start ONE paid Mureka V7.6 song generation? Provider charges may apply.'))return;
+    if(!confirm('Generate ONE Treblo song using 100 trial credits? Existing songs can be recovered without generating again.'))return;
     const session=(await sb.auth.getSession()).data.session;
     if(!session?.access_token)return toast('Log in first');
-    box.textContent='Starting your song…';
+    box.textContent='Starting your Treblo song…';
     try{
-      const headers={'Content-Type':'application/json',Authorization:'Bearer '+session.access_token};
-      const start=await fetch('/api/music/generate',{method:'POST',headers,body:JSON.stringify({lyrics,prompt:style})});
-      const data=await start.json();
-      if(!start.ok)throw Error(data.error||'Could not start song');
-      box.textContent='Song is processing. Please keep this page open.';
-      for(let attempt=0;attempt<90;attempt++){
-        await new Promise(resolve=>setTimeout(resolve,5000));
-        const response=await fetch('/api/music/prediction/'+encodeURIComponent(data.id),{headers:{Authorization:headers.Authorization}});
-        const task=await response.json();
-        if(!response.ok)throw Error(task.error||'Status unavailable');
-        if(task.status==='failed')throw Error(task.error||'Song generation failed');
-        if(task.status==='succeeded'){
-          if(!task.output)throw Error('Song finished but no playable audio URL was returned. Check task output.');
-          const url=String(task.output);
-          if(!/^https:\/\//.test(url))throw Error('Invalid audio URL');
-          box.replaceChildren();
-          const audio=document.createElement('audio');audio.controls=true;audio.src=url;audio.style.width='100%';
-          const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Open / Download Song';link.className='btn gold';
-          box.append(audio,link);
-          return;
-        }
-      }
-      box.textContent='Still processing. Check Mureka dashboard for the task result.';
+      const response=await fetch('/api/music/generate',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({lyrics,prompt:style})});
+      const data=await response.json();
+      if(!response.ok)throw Error(data.error||'Could not start song');
+      if(!data.id)throw Error('Provider did not return a task ID');
+      localStorage.setItem(trebleStorageKey,String(data.id));
+      await window.roRecoverTrebloSong(data.id);
     }catch(e){box.textContent=e.message||'Song generation failed'}
   };
 })();
