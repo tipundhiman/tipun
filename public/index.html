@@ -698,17 +698,17 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Lyrics generation failed');
       if (!data.text || typeof data.text !== 'string') throw new Error('No lyrics returned');
-      const rawText=data.text.trim().replace(/^\`{3}[^\\n]*\\n?|\`{3}$/g,'').trim();
-      const titleMatch=rawText.match(/^\\s*(?:TITLE|Song Title|शीर्षक)\\s*[:：-]\\s*(.+)\\s*$/im);
-      let cleaned=rawText.replace(/^\\s*(?:TITLE|Song Title|शीर्षक)\\s*[:：-].*(?:\\r?\\n|$)/im,'').replace(/^\\s*LYRICS\\s*[:：]\\s*(?:\\r?\\n)?/im,'').trim();
+      const rawText=data.text.trim().replace(/^\`{3}[^\n]*\n?|\`{3}$/g,'').trim();
+      const titleMatch=rawText.match(/^\s*(?:TITLE|Song Title|शीर्षक)\s*[:：-]\s*(.+)\s*$/im);
+      let cleaned=rawText.replace(/^\s*(?:TITLE|Song Title|शीर्षक)\s*[:：-].*(?:\r?\n|$)/im,'').replace(/^\s*LYRICS\s*[:：]\s*(?:\r?\n)?/im,'').trim();
       if(!cleaned)cleaned=rawText;
       const titleField=document.getElementById('songTitle');
       if(titleField&&!titleField.value.trim()){
         let suggestion=titleMatch?.[1]?.trim().replace(/^["'“”]+|["'“”]+$/g,'')||'';
         if(!suggestion){
-          const chorus=cleaned.match(/\\[(?:Chorus|Hook|मुखड़ा)[^\\]]*\\]\\s*\\n([^\\n]+)/i);
-          suggestion=(chorus?.[1]||cleaned.split('\\n').find(x=>x.trim()&&!/^\\[/.test(x))||'Untitled Song').trim();
-          suggestion=suggestion.replace(/^[^\\p{L}\\p{N}]+/u,'').slice(0,60);
+          const chorus=cleaned.match(/\[(?:Chorus|Hook|मुखड़ा)[^\]]*\]\s*\n([^\n]+)/i);
+          suggestion=(chorus?.[1]||cleaned.split('\n').find(x=>x.trim()&&!/^\[/.test(x))||'Untitled Song').trim();
+          suggestion=suggestion.replace(/^[^\p{L}\p{N}]+/u,'').slice(0,60);
         }
         titleField.value=suggestion.slice(0,100);
       }
