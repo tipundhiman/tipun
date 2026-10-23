@@ -88,7 +88,7 @@ usageBadge.textContent='';usageBadge.hidden=true;document.body.appendChild(usage
 let authListenerAttached=false;
 async function syncMembershipAuth(){
  try{
-  const client=window.sb;
+  const client=(typeof sb!=='undefined'&&sb?.auth)?sb:window.sb;
   if(!client?.auth)return;
   const {data,error}=await client.auth.getSession();
   if(error)return;
