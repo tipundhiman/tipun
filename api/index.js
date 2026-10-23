@@ -211,16 +211,23 @@ export async function handleApi(req, res) {
       if (!await isAdmin(user.id)) return send(res, 403, { error: 'Admin test only' });
       const id = decodeURIComponent(path.slice('/api/music/prediction/'.length));
       if (!/^[a-zA-Z0-9_-]{1,100}$/.test(id)) return send(res, 400, { error: 'Invalid task ID' });
-      if (!env('MUREKA_API_KEY')) return send(res, 503, { error: 'Mureka key missing' });
-      const response = await fetch('https://api.mureka.ai/v1/song/query/' + encodeURIComponent(id), {
-        headers: { Authorization: 'Bearer ' + env('MUREKA_API_KEY') },
-        signal: AbortSignal.timeout(12000)
+      if (!env('TREBLO_API_KEY')) return send(res, 503, { error: 'Treblo key missing' });
+      const headers = { Authorization: 'Bearer ' + env('TREBLO_API_KEY') };
+      const response = await fetch('https://api.treblo.com/v1/generations/status/' + encodeURIComponent(id), {
+        headers, signal: AbortSignal.timeout(12000)
       });
-      const result = await response.json();
-      if (!response.ok) return send(res, 502, { error: result.error?.message || 'Mureka status unavailable' });
-      const urls = (result.choices || []).map(x => x.url || x.audio_url || x.mp3_url).filter(x => typeof x === 'string' && /^https:\/\//.test(x));
-      const status = result.status === 'succeeded' ? 'succeeded' : ['failed','timeouted','cancelled'].includes(result.status) ? 'failed' : 'processing';
-      return send(res, 200, { id, status, output: urls[0] || null, error: result.failed_reason || null });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) return send(res, 502, { error: result.error?.message || result.detail || 'Treblo status unavailable' });
+      const raw = typeof result === 'string' ? result : (result.status || result.state || '');
+      if (raw === 'FAILURE') return send(res, 200, { id, status: 'failed', error: result.error_message || 'Treblo generation failed' });
+      if (raw !== 'SUCCESS') return send(res, 200, { id, status: 'processing' });
+      const finished = await fetch('https://api.treblo.com/v1/generations/' + encodeURIComponent(id), {
+        headers, signal: AbortSignal.timeout(12000)
+      });
+      const song = await finished.json().catch(() => ({}));
+      if (!finished.ok) return send(res, 502, { error: song.error_message || 'Treblo completed but audio lookup failed' });
+      const output = (song.song_paths || []).find(x => typeof x === 'string' && /^https:\/\//.test(x));
+      return send(res, 200, { id, status: output ? 'succeeded' : 'failed', output: output || null, error: output ? null : 'No audio URL returned' });
     }
     if (req.method !== 'POST') return send(res, 404, { error: 'Not found' });
     if (!rate(req, res)) return;
@@ -247,19 +254,19 @@ export async function handleApi(req, res) {
       const user = await auth(req, res);
       if (!user) return;
       if (!await isAdmin(user.id)) return send(res, 403, { error: 'Music generation is in admin testing' });
-      if (!env('MUREKA_API_KEY')) return send(res, 503, { error: 'Mureka API key is not configured' });
+      if (!env('TREBLO_API_KEY')) return send(res, 503, { error: 'Treblo API key is not configured' });
       const lyrics = String(data.lyrics || '').trim();
       const prompt = String(data.prompt || '').trim();
       if (lyrics.length < 20 || lyrics.length > 5000 || prompt.length < 5 || prompt.length > 1024) return send(res, 400, { error: 'Enter lyrics (20–5000 characters) and music style (5–1024 characters)' });
-      const response = await fetch('https://api.mureka.ai/v1/song/generate', {
+      const response = await fetch('https://api.treblo.com/v1/generations/v3', {
         method: 'POST',
-        headers: { Authorization: 'Bearer ' + env('MUREKA_API_KEY'), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'mureka-7.6', n: 1, lyrics, prompt, stream: false }),
+        headers: { Authorization: 'Bearer ' + env('TREBLO_API_KEY'), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, lyrics, instrumental: false }),
         signal: AbortSignal.timeout(25000)
       });
-      const result = await response.json();
-      if (!response.ok || !result.id) return send(res, 502, { error: result.error?.message || 'Mureka could not start song generation' });
-      return send(res, 200, { id: String(result.id), status: result.status || 'preparing' });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.task_id) return send(res, response.status === 429 ? 429 : 502, { error: result.error?.message || result.detail || result.message || 'Treblo could not start song generation' });
+      return send(res, 200, { id: String(result.task_id), status: 'processing' });
     }
     if (path === '/api/ai') {
       const user = await auth(req, res);
