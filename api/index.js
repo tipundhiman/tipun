@@ -158,8 +158,8 @@ function pathOf(req) {
   return { path, raw: new URL(raw, 'http://localhost') };
 }
 export async function handleApi(req, res) {
+  const { path, raw } = pathOf(req);
   try {
-    const { path, raw } = pathOf(req);
     if (req.method === 'GET' && path === '/api/health') {
       return send(res, 200, {
         ok: true,
