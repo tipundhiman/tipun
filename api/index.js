@@ -1,5 +1,5 @@
 
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHmac, timingSafeEqual } from 'node:crypto';
 import { r2Enabled, r2ConfigState, r2Put, r2PresignedGet, r2Remove } from './r2.js';
 import {handleTestBilling,handleTestWebhook} from './razorpay-test.js';
 
@@ -110,6 +110,64 @@ async function signedAudio(path) {
   const data=await response.json().catch(()=>({}));
   return response.ok&&data.signedURL?c.url+'/storage/v1'+data.signedURL:null;
 }
+// A short-lived, scoped capability lets native <audio> request private R2 byte
+// ranges without exposing Supabase credentials or making the bucket public.
+const AUDIO_CHUNK_BYTES=1024*1024;
+const AUDIO_TOKEN_SECONDS=3600;
+const audioTokenKey=()=>env('SUPABASE_SERVICE_ROLE_KEY');
+function createAudioToken(userId,taskId,now=Math.floor(Date.now()/1000)) {
+  const expires=now+AUDIO_TOKEN_SECONDS;
+  const mac=createHmac('sha256',audioTokenKey()).update('ro-audio-v1:'+userId+':'+taskId+':'+expires).digest('hex');
+  return userId+'.'+expires+'.'+mac;
+}
+function verifyAudioToken(taskId,value,now=Math.floor(Date.now()/1000)) {
+  const match=/^([0-9a-f-]{36})\.(\d{10})\.([0-9a-f]{64})$/i.exec(String(value||''));
+  if(!match||!audioTokenKey())return null;
+  const [,userId,rawExpires,signature]=match;
+  const expires=Number(rawExpires);
+  if(expires<=now||expires>now+AUDIO_TOKEN_SECONDS||!/^[a-zA-Z0-9_-]{1,100}$/.test(taskId))return null;
+  const expected=createHmac('sha256',audioTokenKey()).update('ro-audio-v1:'+userId+':'+taskId+':'+expires).digest();
+  return timingSafeEqual(expected,Buffer.from(signature,'hex'))?userId:null;
+}
+function privateAudioUrl(userId,taskId,storagePath) {
+  if(!storagePath?.startsWith('r2:')||!r2Enabled()||!/^[a-zA-Z0-9_-]{1,100}$/.test(taskId))return null;
+  return '/api/music/audio/'+encodeURIComponent(taskId)+'?token='+encodeURIComponent(createAudioToken(userId,taskId));
+}
+async function servePrivateAudio(req,res,taskId,token) {
+  const userId=verifyAudioToken(taskId,token);
+  if(!userId)return send(res,401,{error:'Audio access link expired. Refresh your song library.'});
+  const found=await supaFetch('/rest/v1/generated_songs?user_id=eq.'+encodeURIComponent(userId)+'&task_id=eq.'+encodeURIComponent(taskId)+'&select=storage_path&limit=1');
+  if(!found.ok)return send(res,503,{error:'Private song library unavailable'});
+  const storagePath=found.data?.[0]?.storage_path;
+  if(!storagePath?.startsWith('r2:')||!r2Enabled())return send(res,404,{error:'Archived audio not found'});
+  const header=String(req.headers.range||'');
+  const match=header? /^bytes=(\d+)-(\d*)$/.exec(header):null;
+  if(header&&!match)return send(res,416,{error:'Unsupported audio range'});
+  const start=match?Number(match[1]):0;
+  const requestedEnd=match&&match[2]?Number(match[2]):start+AUDIO_CHUNK_BYTES-1;
+  if(!Number.isSafeInteger(start)||!Number.isSafeInteger(requestedEnd)||start<0||start>=20_000_000||requestedEnd<start)
+    return send(res,416,{error:'Invalid audio range'});
+  const end=Math.min(requestedEnd,start+AUDIO_CHUNK_BYTES-1);
+  const upstream=await fetch(r2PresignedGet(storagePath.slice(3)),{
+    headers:{Range:'bytes='+start+'-'+end},signal:AbortSignal.timeout(16000)
+  });
+  if(upstream.status===416)return send(res,416,{error:'Audio range outside file'});
+  if(upstream.status!==206)return send(res,502,{error:'Private audio storage did not return a byte range'});
+  const range=/^bytes (\d+)-(\d+)\/(\d+)$/.exec(upstream.headers.get('content-range')||'');
+  const mime=(upstream.headers.get('content-type')||'').split(';')[0].toLowerCase();
+  if(!range||!['audio/ogg','audio/mpeg','audio/mp3'].includes(mime))return send(res,502,{error:'Invalid archived audio response'});
+  const [,actualStart,actualEnd,total]=range.map(Number);
+  const bytes=Buffer.from(await upstream.arrayBuffer());
+  if(actualStart!==start||actualEnd<actualStart||Number(total)>20_000_000||bytes.length!==actualEnd-actualStart+1||bytes.length>AUDIO_CHUNK_BYTES)
+    return send(res,502,{error:'Incomplete private audio response'});
+  res.writeHead(206,{
+    'Content-Type':mime,'Content-Length':String(bytes.length),
+    'Content-Range':'bytes '+actualStart+'-'+actualEnd+'/'+total,
+    'Accept-Ranges':'bytes','Cache-Control':'private, no-store',
+    'X-Content-Type-Options':'nosniff'
+  });
+  res.end(bytes);
+}
 async function trebleAudio(id) {
   const headers={Authorization:'Bearer '+env('TREBLO_API_KEY')};
   const status=await fetch('https://api.treblo.com/v1/generations/status/'+encodeURIComponent(id),{headers,signal:AbortSignal.timeout(10000)});
@@ -199,6 +257,10 @@ function pathOf(req) {
 export async function handleApi(req, res) {
   const { path, raw } = pathOf(req);
   try {
+    if(req.method==='GET'&&path.startsWith('/api/music/audio/')){
+      const taskId=decodeURIComponent(path.slice('/api/music/audio/'.length));
+      return servePrivateAudio(req,res,taskId,raw.searchParams.get('token'));
+    }
     if(path==='/api/billing/test/webhook')return handleTestWebhook(req,res);
     if(path.startsWith('/api/billing/test/')){
       const handled=await handleTestBilling(req,res,{path,send,auth,isAdmin,supaFetch,body,rate});
@@ -275,7 +337,7 @@ export async function handleApi(req, res) {
       if(!found.ok)return send(res,503,{error:'Cloud song library not set up. Run the Supabase migration SQL first.'});
       const items=await Promise.all(found.data.map(async row=>({
         id:row.task_id,title:row.title,voice:row.voice,status:row.status,createdAt:row.created_at,
-        url:await signedAudio(row.storage_path),cloudSaved:!!row.storage_path
+        url:await signedAudio(row.storage_path),proxyUrl:privateAudioUrl(user.id,row.task_id,row.storage_path),cloudSaved:!!row.storage_path
       })));
       return send(res,200,{items});
     }
@@ -308,7 +370,7 @@ export async function handleApi(req, res) {
         body:JSON.stringify({user_id:user.id,task_id:id,title,voice,status:storagePath?'ready':'pending',storage_path:storagePath})
       });
       if(!save.ok)return send(res,503,{error:'Unable to save cloud song record',detail:save.data?.message});
-      return send(res,200,{id,cloudSaved:!!storagePath,warning,url:await signedAudio(storagePath)});
+      return send(res,200,{id,cloudSaved:!!storagePath,warning,url:await signedAudio(storagePath),proxyUrl:privateAudioUrl(user.id,id,storagePath)});
     }
     if (req.method === 'DELETE' && path === '/api/music/library') {
       if (!rate(req, res)) return;
@@ -499,7 +561,7 @@ export async function handleApi(req, res) {
         response = await fetch('https://api.treblo.com/v1/generations/v3', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + env('TREBLO_API_KEY'), 'Content-Type': 'application/json' },
-        body: JSON.stringify({prompt:instructions,...(isFullLyrics?{lyrics:ideaOrLyrics}:{}),instrumental:false}),
+        body: JSON.stringify({prompt:instructions,...(isFullLyrics?{lyrics:ideaOrLyrics}:{}),instrumental:false,output_format:'mp3'}),
         signal: AbortSignal.timeout(25000)
       });
       } catch (error) {
