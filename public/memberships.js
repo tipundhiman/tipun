@@ -209,20 +209,20 @@ function openMemberships(reason){
  overlay.innerHTML=`<section class="ro-membership-dialog" role="dialog" aria-modal="true" aria-labelledby="roMembershipTitle">
  <button class="ro-membership-close" type="button" aria-label="Close memberships">×</button>
  <div style="text-align:center"><div style="font-size:11px;letter-spacing:3px;color:#e5c9a2">RHYMEORBIT MEMBERSHIPS</div>
- <h2 id="roMembershipTitle">${reason==='limit'?'Your free song limit is reached 🎵':'Find your next sound ✦'}</h2>
+ <h2 id="roMembershipTitle">${reason==='limit'?'Your free song limit is reached 🎵':'Create for free. More coming soon ✦'}</h2>
  <p class="ro-membership-muted">Create music, connect with creators and grow your orbit.</p>
  <p id="roMembershipBalance" class="ro-membership-muted" aria-live="polite">Checking your song balance…</p></div>
- <div class="ro-membership-cycle"><button type="button" data-cycle="monthly" aria-pressed="${!annual}">Monthly</button><button type="button" data-cycle="annual" aria-pressed="${annual}">Annual · Save up to 8%</button></div>
+ <p class="ro-membership-muted" style="text-align:center">Free public beta is open. Premium and Pro subscriptions are coming soon.</p>
  <div class="ro-membership-grid">${plans.map((p,i)=>`<article class="ro-membership-card"><div style="color:#e5c9a2;font-size:11px">${escapeHTML(p.tag)}</div><div class="ro-plan-state">${i===0?'✓ Available now':'🔒 Coming soon · Paid tier'}</div><h3>${escapeHTML(p.name)}</h3>
- <div class="ro-membership-amount">₹${annual?p.annual:p.monthly}<small style="font-size:13px;color:#b3aebe">/mo</small></div>
- <p class="ro-membership-muted">${annual&&p.annual?'₹'+p.annual*12+' billed annually':'Monthly membership'}</p>
+ <div class="ro-membership-amount">${i===0?'₹0 / month':'Coming soon'}</div>
+ <p class="ro-membership-muted">${i===0?'No payment required':'No pricing or checkout is active yet'}</p>
  <p><strong>${p.songs} ${i===0?'free':'planned'} songs</strong> / month<br><span class="ro-membership-muted">${i===0?'Free monthly allowance':'Planned allowance after verified paid launch'} · ${p.credits.toLocaleString('en-IN')} planned credits</span></p>
  <ul>${p.perks.map(x=>'<li>'+escapeHTML(x)+'</li>').join('')}</ul><button type="button" disabled>${i===0?'✓ Current free plan':'🔒 Checkout unavailable'}</button></article>`).join('')}</div>
  <details class="ro-membership-details"><summary>Compare all 18 creator features ↓</summary>
  <div class="ro-membership-matrix-wrap"><table class="ro-membership-matrix"><thead><tr><th scope="col">Feature</th><th scope="col">Free</th><th scope="col">Premium</th><th scope="col">Pro</th></tr></thead>
  <tbody>${featureMatrix.map(row=>`<tr>${row.map((value,index)=>`<${index===0?'th scope="row"':'td'}>${escapeHTML(value)}</${index===0?'th':'td'}>`).join('')}</tr>`).join('')}</tbody></table></div>
  <p class="ro-membership-muted">✓ means the tool is available where supported; provider and account limits still apply. “Planned” means not yet unlocked. “Not active” means not available on any plan. Stereo split and pitch assist are basic browser tools, not neural studio mastering.</p></details>
- <p class="ro-membership-muted" style="text-align:center;margin-top:20px">Free includes 3 songs/month when generation is available. Paid plans are previews, not currently purchasable. Higher quotas and quality downloads activate only with verified server-side memberships after the provider, commercial-rights and billing checks. Annual pricing shown is planned, not a current offer.</p></section>`;
+ <p class="ro-membership-muted" style="text-align:center;margin-top:20px">Free includes 3 songs/month when generation is available. Paid plans are previews, not currently purchasable. Higher quotas and quality downloads activate only with verified server-side memberships after the provider, commercial-rights and billing checks.</p></section>`;
  document.body.appendChild(overlay);
  overlay.querySelector('.ro-membership-close').onclick=()=>overlay.remove();
  overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};
