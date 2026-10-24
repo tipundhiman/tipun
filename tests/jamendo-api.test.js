@@ -95,6 +95,41 @@ test('Jamendo licensed lookup uses Client ID only and returns safe, credited res
   }
 });
 
+test('30-second indie karaoke search reuses Jamendo Client ID with instrumental filter only', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalId = process.env.JAMENDO_CLIENT_ID;
+  const originalDisabled = process.env.JAMENDO_CATALOG_DISABLED;
+  process.env.JAMENDO_CLIENT_ID = 'existing-client-123';
+  process.env.JAMENDO_CATALOG_DISABLED = 'false';
+  let calls = 0;
+  globalThis.fetch = async url => {
+    calls++;
+    const upstream = new URL(url);
+    assert.equal(upstream.origin, 'https://api.jamendo.com');
+    assert.equal(upstream.searchParams.get('client_id'), 'existing-client-123');
+    assert.equal(upstream.searchParams.get('vocalinstrumental'), 'instrumental');
+    assert.equal(upstream.searchParams.get('search'), 'piano');
+    assert.equal(upstream.searchParams.has('client_secret'), false);
+    return { ok: true, async json() { return {
+      headers: { status: 'success' }, results: [track({ name: 'Indie piano', duration: 61 })]
+    }; } };
+  };
+  try {
+    assert.equal((await request('/api/jamendo/search?q=piano&instrumental=oops')).status, 400);
+    const result = await request('/api/jamendo/search?q=piano&offset=0&instrumental=1');
+    assert.equal(result.status, 200);
+    assert.equal(result.data.instrumentalFilter, true);
+    assert.equal(result.data.items.length, 1);
+    assert.equal(result.data.items[0].title, 'Indie piano');
+    assert.match(result.data.note, /voice-only practice/);
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    originalId === undefined ? delete process.env.JAMENDO_CLIENT_ID : process.env.JAMENDO_CLIENT_ID = originalId;
+    originalDisabled === undefined ? delete process.env.JAMENDO_CATALOG_DISABLED : process.env.JAMENDO_CATALOG_DISABLED = originalDisabled;
+  }
+});
+
 test('Jamendo validates query, licensing metadata and does not enable karaoke recording', async () => {
   assert.equal(normalizeJamendoTrack(track({ license_ccurl: 'https://creativecommons.org/licenses/by-sa/4.0/' }))?.artist, 'Original Artist');
   assert.equal(normalizeJamendoTrack(track({ audio: 'http://prod-1.storage.jamendo.com/track.mp3' })), null);

@@ -49,8 +49,8 @@ export function normalizeJamendoTrack(track) {
   };
 }
 
-async function jamendoLookup(query, offset = 0) {
-  const cacheKey = `${query.toLowerCase()}:${offset}`;
+async function jamendoLookup(query, offset = 0, instrumental = false) {
+  const cacheKey = `${instrumental ? 'instrumental' : 'all'}:${query.toLowerCase()}:${offset}`;
   const cached = query ? pageCache.get(cacheKey) : null;
   if (cached?.expires > Date.now()) return cached.page;
   const url = new URL('https://api.jamendo.com/v3.0/tracks/');
@@ -62,6 +62,7 @@ async function jamendoLookup(query, offset = 0) {
   url.searchParams.set('audioformat', 'mp31');
   url.searchParams.set('ccnc', 'false');
   url.searchParams.set('ccnd', 'false');
+  if (instrumental) url.searchParams.set('vocalinstrumental', 'instrumental');
   if (query) url.searchParams.set('search', query);
   let data;
   for (let attempt = 0; attempt < (query ? 2 : 1); attempt++) {
@@ -125,9 +126,17 @@ export async function handleJamendoApi(req, res, { path, raw, send, rate, auth, 
     send(res, 400, { error: 'Invalid music search page.' });
     return true;
   }
+  const instrumental = raw.searchParams.get('instrumental') === '1';
+  if (raw.searchParams.has('instrumental') && !['0', '1'].includes(raw.searchParams.get('instrumental'))) {
+    send(res, 400, { error: 'Invalid music filter.' });
+    return true;
+  }
   try {
-    const page = await jamendoLookup(query, Number(rawOffset));
-    send(res, 200, { ...page, provider: 'Jamendo', note: 'Independent artists only. Karaoke/recording rights are not included.' });
+    const page = await jamendoLookup(query, Number(rawOffset), instrumental);
+    send(res, 200, { ...page, provider: 'Jamendo', instrumentalFilter: instrumental,
+      note: instrumental
+        ? 'Instrumental-tagged indie tracks for listening and voice-only practice. External backing tracks are not saved or included in recordings.'
+        : 'Independent artists only. Karaoke/recording rights are not included.' });
   } catch {
     send(res, 502, { error: 'Jamendo search is temporarily unavailable. Please retry.' });
   }

@@ -23,12 +23,13 @@ let historyUrls = [];
 
 function view(name) {
   for (const button of document.querySelectorAll('[data-view]')) button.setAttribute('aria-selected',String(button.dataset.view===name));
-  for (const tab of ['songs','coach','history']) $('ss'+tab[0].toUpperCase()+tab.slice(1)).hidden=tab!==name;
+  for (const tab of ['songs','indie','coach','history']) $('ss'+tab[0].toUpperCase()+tab.slice(1)).hidden=tab!==name;
   if (name==='history') renderHistory();
+  document.dispatchEvent(new CustomEvent('ro:sing-view', {detail:name}));
   try {history.replaceState(null,'','#'+name);} catch {}
 }
 document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{if(running)stopSession();view(button.dataset.view);}));
-if (['#songs','#coach','#history'].includes(location.hash)) view(location.hash.slice(1));
+if (['#songs','#indie','#coach','#history'].includes(location.hash)) view(location.hash.slice(1));
 
 function chooseSong(song) {
   if (running) stopSession();
@@ -324,6 +325,16 @@ async function saveToBrowser(item){await dbRequest('readwrite',store=>store.put(
   const old=items.sort((a,b)=>b.createdAt-a.createdAt).slice(5);
   for(const entry of old)await dbRequest('readwrite',store=>store.delete(entry.id));
 }
+// Independent 30s practice uses the same private My Recordings library.
+// Only the user's microphone blob is stored; Jamendo backing audio is excluded.
+window.roSaveIndieSinging = async (blob, ext, title) => {
+  if (!(blob instanceof Blob) || !['webm','ogg','m4a'].includes(ext)) throw Error('Invalid recording');
+  await saveToBrowser({
+    id:Date.now()+'-'+Math.random().toString(36).slice(2,8),
+    song:'30s Indie Challenge · '+String(title||'Practice').slice(0,100),
+    createdAt:Date.now(),blob,ext,score:null
+  });
+};
 async function renderHistory(){
   const container=$('ssHistoryList');container.replaceChildren();
   historyUrls.forEach(url=>URL.revokeObjectURL(url));historyUrls=[];

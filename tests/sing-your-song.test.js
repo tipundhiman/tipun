@@ -6,6 +6,7 @@ import {parseTimedLyrics} from '../cloudflare/creator-lyrics.js';
 
 const page=readFileSync(new URL('../public/sing-your-song.html',import.meta.url),'utf8');
 const script=readFileSync(new URL('../public/sing-your-song.js',import.meta.url),'utf8');
+const indieScript=readFileSync(new URL('../public/sing-jamendo.js',import.meta.url),'utf8');
 const headers=readFileSync(new URL('../public/_headers',import.meta.url),'utf8');
 const vercel=JSON.parse(readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
 
@@ -32,6 +33,20 @@ test('Microphone access is scoped, permissioned and recordings are local only',(
   assert.match(page,/id="ssSongMicLevel"/);
   assert.match(page,/id="ssVoicePolish"/);
   assert.match(page,/no pitch correction/,'Studio polish must not be falsely sold as Auto-Tune');
+});
+
+test('30-second indie karaoke uses existing Jamendo endpoint, voice-only microphone and local recordings',()=>{
+  for(const section of ['ssTabIndie','ssIndie','ssIndieQuery','ssIndieList','ssIndieListen','ssIndieRecord','ssIndieStop','ssIndieDownload'])
+    assert.match(page,new RegExp('id="'+section+'"'));
+  assert.match(page,/sing-jamendo\.js/);
+  assert.match(indieScript,/\/api\/jamendo\/search\?q=/);
+  assert.match(indieScript,/&instrumental=1/);
+  assert.match(indieScript,/new MediaRecorder\(mic/);
+  assert.match(indieScript,/from \+ 30/);
+  assert.match(indieScript,/window\.roSaveIndieSinging/);
+  assert.match(script,/window\.roSaveIndieSinging\s*=/);
+  assert.match(page,/records only your microphone|voice only|your mic input/i);
+  assert.doesNotMatch(indieScript,/JAMENDO_CLIENT_ID|JAMENDO_CLIENT_SECRET|fetch\(.+\.mp3|r2\.cloudflare/);
 });
 
 test('Four original practice songs have reasonable 1–2 minute durations and active lyrics',()=>{
