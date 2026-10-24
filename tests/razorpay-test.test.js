@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
-import {testPrices,testKeyConfigured,safeHmac,verifyTestCheckoutSignature,handleTestBilling,handleTestWebhook} from '../api/razorpay-test.js';
+import {testPrices,testKeyConfigured,safeHmac,verifyTestCheckoutSignature,handleTestBilling,handleTestWebhook,sandboxGatewayError} from '../api/razorpay-test.js';
 
 const keys=['RAZORPAY_TEST_KEY_ID','RAZORPAY_TEST_KEY_SECRET','RAZORPAY_TEST_WEBHOOK_SECRET','RAZORPAY_TEST_PREMIUM_MONTHLY_PLAN_ID','SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY'];
 const data={
@@ -96,4 +96,39 @@ test('Sandbox never gives live subscriptions or song credits',async()=>{
  const mod=readFileSync(new URL('../api/razorpay-test.js',import.meta.url),'utf8');
  assert.match(api,/const limit = !active \? 0 : 3;/);
  assert.doesNotMatch(mod,/public\.subscriptions/);
+});
+
+test('Admin diagnostic identifies the exact TEST-plan lookup problem without exposing secrets',async()=>{
+ const end=setup(),prior=globalThis.fetch,calls=[];
+ globalThis.fetch=async url=>{calls.push(String(url));return {ok:false,status:401,async json(){return {error:{description:'private gateway hint'}}}}};
+ try{
+  const r=res(),context={...ctx(),path:'/api/billing/test/diagnose'};
+  await handleTestBilling(req('GET','/api/billing/test/diagnose'),r,context);
+  assert.equal(r.status,200);assert.equal(r.body.testMode,true);
+  assert.equal(r.body.plans.length,1);
+  assert.equal(r.body.plans[0].match,false);
+  assert.match(r.body.plans[0].result,/TEST API Key ID or Secret \(401\)/);
+  assert.equal(calls.length,1);
+  assert.doesNotMatch(JSON.stringify(r.body),/test-only-secret|private gateway hint/);
+ }finally{globalThis.fetch=prior;end()}
+});
+test('Checkout returns actionable 404 plan lookup hint and never creates a subscription',async()=>{
+ const end=setup(),prior=globalThis.fetch,calls=[];
+ globalThis.fetch=async url=>{calls.push(String(url));return {ok:false,status:404,async json(){return {}}}};
+ try{
+  const r=res();
+  await handleTestBilling(req('POST','/api/billing/test/create-subscription',{plan:'premium',cycle:'monthly'}),r,ctx());
+  assert.equal(r.status,503);
+  assert.match(r.body.error,/Plan ID not found.*TEST account \(404\)/);
+  assert.equal(calls.length,1);
+ }finally{globalThis.fetch=prior;end()}
+});
+test('Non-admin user cannot run plan diagnosis',async()=>{
+ const end=setup(),prior=globalThis.fetch;let requests=0;
+ globalThis.fetch=async()=>{requests++;throw Error('Must not contact gateway')};
+ try{
+  const r=res();
+  await handleTestBilling(req('GET','/api/billing/test/diagnose'),r,{...ctx(false),path:'/api/billing/test/diagnose'});
+  assert.equal(r.status,403);assert.equal(requests,0);
+ }finally{globalThis.fetch=prior;end()}
 });

@@ -16,6 +16,25 @@ export const testKeyConfigured=()=>{
  return /^rzp_test_[A-Za-z0-9]+$/.test(k.id)&&k.secret.length>=8&&k.webhook.length>=8;
 };
 const planVar=(plan,cycle)=>'RAZORPAY_TEST_'+plan.toUpperCase()+'_'+cycle.toUpperCase()+'_PLAN_ID';
+function planMatchesGateway(vendor,choice){
+ const amount=Number(vendor.item?.amount??vendor.item?.unit_amount);
+ return vendor.id===choice.planId&&
+  vendor.period===(choice.cycle==='annual'?'yearly':'monthly')&&
+  Number(vendor.interval)===1&&amount===choice.pricePaise&&
+  vendor.item?.currency==='INR';
+}
+/** Explicit safe error categories, never expose Razorpay's raw response or credentials. */
+export function sandboxGatewayError(err){
+ const status=Number(err?.gatewayStatus||0);
+ if(status===401)return 'Razorpay rejected the TEST API Key ID or Secret (401). Regenerate the TEST key pair in the same account as your plans, then update Vercel Production.';
+ if(status===403)return 'Razorpay account/API key does not have access to this subscription plan (403). Check merchant account permissions.';
+ if(status===404)return 'Plan ID not found in this Razorpay TEST account (404). Copy the plan_... ID from Test Mode → Subscriptions → Plans.';
+ if(status===400||status===422)return 'Razorpay rejected the plan lookup request ('+status+'). Check account mode and plan ID.';
+ if(status===429)return 'Razorpay temporarily limited the requests (429). Try again after a short break.';
+ if(status>=500)return 'Razorpay server is temporarily unavailable ('+status+'). Try again later.';
+ if(err?.name==='TimeoutError'||err?.name==='AbortError')return 'Razorpay API request timed out. Retry after checking network status.';
+ return 'Could not contact Razorpay. Confirm your test keys and plan IDs are from the same Razorpay account.';
+}
 function chosenPlan(plan,cycle){
  if(!Object.hasOwn(testPrices,plan)||!Object.hasOwn(testPrices[plan],cycle))return null;
  const planId=env(planVar(plan,cycle));
@@ -48,14 +67,18 @@ async function razorpayRequest(method,endpoint,data){
   signal:AbortSignal.timeout(12000)
  });
  const value=await response.json().catch(()=>({}));
- if(!response.ok)throw new Error('Razorpay test gateway request failed ('+response.status+')');
+ if(!response.ok){
+  const error=new Error('Razorpay test gateway request rejected');
+  error.gatewayStatus=response.status;
+  throw error;
+ }
  return value;
 }
 
 export async function handleTestBilling(req,res,{path,send,auth,isAdmin,supaFetch,body,rate}){
  const validPaths=new Set([
   '/api/billing/test/status','/api/billing/test/create-subscription',
-  '/api/billing/test/verify','/api/billing/test/subscriptions'
+  '/api/billing/test/verify','/api/billing/test/subscriptions','/api/billing/test/diagnose'
  ]);
  if(!validPaths.has(path))return false;
  if(!rate(req,res))return true;
@@ -79,6 +102,44 @@ export async function handleTestBilling(req,res,{path,send,auth,isAdmin,supaFetc
    note:'Sandbox transactions only. Paid song entitlements are disabled.'
   }),true;
  }
+ if(req.method==='GET'&&path==='/api/billing/test/diagnose'){
+  const db=await dbCheck();
+  const settings={
+   keyIdHasTestPrefix:/^rzp_test_[A-Za-z0-9]+$/.test(testKeys().id),
+   apiSecretSet:testKeys().secret.length>0,
+   webhookSecretSet:testKeys().webhook.length>0,
+   databaseReady:db.ok
+  };
+  const checked=[];
+  for(const plan of ['premium','pro']){
+   for(const cycle of ['monthly','annual']){
+    const choice=chosenPlan(plan,cycle);
+    if(!choice)continue;
+    try{
+     const vendor=await razorpayRequest('GET','/plans/'+encodeURIComponent(choice.planId));
+     checked.push({
+      plan,cycle,
+      match:planMatchesGateway(vendor,choice),
+      result:planMatchesGateway(vendor,choice)?'Verified':'Plan details differ from RhymeOrbit pricing or billing frequency. Check amount and interval in Razorpay.'
+     });
+    }catch(error){
+     checked.push({plan,cycle,match:false,result:sandboxGatewayError(error)});
+    }
+   }
+  }
+  send(res,200,{
+   testMode:true,realPaymentsEnabled:false,
+   settings,plans:checked,
+   message:!settings.keyIdHasTestPrefix||!settings.apiSecretSet?
+    'Razorpay TEST API key pair is missing or has an invalid format in Vercel Production.':
+    !settings.webhookSecretSet?
+    'Webhook signing secret missing. Add RAZORPAY_TEST_WEBHOOK_SECRET before opening checkout.':
+    checked.length===0?'No valid plan_... identifiers configured for testing.':
+    checked.every(x=>x.match)?'All configured Razorpay test plans verified.':
+    'One or more plans could not be verified. See each result.'
+  });
+  return true;
+ }
  if(req.method==='GET'&&path==='/api/billing/test/subscriptions'){
   const result=await supaFetch('/rest/v1/billing_test_subscriptions?user_id=eq.'+
    encodeURIComponent(user.id)+'&select=id,plan,cycle,status,created_at,updated_at&order=created_at.desc&limit=20');
@@ -94,11 +155,8 @@ export async function handleTestBilling(req,res,{path,send,auth,isAdmin,supaFetc
   // The server checks the Razorpay plan itself. Never accept the amount from the browser.
   let vendorPlan;
   try{vendorPlan=await razorpayRequest('GET','/plans/'+encodeURIComponent(choice.planId))}
-  catch{send(res,503,{error:'Could not verify the configured Razorpay test plan'});return true}
-  const amount=Number(vendorPlan.item?.amount??vendorPlan.item?.unit_amount);
-  if(vendorPlan.id!==choice.planId||vendorPlan.period!==(choice.cycle==='annual'?'yearly':'monthly')||
-     Number(vendorPlan.interval)!==1||amount!==choice.pricePaise||
-     vendorPlan.item?.currency!=='INR'){
+  catch(error){send(res,503,{error:sandboxGatewayError(error)});return true}
+  if(!planMatchesGateway(vendorPlan,choice)){
     send(res,409,{error:'Razorpay test plan amount or billing frequency does not match the pricing page'});
     return true;
   }

@@ -119,6 +119,33 @@ async function loadSandboxControls(overlay){
   const note=document.createElement('p');note.className='ro-membership-muted';
   note.textContent='Test transactions only. Live checkout remains disabled for everyone and test payments never grant paid credits.';
   panel.append(heading,note);
+  const diagnose=document.createElement('button');
+  diagnose.type='button';
+  diagnose.className='ro-membership-test-button';
+  diagnose.textContent='↻ Check Razorpay TEST connection';
+  diagnose.style.cssText='margin:5px 10px 14px 0;padding:10px 15px;border-radius:24px;border:1px solid #e5c9a2;background:#251f2c;color:#f7e6c6;cursor:pointer;';
+  const diagnosticLines=document.createElement('div');
+  diagnosticLines.className='ro-membership-muted';
+  diagnosticLines.setAttribute('role','status');
+  diagnosticLines.setAttribute('aria-live','polite');
+  diagnosticLines.style.cssText='white-space:pre-line;margin-bottom:12px;';
+  diagnose.onclick=async()=>{
+   if(diagnose.disabled)return;
+   diagnose.disabled=true;diagnosticLines.textContent='Checking Razorpay TEST connection without making any payment…';
+   try{
+    const diagnosis=await sandboxRequest('diagnose');
+    const list=diagnosis.plans||[];
+    const lines=[diagnosis.message];
+    if(!diagnosis.settings?.keyIdHasTestPrefix)lines.push('• TEST Key ID missing/invalid in Production environment.');
+    if(!diagnosis.settings?.apiSecretSet)lines.push('• TEST API Secret missing in Production environment.');
+    if(!diagnosis.settings?.webhookSecretSet)lines.push('• Test webhook secret missing.');
+    if(!diagnosis.settings?.databaseReady)lines.push('• Sandbox database not ready.');
+    for(const item of list)lines.push('• '+item.plan.toUpperCase()+' '+item.cycle+': '+item.result);
+    diagnosticLines.textContent=lines.join('\n');
+   }catch(error){diagnosticLines.textContent=error.message||'Connection check unavailable. Sign in as admin.'}
+   finally{diagnose.disabled=false}
+  };
+  panel.append(diagnose,diagnosticLines);
   const result=document.createElement('p');result.className='ro-membership-muted';
   result.setAttribute('role','status');result.setAttribute('aria-live','polite');
   if(!status.configured){
