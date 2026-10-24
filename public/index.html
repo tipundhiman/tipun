@@ -128,7 +128,7 @@ function downloads(){
   return appPage(`
     <div class="ro-downloads-head">
       <div><span class="eyebrow">YOUR MUSIC / DOWNLOAD AUDIO</span><h1>Saved <span class="serif">songs.</span></h1><p>Play, check progress, choose format and download. Song creation stays in AI Studio.</p></div>
-      <button class="btn sm" type="button" onclick="window.roLoadCloudSongs?.({force:true}).then(()=>window.roRenderMyStudioSongs?.())">↻ Refresh library</button>
+      <div class="row"><button class="btn sm" type="button" onclick="window.roLoadCloudSongs?.({force:true}).then(()=>window.roRenderMyStudioSongs?.())">↻ Refresh library</button><a class="btn sm" href="/video-maker#videos">🎬 My saved videos ↗</a></div>
     </div>
     <section class="ro-downloads-list" aria-label="Your saved songs"><div id="roMyStudioSongs" role="list" aria-live="polite"></div></section>
     <p class="muted small ro-downloads-footnote">MP3 128/192 kbps is free. Higher formats require a verified Premium/Pro membership. Audio is fetched from private cloud storage only when needed.</p>
@@ -686,7 +686,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
 })();
 </script>
 <!-- END RHYMEORBIT ADMIN DASHBOARD -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script src="/integration.js"></script><script src="/social.js"></script><script src="/media.js?v=cloudflare-r2-20261024"></script><script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script src="/integration.js?v=20261024-fast-login-1"></script><script src="/social.js"></script><script src="/media.js?v=cloudflare-r2-20261024"></script><script>
 /* RhymeOrbit quick upgrade: in-canvas lyrics generation. */
 (function () {
   'use strict';
@@ -1105,6 +1105,16 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
           }catch{toast('Could not open Video Maker. Download your song first, then upload it there.');}
         };
         drawer.append(video);
+        const polish=document.createElement('button');polish.type='button';polish.className='ro-song-action';
+        polish.textContent='✦ Clean / Tune in Vocal Lab';
+        polish.style.margin='11px 0 0 8px';
+        polish.onclick=()=>{
+          try{
+            sessionStorage.setItem('ro_vocal_selected_song',JSON.stringify({title:String(item.title||'My AI Song').slice(0,100),proxyUrl:item.proxyUrl}));
+            window.location.assign('/vocal-lab');
+          }catch{toast('Open Vocal Lab and upload a downloaded MP3 or WAV instead.');}
+        };
+        drawer.append(polish);
       }
     }else if(roPendingSong(item)){
       const pending=document.createElement('div');pending.className='ro-song-pending';

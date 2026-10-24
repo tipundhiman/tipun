@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const MAX_BYTES = 25 * 1024 * 1024;
-  const MAX_DURATION = 120;
+  const MAX_DURATION = 180;
   const $ = id => document.getElementById(id);
   const audioFile = $('audioFile');
   const processBtn = $('processBtn');
@@ -36,6 +36,7 @@
   function updateSliders() {
     $('gateValue').textContent = $('gate').value + '%';
     $('clarityValue').textContent = $('clarity').value + '%';
+    $('pitchValue').textContent = Number($('pitchAssist').value) ? $('pitchAssist').value + '% (beta)' : 'Off';
     invalidateOutput();
   }
   function invalidateOutput() {
@@ -55,7 +56,7 @@
     $('clarity').value = String(preset.clarity);
     updateSliders();
   });
-  for (const id of ['gate', 'clarity']) {
+  for (const id of ['gate', 'clarity', 'pitchAssist']) {
     $(id).addEventListener('input', updateSliders);
   }
   beforeAudio.addEventListener('play', () => afterAudio.pause());
@@ -130,7 +131,7 @@
     if (attempt !== activeLoad) return;
     if (Number.isFinite(metadataSeconds) && metadataSeconds > MAX_DURATION) {
       $('originalInfo').textContent = 'Too long';
-      status('Maximum recording length is 2 minutes. Trim your audio and try again.');
+      status('Maximum audio length is 3 minutes. Trim your audio and try again.');
       return;
     }
     let ctx;
@@ -139,8 +140,8 @@
       const input = await blob.arrayBuffer();
       const buffer = await ctx.decodeAudioData(input);
       if (attempt !== activeLoad) return;
-      if (buffer.duration > MAX_DURATION || buffer.numberOfChannels > 2 || buffer.sampleRate > 96000) {
-        status('Use audio up to 2 minutes, stereo, and 96 kHz sample rate.');
+      if (buffer.duration > MAX_DURATION || buffer.numberOfChannels > 2 || buffer.sampleRate > 96000 || buffer.length * buffer.numberOfChannels > 18000000) {
+        status('Use audio up to 3 minutes, stereo, and a manageable sample rate. Trim or downsample larger files.');
         $('originalInfo').textContent = 'Unsupported recording';
         return;
       }
@@ -163,6 +164,40 @@
     const file = audioFile.files?.[0];
     if (file) loadAudio(file, file.name);
   });
+  // Download an already-owned song from its expiring private playback proxy;
+  // processing still happens in-browser and never uploads the source file.
+  async function usePrivateSong() {
+    let selection;
+    try {
+      selection = JSON.parse(sessionStorage.getItem('ro_vocal_selected_song') || 'null');
+      sessionStorage.removeItem('ro_vocal_selected_song');
+    } catch { return; }
+    const source = selection?.proxyUrl;
+    if (typeof source !== 'string' || !/^\/api\/music\/audio\/[a-zA-Z0-9_-]{1,100}\?token=/.test(source)) return;
+    $('cloudSongStatus').textContent = 'Loading your saved song securely from RhymeOrbit…';
+    try {
+      const buffers = [];
+      let offset = 0, total = 0, type = 'audio/ogg';
+      for (let step = 0; step < 26; step++) {
+        const response = await fetch(source, { headers: { Range: `bytes=${offset}-${offset + 1048575}` }, cache: 'no-store' });
+        if (response.status !== 206) throw Error('Private song link expired. Return to Download Audio and reopen it.');
+        const match = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(response.headers.get('content-range') || '');
+        if (!match || Number(match[1]) !== offset) throw Error('Incomplete audio response');
+        total = Number(match[3]);
+        if (!Number.isSafeInteger(total) || total > MAX_BYTES || total < 100) throw Error('Your song exceeds the Vocal Lab 25 MB limit');
+        const bytes = await response.arrayBuffer();
+        if (bytes.byteLength !== Number(match[2]) - offset + 1) throw Error('Incomplete audio transfer');
+        buffers.push(bytes);
+        type = (response.headers.get('content-type') || type).split(';')[0];
+        offset = Number(match[2]) + 1;
+        if (offset === total) break;
+      }
+      if (offset !== total) throw Error('Download incomplete');
+      $('cloudSongStatus').textContent = '✓ RhymeOrbit song loaded. Choose a gentle mastering preset and listen before exporting.';
+      await loadAudio(new Blob(buffers, { type }), (selection.title || 'rhymeorbit-song') + '.ogg');
+    } catch (error) { $('cloudSongStatus').textContent = error.message + ' You can upload your file manually instead.'; }
+  }
+  usePrivateSong();
   for (const type of ['dragenter', 'dragover']) {
     dropZone.addEventListener(type, e => { e.preventDefault(); dropZone.classList.add('dragging'); });
   }
@@ -198,7 +233,7 @@
       mediaRecorder.start(250);
       recordBtn.disabled = true;
       stopBtn.disabled = false;
-      status('Recording… Sing or speak, then click Stop. Maximum 2 minutes.');
+      status('Recording… Sing or speak, then click Stop. Maximum 3 minutes.');
       recordingTimer = setTimeout(() => {
         if (mediaRecorder?.state === 'recording') mediaRecorder.stop();
       }, MAX_DURATION * 1000);
@@ -237,6 +272,75 @@
     return next;
   }
 
+  // Small experimental granular note correction. This uses time-domain
+  // autocorrelation on solo vocal passages to estimate pitch and smoothly
+  // resamples overlapping Hann-windowed grains towards the nearest semitone.
+  // This is deliberately OFF by default: it is not neural vocal isolation or
+  // an acceptable substitute for a production-quality commercial autotuner.
+  function pitchCorrectBuffer(input, offline, strength) {
+    if (strength <= 0) return input;
+    const sr = input.sampleRate;
+    const frames = input.length;
+    const grainSize = Math.min(8192, Math.max(1024, Math.round(sr * .075)));
+    const hop = Math.floor(grainSize / 4);
+    const inputChannels = Array.from({ length: input.numberOfChannels }, (_, c) => input.getChannelData(c));
+    const output = offline.createBuffer(input.numberOfChannels, frames, sr);
+    const outputChannels = Array.from({ length: input.numberOfChannels }, (_, c) => output.getChannelData(c));
+    const weights = new Float32Array(frames);
+    const lead = inputChannels[0];
+    const minLag = Math.floor(sr / 650), maxLag = Math.floor(sr / 90);
+    let previousRatio = 1;
+
+    function correctionAt(center) {
+      const start = Math.max(0, center - grainSize / 2 | 0);
+      const end = Math.min(frames - maxLag - 1, start + grainSize);
+      if (end - start < maxLag + 64) return 1;
+      let rms = 0, count = 0;
+      for (let j = start; j < end; j += 8) { rms += lead[j] * lead[j]; count++; }
+      if (Math.sqrt(rms / count) < .015) return 1;
+      let bestLag = 0, bestCorr = 0;
+      for (let lag = minLag; lag <= maxLag; lag += 2) {
+        let dot = 0, energyA = 0, energyB = 0;
+        for (let j = start; j < end - lag; j += 6) {
+          const a = lead[j], b = lead[j + lag];
+          dot += a * b; energyA += a * a; energyB += b * b;
+        }
+        const corr = dot / Math.sqrt(energyA * energyB + 1e-12);
+        if (corr > bestCorr) { bestCorr = corr; bestLag = lag; }
+      }
+      if (bestCorr < .81 || !bestLag) return 1;
+      const fundamental = sr / bestLag;
+      const note = Math.round(12 * Math.log2(fundamental / 440));
+      const target = 440 * 2 ** (note / 12);
+      return clamp(1 + (target / fundamental - 1) * strength / 100, .91, 1.09);
+    }
+
+    for (let center = 0; center < frames + grainSize / 2; center += hop) {
+      const nextRatio = correctionAt(center);
+      previousRatio = previousRatio * .6 + nextRatio * .4;
+      const begin = center - Math.floor(grainSize / 2);
+      for (let i = 0; i < grainSize; i++) {
+        const index = begin + i;
+        if (index < 0 || index >= frames) continue;
+        const sourceIndex = center + (i - grainSize / 2) * previousRatio;
+        const low = Math.floor(sourceIndex);
+        if (low < 0 || low + 1 >= frames) continue;
+        const fraction = sourceIndex - low;
+        const windowGain = .5 - .5 * Math.cos(2 * Math.PI * i / (grainSize - 1));
+        weights[index] += windowGain;
+        for (let channel = 0; channel < input.numberOfChannels; channel++) {
+          const samples = inputChannels[channel];
+          outputChannels[channel][index] += (samples[low] * (1 - fraction) + samples[low + 1] * fraction) * windowGain;
+        }
+      }
+    }
+    for (let channel = 0; channel < input.numberOfChannels; channel++) {
+      const samples = outputChannels[channel];
+      for (let i = 0; i < frames; i++) samples[i] = weights[i] > .01 ? samples[i] / weights[i] : inputChannels[channel][i];
+    }
+    return output;
+  }
+
   async function cleanVocals() {
     if (!decoded || busy) return;
     const input = decoded;
@@ -250,9 +354,10 @@
       if (version !== processVersion) return;
       const gate = Number($('gate').value);
       const clarity = Number($('clarity').value);
+      const pitch = Number($('pitchAssist').value);
       const offline = new OfflineAudioContextClass(input.numberOfChannels, input.length, input.sampleRate);
       const sourceNode = offline.createBufferSource();
-      sourceNode.buffer = gatedBuffer(input, offline, gate);
+      sourceNode.buffer = gatedBuffer(pitchCorrectBuffer(input, offline, pitch), offline, gate);
       const highpass = offline.createBiquadFilter();
       highpass.type = 'highpass';
       highpass.frequency.value = 55 + clarity * .52;
@@ -299,7 +404,7 @@
       $('processedInfo').textContent = (wav.size / 1048576).toFixed(1) + ' MB WAV';
       drawWaveform($('afterCanvas'), rendered, '#e5c9a2');
       downloadBtn.disabled = false;
-      status('Done! Compare both players and download the cleaned WAV.');
+      status('Done! Compare both players and download the cleaned WAV.' + (pitch ? ' Pitch assist is experimental; listen for artifacts.' : ''));
     } catch (error) {
       status('Your browser could not process this recording. Try a shorter WAV or MP3.');
       console.info('Vocal Lab processing failure:', error?.name || 'Error');

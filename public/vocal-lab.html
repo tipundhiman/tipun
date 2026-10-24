@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#08090c">
 <meta name="robots" content="index,follow">
-<title>Free Vocal Cleaner &amp; Voice Recorder | RhymeOrbit</title>
-<meta name="description" content="Record vocals or upload audio to RhymeOrbit's free browser-based vocal cleaner. Apply a noise gate, EQ and compression, then preview and export WAV privately without uploading your audio.">
+<title>Free Vocal Cleaner, Noise Gate &amp; Pitch Assist | RhymeOrbit</title>
+<meta name="description" content="Record vocals or upload a song to RhymeOrbit's free browser-based vocal studio. Reduce background noise, try experimental monophonic pitch correction, and export WAV privately.">
 <link rel="canonical" href="https://rhymeorbit.in/vocal-lab">
 <meta property="og:title" content="RhymeOrbit Vocal Lab — Free Voice Cleaner">
 <meta property="og:description" content="Record, clean and export your vocals in your browser. No GPU, no account, no audio upload.">
@@ -27,19 +27,21 @@ a{color:var(--gold)}button,select,input{font:inherit}button{cursor:pointer}butto
 @media(max-width:760px){.hero{padding:48px 0 23px}.hero h1{letter-spacing:-2px}.lab{grid-template-columns:1fr}.panel{padding:20px}.lights{opacity:.25;right:5px}.top{padding:14px 0}nav{gap:12px}}
 @media(prefers-reduced-motion:reduce){.lights{animation:none}.btn{transition:none}}
 </style>
-<script src="/vocal-lab.js" defer></script>
+<script src="/vocal-lab.js?v=20261024-pitch-assist-1" defer></script>
 </head>
 <body>
 <header><div class="top wrap"><a class="brand" href="/">Rhyme<span>Orbit</span></a><nav aria-label="Site navigation"><a href="/">Home</a><a href="/features">Features</a><a href="/#studio">AI Studio</a><a href="/#community">Community</a></nav></div></header>
 <main class="wrap">
-<section class="hero"><div class="lights" aria-hidden="true"></div><div class="eyebrow">✦ RHYMEORBIT / FREE CREATOR TOOL</div><h1>Give your voice<br>a <em>cleaner sound.</em></h1><p>Sing into your microphone or choose an audio file. Reduce low-level background noise, adjust vocal clarity and download a cleaned WAV—processed entirely on your device.</p><div class="pills"><span class="pill">✦ Free to use</span><span class="pill">♢ No GPU or AI credits</span><span class="pill">◉ Private browser processing</span></div></section>
+<section class="hero"><div class="lights" aria-hidden="true"></div><div class="eyebrow">✦ RHYMEORBIT / FREE CREATOR TOOL</div><h1>Give your voice<br>a <em>cleaner sound.</em></h1><p>Sing into your microphone or choose an audio file. Reduce low-level background noise, adjust vocal clarity, try gentle pitch correction and download a cleaned WAV—processed entirely on your device.</p><div class="pills"><span class="pill">✦ Free to use</span><span class="pill">♢ No GPU or AI credits</span><span class="pill">◉ Private browser processing</span></div></section>
 <div class="lab">
-<section class="panel" aria-labelledby="record-heading"><h2 id="record-heading">01 / Record or upload</h2><p class="small">Up to 2 minutes, max 25 MB. Good for vocal ideas, speech and recording tests.</p>
+<section class="panel" aria-labelledby="record-heading"><h2 id="record-heading">01 / Record or upload</h2><p class="small">Up to 3 minutes, max 25 MB. For solo vocals, short recordings and song polish. Long or dense mixes may need a desktop browser.</p>
 <div class="source"><div class="upload" id="dropZone"><div aria-hidden="true" style="font-size:38px">♫</div><strong>Drop your audio here</strong><span>WAV, MP3, M4A or browser-supported audio</span><input id="audioFile" type="file" accept="audio/*" aria-label="Upload your audio recording"></div>
+<div id="cloudSongStatus" class="small" role="status">You can also open a saved song from Download Audio → Clean / Tune in Vocal Lab. Full song mixes respond best to gentle cleanup; pitch assist is intended for isolated vocals.</div>
 <div class="actions"><button class="btn" id="recordBtn" type="button">● Start microphone recording</button><button class="btn red" id="stopBtn" type="button" disabled>■ Stop recording</button></div></div>
 <div class="controls"><div class="field"><label for="preset">02 / Vocal cleanup style</label><select id="preset"><option value="gentle">Gentle — natural sound</option><option value="balanced" selected>Balanced — clear vocals</option><option value="strong">Strong — heavier cleanup</option></select><span class="hint">Strong processing may remove quiet breaths or soft vocal endings.</span></div>
 <div class="field"><div class="range-line"><label for="gate">Noise gate strength</label><output id="gateValue" for="gate">50%</output></div><input id="gate" type="range" min="0" max="100" value="50" step="5"><span class="hint">Reduces noise during quieter sections; it cannot remove sounds over your singing.</span></div>
-<div class="field"><div class="range-line"><label for="clarity">Vocal clarity</label><output id="clarityValue" for="clarity">50%</output></div><input id="clarity" type="range" min="0" max="100" value="50" step="5"></div></div>
+<div class="field"><div class="range-line"><label for="clarity">Vocal clarity</label><output id="clarityValue" for="clarity">50%</output></div><input id="clarity" type="range" min="0" max="100" value="50" step="5"></div>
+<div class="field"><div class="range-line"><label for="pitchAssist">Experimental auto pitch assist</label><output id="pitchValue" for="pitchAssist">Off</output></div><input id="pitchAssist" type="range" min="0" max="100" value="0" step="25"><span class="hint">Beta: subtle nearest-note correction for clean solo singing only. May sound robotic or warbly; turn off for full mixes, chords or speech.</span></div></div>
 <div class="actions"><button class="btn gold" id="processBtn" type="button" disabled>✦ Clean my vocals</button><button class="btn" id="downloadBtn" type="button" disabled>↓ Download WAV</button></div><div id="status" class="status" role="status" aria-live="polite">Choose audio or record a short vocal to begin.</div>
 </section>
 <section class="panel" aria-labelledby="preview-heading"><h2 id="preview-heading">03 / Hear the difference</h2><p class="small">A/B compare your original and cleaned audio. Your original file is never overwritten.</p>
@@ -47,6 +49,6 @@ a{color:var(--gold)}button,select,input{font:inherit}button{cursor:pointer}butto
 <div class="player"><div class="player-title"><span>Cleaned take</span><small id="processedInfo">Not processed</small></div><canvas id="afterCanvas" width="580" height="105" aria-label="Processed audio waveform" role="img"></canvas><audio id="afterAudio" controls preload="metadata" aria-label="Play cleaned audio"></audio></div></div>
 <div class="privacy"><strong>🔒 Your voice stays yours.</strong> This tool doesn't upload audio to RhymeOrbit, Cloudflare, Gemini or a third-party API. The WAV is created in your browser; you choose whether to download or later share it.</div></section>
 </div>
-<div class="note"><strong>What this beta does:</strong> Noise gating, high/low-pass EQ and dynamic range compression. This is not neural AI denoising, pitch correction, autotune or voice cloning. For noisy recordings with speech or music in the background, results will vary. Use headphones while recording to avoid feedback.</div>
+<div class="note"><strong>What this beta does:</strong> Noise gating, EQ, compression and optional basic monophonic pitch correction. This is not studio-grade Auto-Tune, neural AI denoising, source separation or voice cloning. Loud music or background noise playing over vocals cannot be cleanly separated. For best results upload an isolated vocal. Use headphones while recording.</div>
 </main><footer>© 2026 RhymeOrbit · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/copyright">Content rights</a></footer>
 </body></html>

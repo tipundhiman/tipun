@@ -10,7 +10,7 @@ const home = readFileSync(new URL('index.html', root), 'utf8');
 const sitemap = readFileSync(new URL('sitemap.xml', root), 'utf8');
 
 test('Vocal Lab exposes accessible record, process, preview and download controls', () => {
-  const ids = ['audioFile', 'recordBtn', 'stopBtn', 'processBtn', 'downloadBtn',
+  const ids = ['audioFile', 'recordBtn', 'stopBtn', 'processBtn', 'downloadBtn', 'pitchAssist', 'pitchValue',
     'beforeAudio', 'afterAudio', 'beforeCanvas', 'afterCanvas', 'gate',
     'clarity', 'preset', 'status', 'dropZone', 'originalInfo', 'processedInfo',
     'gateValue', 'clarityValue'];
@@ -18,18 +18,21 @@ test('Vocal Lab exposes accessible record, process, preview and download control
     assert.match(html, new RegExp(`id="${id}"`), `${id} is missing`);
     assert.ok(script.includes(`'${id}'`), `${id} not wired up`);
   }
-  assert.match(html, /<script src="\/vocal-lab\.js" defer>/);
+  assert.match(html, /<script src="\/vocal-lab\.js\?v=20261024-pitch-assist-1" defer>/);
   assert.match(html, /role="status" aria-live="polite"/);
   assert.match(html, /prefers-reduced-motion:reduce/);
-  assert.match(html, /not neural AI denoising, pitch correction, autotune or voice cloning/i);
+  assert.match(html, /not studio-grade Auto-Tune, neural AI denoising/i);
 });
 
 test('Vocal Lab keeps recordings local and explicitly limits processing', () => {
   assert.match(script, /MAX_BYTES = 25 \* 1024 \* 1024/);
-  assert.match(script, /MAX_DURATION = 120/);
+  assert.match(script, /MAX_DURATION = 180/);
   assert.match(script, /new OfflineAudioContextClass/);
+  assert.match(script, /function pitchCorrectBuffer\(input, offline, strength\)/);
   assert.match(script, /new Blob\(\[raw\], \{ type: 'audio\/wav' \}\)/);
-  assert.doesNotMatch(script, /\bfetch\s*\(|\bXMLHttpRequest\b|\bsendBeacon\s*\(/);
+  assert.match(script, /sessionStorage\.getItem\('ro_vocal_selected_song'\)/);
+  assert.match(script, /headers: \{ Range: `bytes=/);
+  assert.doesNotMatch(script, /\bXMLHttpRequest\b|\bsendBeacon\s*\(/);
   assert.doesNotMatch(html, /<form\b/i);
 });
 

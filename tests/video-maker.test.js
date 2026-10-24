@@ -9,23 +9,23 @@ const read = path => readFileSync(join(root, path), 'utf8');
 const page = read('video-maker.html');
 const script = read('video-maker.js');
 
-test('One 50s output consists of five ten-second animated lyric scenes', () => {
-  assert.match(script, /const MAX_VIDEO_SECONDS = 50;/);
+test('Full-song output uses repeating ten-second animated lyric scenes up to five minutes', () => {
+  assert.match(script, /const MAX_VIDEO_SECONDS = 300;/);
   assert.match(script, /const SCENE_SECONDS = 10;/);
-  assert.match(script, /Math\.min\(4, Math\.floor\(time \/ SCENE_SECONDS\)\)/);
-  assert.match(script, /drawScene\(scene - 1, time, 1\)/);
+  assert.match(script, /Math\.floor\(time \/ SCENE_SECONDS\)/);
+  assert.match(script, /drawScene\(\(scene - 1\) % 5, time, 1\)/);
   assert.match(script, /const lyric = lyricLine\(time, duration\)/);
   assert.match(script, /exportStream = canvas\.captureStream\(24\)/);
   assert.match(script, /exportStream\.addTrack\(audioTrack\)/);
   assert.match(script, /const blob = new Blob\(chunks, \{ type: actualMime \}\)/);
-  for (const section of ['Music', 'Lyrics', 'Style', 'Export']) {
+  for (const section of ['Music', 'Lyrics', 'Style', 'Export', 'Videos']) {
     assert.match(page, new RegExp('id="vmPanel' + section + '"'));
   }
 });
 
 test('Video export runs locally, accepts private songs safely and never calls a GPU trial API', () => {
   assert.match(page, /not AI-generated cinematic footage/);
-  assert.match(page, /not upload your selected audio/);
+  assert.match(page, /Original song files and lyrics are not uploaded/);
   assert.match(script, /const MAX_AUDIO_BYTES = 25 \* 1024 \* 1024/);
   assert.match(script, /sessionStorage\.getItem\('ro_video_selected_song'\)/);
   assert.match(script, /\/api\\\/music\\\/audio\\\//);
@@ -54,9 +54,20 @@ test('Without a song users can export a silent lyric video and select cartoon pr
     assert.match(page, new RegExp('value="' + character + '"'));
   assert.match(script, /function drawCharacter\(seconds, strength\)/);
   assert.match(script, /drawCharacter\(time, strength\)/);
-  assert.match(script, /exportTarget = hasAudio \? Math\.min\(MAX_VIDEO_SECONDS, audioDuration\) : MAX_VIDEO_SECONDS/);
-  assert.match(script, /const silent = \['video\/webm;codecs=vp9'/);
+  assert.match(script, /exportTarget = videoDuration\(\)/);
+  assert.match(script, /const silent = \['video\/mp4;codecs=avc1\.42E01E'/);
   assert.match(script, /const seconds = exportAudio \? exportAudio\.currentTime : \(performance\.now\(\) - exportStartedAt\) \/ 1000/);
+});
+
+test('MP4 is preferred and private videos require authentication before R2 saving', () => {
+  assert.match(page, /id="vmAutoSave"/);
+  assert.match(page, /id="vmMySongs"/);
+  assert.match(page, /id="vmVideoLibrary"/);
+  assert.match(script, /const withAudio = \['video\/mp4;codecs=/);
+  assert.match(script, /apiRequest\('\/api\/music\/library'/);
+  assert.match(script, /apiRequest\('\/api\/videos\/upload'/);
+  assert.match(script, /apiRequest\('\/api\/videos'/);
+  assert.match(script, /latestVideoBlob\.type\.split\(';'\)/);
 });
 
 test('Video-maker discovery URLs are indexable and included in the existing sitemap', () => {

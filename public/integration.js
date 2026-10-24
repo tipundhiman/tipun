@@ -31,8 +31,30 @@ async function roGenerateAIText(kind,input){
  return payload.text.trim();
 }
 window.roGenerateAIText=roGenerateAIText;
-async function initBackend(){try{const c=await (await fetch('/api/config')).json();if(!c.supabaseUrl||!c.supabaseAnonKey){console.info('Backend configuration missing');return}if(!window.supabase){toast('Authentication library unavailable');return}sb=window.supabase.createClient(c.supabaseUrl,c.supabaseAnonKey);remoteReady=true;const {data:{session}}=await sb.auth.getSession();await syncSession(session);sb.auth.onAuthStateChange((event,s)=>{if(event==='PASSWORD_RECOVERY'){state.authMode='change';setTimeout(renderAuth,0)}setTimeout(()=>syncSession(s),0)});}catch(e){console.error('Backend initialization:',e)}}
-async function syncSession(session){if(!remoteReady)return;if(!session){state.user=null;state.projects=[];window.roCloseMemberships?.();window.roRefreshCreatorKitVisibility?.();render();return}if(session.user?.email_confirmed_at===null){await sb.auth.signOut();toast('Please verify your email address before using RhymeOrbit.');return}const {data:profile}=await sb.from('profiles').select('username,display_name,bio').eq('id',session.user.id).maybeSingle();state.user={id:session.user.id,name:profile?.display_name||session.user.user_metadata?.display_name||'Creator',username:profile?.username||'',email:session.user.email,bio:profile?.bio||'',firstName:session.user.user_metadata?.first_name||'',lastName:session.user.user_metadata?.last_name||'',homeState:session.user.user_metadata?.home_state||'',gender:session.user.user_metadata?.gender||'prefer_not_to_say'};window.roRefreshCreatorKitVisibility?.();const {data:projects,error}=await sb.from('projects').select('id,title,lyrics,genre,mood,language,updated_at').order('updated_at',{ascending:false});if(error)console.error(error);state.projects=projects||[];render();roWelcomeBack()}
+let sessionSync=null,sessionSyncUser=null,sessionGeneration=0;
+async function initBackend(){try{const response=await fetch('/api/config');if(!response.ok)throw Error('Authentication config unavailable');const c=await response.json();if(!c.supabaseUrl||!c.supabaseAnonKey){console.info('Backend configuration missing');return}if(!window.supabase){toast('Authentication library unavailable');return}sb=window.supabase.createClient(c.supabaseUrl,c.supabaseAnonKey);remoteReady=true;const {data:{session}}=await sb.auth.getSession();await syncSession(session);sb.auth.onAuthStateChange((event,s)=>{if(event==='PASSWORD_RECOVERY'){state.authMode='change';setTimeout(renderAuth,0)}if(event==='TOKEN_REFRESHED'||(['SIGNED_IN','INITIAL_SESSION'].includes(event)&&state.user?.id&&s?.user?.id===state.user.id))return;setTimeout(()=>syncSession(s),0)});}catch(e){console.error('Backend initialization:',e)}}
+async function syncSession(session){
+ if(!remoteReady)return;
+ if(!session){sessionGeneration++;sessionSync=null;sessionSyncUser=null;state.user=null;state.projects=[];window.roCloseMemberships?.();window.roRefreshCreatorKitVisibility?.();render();return}
+ if(session.user?.email_confirmed_at===null){await sb.auth.signOut();toast('Please verify your email address before using RhymeOrbit.');return}
+ if(sessionSync&&sessionSyncUser===session.user.id)return sessionSync;
+ const version=++sessionGeneration;
+ sessionSyncUser=session.user.id;
+ sessionSync=(async()=>{
+   // Both reads are independent. Keep sign-in fast and ignore stale async results after sign-out.
+   const [profileResult,projectsResult]=await Promise.all([
+     sb.from('profiles').select('username,display_name,bio').eq('id',session.user.id).maybeSingle(),
+     sb.from('projects').select('id,title,lyrics,genre,mood,language,updated_at').order('updated_at',{ascending:false})
+   ]);
+   if(version!==sessionGeneration)return;
+   const profile=profileResult.data;
+   state.user={id:session.user.id,name:profile?.display_name||session.user.user_metadata?.display_name||'Creator',username:profile?.username||'',email:session.user.email,bio:profile?.bio||'',firstName:session.user.user_metadata?.first_name||'',lastName:session.user.user_metadata?.last_name||'',homeState:session.user.user_metadata?.home_state||'',gender:session.user.user_metadata?.gender||'prefer_not_to_say'};
+   if(projectsResult.error)console.error(projectsResult.error);
+   state.projects=projectsResult.data||[];
+   window.roRefreshCreatorKitVisibility?.();render();roWelcomeBack();
+ })();
+ try{return await sessionSync}finally{if(version===sessionGeneration){sessionSync=null;sessionSyncUser=null}}
+}
 let roWelcomedUser=null;
 let roWelcomeSerial=0;
 function roWelcomeBack(){

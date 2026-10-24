@@ -6,11 +6,14 @@
 import { handleApi } from '../api/index.js';
 import { forwardApiRequest } from './api-adapter.js';
 import { handleMediaStorageRequest } from './media-storage.js';
+import { handlePrivateVideoRequest } from './private-videos.js';
 
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
     if (path.startsWith('/api/')) {
+      const videoResponse = await handlePrivateVideoRequest(request, env);
+      if (videoResponse) return videoResponse;
       const mediaResponse = await handleMediaStorageRequest(request, env);
       if (mediaResponse) return mediaResponse;
       return forwardApiRequest(request, handleApi, undefined, env);
