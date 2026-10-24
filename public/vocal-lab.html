@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#08090c">
 <meta name="robots" content="index,follow">
-<title>Free Vocal Cleaner, Noise Gate &amp; Pitch Assist | RhymeOrbit</title>
-<meta name="description" content="Record vocals or upload a song to RhymeOrbit's free browser-based vocal studio. Reduce background noise, try experimental monophonic pitch correction, and export WAV privately.">
+<title>Vocal Cleaner, Pitch Assist &amp; Stereo Karaoke Extractor | RhymeOrbit</title>
+<meta name="description" content="Clean vocals, try pitch assist and split a stereo song into approximate center and side mixes for free in your browser. Download WAV locally.">
 <link rel="canonical" href="https://rhymeorbit.in/vocal-lab">
 <meta property="og:title" content="RhymeOrbit Vocal Lab — Free Voice Cleaner">
 <meta property="og:description" content="Record, clean and export your vocals in your browser. No GPU, no account, no audio upload.">
@@ -27,7 +27,7 @@ a{color:var(--gold)}button,select,input{font:inherit}button{cursor:pointer}butto
 @media(max-width:760px){.hero{padding:48px 0 23px}.hero h1{letter-spacing:-2px}.lab{grid-template-columns:1fr}.panel{padding:20px}.lights{opacity:.25;right:5px}.top{padding:14px 0}nav{gap:12px}}
 @media(prefers-reduced-motion:reduce){.lights{animation:none}.btn{transition:none}}
 </style>
-<script src="/vocal-lab.js?v=20261024-pitch-assist-1" defer></script>
+<script src="/vocal-lab.js?v=20261025-stereo-stems-1" defer></script>
 </head>
 <body>
 <header><div class="top wrap"><a class="brand" href="/">Rhyme<span>Orbit</span></a><nav aria-label="Site navigation"><a href="/">Home</a><a href="/features">Features</a><a href="/#studio">AI Studio</a><a href="/#community">Community</a></nav></div></header>
@@ -43,12 +43,15 @@ a{color:var(--gold)}button,select,input{font:inherit}button{cursor:pointer}butto
 <div class="field"><div class="range-line"><label for="clarity">Vocal clarity</label><output id="clarityValue" for="clarity">50%</output></div><input id="clarity" type="range" min="0" max="100" value="50" step="5"></div>
 <div class="field"><div class="range-line"><label for="pitchAssist">Experimental auto pitch assist</label><output id="pitchValue" for="pitchAssist">Off</output></div><input id="pitchAssist" type="range" min="0" max="100" value="0" step="25"><span class="hint">Beta: subtle nearest-note correction for clean solo singing only. May sound robotic or warbly; turn off for full mixes, chords or speech.</span></div></div>
 <div class="actions"><button class="btn gold" id="processBtn" type="button" disabled>✦ Clean my vocals</button><button class="btn" id="downloadBtn" type="button" disabled>↓ Download WAV</button></div><div id="status" class="status" role="status" aria-live="polite">Choose audio or record a short vocal to begin.</div>
+<div class="source" style="margin-top:26px;border-top:1px solid #ffffff20;padding-top:18px"><h2>🎤 Karaoke / music separation <span class="small">· Free beta</span></h2><p class="small">Try a stereo center/side split on your own recording. "Center" often contains lead vocals PLUS centered instruments; "Sides" often keeps wide music but removes bass, drums and other centered sounds. This is <strong>not AI stem isolation</strong> and results vary. Mono audio cannot be split.</p>
+<button type="button" class="btn gold" id="splitBtn" disabled>✧ Split stereo into 2 mixes</button><div id="splitStatus" class="small" role="status">Select a stereo track first.</div>
+<div class="players"><div class="player"><strong>Center mix · vocals + center instruments</strong><audio id="centerAudio" controls></audio><button class="btn" type="button" id="centerDownload" disabled>↓ Download center WAV</button></div><div class="player"><strong>Side mix · karaoke-style wide music</strong><audio id="sideAudio" controls></audio><button class="btn" type="button" id="sideDownload" disabled>↓ Download side WAV</button></div></div></div>
 </section>
 <section class="panel" aria-labelledby="preview-heading"><h2 id="preview-heading">03 / Hear the difference</h2><p class="small">A/B compare your original and cleaned audio. Your original file is never overwritten.</p>
 <div class="players"><div class="player"><div class="player-title"><span>Original take</span><small id="originalInfo">Not loaded</small></div><canvas id="beforeCanvas" width="580" height="105" aria-label="Original audio waveform" role="img"></canvas><audio id="beforeAudio" controls preload="metadata" aria-label="Play original audio"></audio></div>
 <div class="player"><div class="player-title"><span>Cleaned take</span><small id="processedInfo">Not processed</small></div><canvas id="afterCanvas" width="580" height="105" aria-label="Processed audio waveform" role="img"></canvas><audio id="afterAudio" controls preload="metadata" aria-label="Play cleaned audio"></audio></div></div>
 <div class="privacy"><strong>🔒 Your voice stays yours.</strong> This tool doesn't upload audio to RhymeOrbit, Cloudflare, Gemini or a third-party API. The WAV is created in your browser; you choose whether to download or later share it.</div></section>
 </div>
-<div class="note"><strong>What this beta does:</strong> Noise gating, EQ, compression and optional basic monophonic pitch correction. This is not studio-grade Auto-Tune, neural AI denoising, source separation or voice cloning. Loud music or background noise playing over vocals cannot be cleanly separated. For best results upload an isolated vocal. Use headphones while recording.</div>
+<div class="note"><strong>What this beta does:</strong> Noise gating, EQ, compression, basic monophonic pitch correction and crude stereo center/side separation. It does not use neural AI separation or voice cloning and cannot reliably isolate vocals from every song. For best results use clean stereo music or isolated voice. Use headphones while recording.</div>
 </main><footer>© 2026 RhymeOrbit · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/copyright">Content rights</a></footer>
 </body></html>

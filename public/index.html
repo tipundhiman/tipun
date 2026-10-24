@@ -820,6 +820,79 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     if(/ready|cloud saved/.test(value))return 'Audio ready · refresh player';
     return 'Preparing song';
   }
+  async function roSaveLyricsWithSong(id, lyrics) {
+    const token = await roCloudToken();
+    if (!token) throw Error('Please sign in to save your lyrics.');
+    const response = await fetch('/api/music/lyrics', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskId: id, lyrics: String(lyrics || '').slice(0, 8000) })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw Error(result.error || 'Could not save cloud lyrics.');
+    return result;
+  }
+  function roSongLyricsEditor(item) {
+    const panel = document.createElement('details');
+    panel.className = 'ro-song-drawer';
+    const label = document.createElement('summary');
+    label.textContent = '✍ Lyrics · View, edit & recreate';
+    const editor = document.createElement('textarea');
+    editor.className = 'input'; editor.rows = 8;
+    editor.style.cssText = 'width:100%;min-height:190px;margin:12px 0;border-radius:12px;padding:13px';
+    editor.maxLength = 8000; editor.value = String(item.lyrics || '').slice(0, 8000);
+    editor.placeholder = 'No saved lyrics yet. Write them here, or recover them from audio in Video Maker.';
+    let touched = false, loaded = false;
+    editor.addEventListener('input', () => { touched = true; });
+    const info = document.createElement('div');
+    info.className = 'ro-song-note'; info.setAttribute('role', 'status');
+    info.textContent = 'Lyrics are private. Saving links them to this song in Cloudflare R2.';
+    const actions = document.createElement('div'); actions.className = 'row';
+    const save = document.createElement('button'); save.type = 'button'; save.className = 'btn sm gold'; save.textContent = '☁ Save edited lyrics';
+    save.onclick = async () => {
+      save.disabled = true; info.textContent = 'Saving lyrics privately…';
+      try { await roSaveLyricsWithSong(item.id, editor.value); roLibraryUpsert(item.id, { lyrics: editor.value }); info.textContent = '✓ Saved to R2 for this song.'; }
+      catch (error) { info.textContent = error.message; }
+      finally { save.disabled = false; }
+    };
+    const recreate = document.createElement('button'); recreate.type = 'button'; recreate.className = 'btn sm'; recreate.textContent = '↻ Recreate in AI Studio';
+    recreate.onclick = () => {
+      if (!editor.value.trim()) return toast('Add or transcribe lyrics first.');
+      window.go('studio');
+      const songBox = document.getElementById('songLyrics');
+      const titleBox = document.getElementById('songTitle');
+      if (songBox) { songBox.value = editor.value; songBox.dispatchEvent(new Event('input', { bubbles: true })); }
+      if (titleBox) { titleBox.value = (item.title || 'My AI Song') + ' Remix'; titleBox.dispatchEvent(new Event('input', { bubbles: true })); }
+      toast('Lyrics ready in AI Studio. Review and press Generate Song only when ready; it uses a song credit.');
+    };
+    const recover = document.createElement('button'); recover.type = 'button'; recover.className = 'btn sm'; recover.textContent = '🎙 Detect lyrics from audio';
+    recover.onclick = () => {
+      try {
+        sessionStorage.setItem('ro_video_selected_song', JSON.stringify({ id: item.id, title: item.title, lyrics: editor.value, proxyUrl: item.proxyUrl }));
+        window.location.assign('/video-maker');
+      } catch { toast('Could not open Video Maker. Try again.'); }
+    };
+    actions.append(save, recreate, recover);
+    panel.append(label, editor, actions, info);
+    panel.addEventListener('toggle', async () => {
+      if (!panel.open || loaded) return;
+      loaded = true;
+      try {
+        const token = await roCloudToken(); if (!token) return;
+        const response = await fetch('/api/music/lyrics?taskId=' + encodeURIComponent(item.id), { headers: { Authorization: 'Bearer ' + token } });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw Error(data.error || 'Cloud lyrics unavailable.');
+        if (!touched && data.saved) {
+          editor.value = String(data.lyrics || '').slice(0, 8000);
+          info.textContent = '✓ Your private cloud lyrics loaded. Edit any line and save changes.';
+        } else if (!data.saved && editor.value.trim()) {
+          // Older browser-local lyrics were not previously saved in R2.
+          await roSaveLyricsWithSong(item.id, editor.value);
+          info.textContent = '✓ Your existing song lyrics have now been backed up in R2.';
+        }
+      } catch (error) { info.textContent = 'Cloud lyrics unavailable: ' + error.message + ' You can still edit and retry saving.'; }
+    });
+    return panel;
+  }
   function roLibraryUpsert(id,patch={}){
     if(!id)return;
     const all=roLibraryRead(),previous=all.find(x=>x.id===id)||{};
@@ -1097,6 +1170,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
         video.onclick=()=>{
           try{
             sessionStorage.setItem('ro_video_selected_song',JSON.stringify({
+              id:String(item.id),
               title:String(item.title||'My RhymeOrbit Song').slice(0,100),
               lyrics:String(item.lyrics||'').slice(0,8000),
               proxyUrl:item.proxyUrl
@@ -1134,7 +1208,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       note.textContent='Player is not ready. Tap Load player to refresh this song. No new song credit is used.';
       drawer.append(note);
     }
-    card.append(drawer);
+    card.append(drawer, roSongLyricsEditor(item));
     return card;
   }
   function roPaintSongCards(root,items){
@@ -1244,6 +1318,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
           status,
           url:currentUrl,
           proxyUrl:currentProxyUrl,
+          lyrics:existing.lyrics||'',
           cloudSaved:!!item.cloudSaved,
           createdAt:existing.createdAt||item.createdAt||null,
           signedAt:reuseExisting?existing.signedAt:new Date().toISOString()
@@ -1501,6 +1576,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       const title=(document.getElementById('songTitle')?.value||'My AI Song').trim().slice(0,100);
       localStorage.setItem('ro_treblo_song_title_'+id,title);
       roLibraryUpsert(id,{title,lyrics:text,voice:document.getElementById('roVocalVoice')?.value||'auto',status:'Processing'});
+      roSaveLyricsWithSong(id,text).catch(error=>console.warn('Song lyrics R2 sync pending:',error.message));
       window.roRefreshMusicCredits?.();
       box.textContent='Your song is being created with vocals. It will appear in your song library when ready.';
       await window.roRecoverTrebloSong(id);

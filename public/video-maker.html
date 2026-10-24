@@ -51,7 +51,7 @@ footer{border-top:1px solid var(--line);padding:25px 12px 32px;text-align:center
 @media(prefers-reduced-motion:reduce){.tabs button,.btn{transition:none!important}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
-<script src="/video-maker.js?v=20261024-private-video-1" defer></script>
+<script src="/video-maker.js?v=20261025-lyrics-r2-1" defer></script>
 </head>
 <body>
 <header><div class="wrap top"><a href="/" class="brand">Rhyme<span>Orbit</span></a><nav aria-label="Site navigation"><a href="/">Home</a><a href="/#studio">AI Studio</a><a href="/#downloads">Download Audio</a><a href="/vocal-lab">Vocal Lab</a></nav></div></header>
@@ -70,12 +70,15 @@ footer{border-top:1px solid var(--line);padding:25px 12px 32px;text-align:center
 <div id="vmSavedTrack" class="status" hidden></div>
 <div class="field"><label for="vmMySongs">Your RhymeOrbit songs</label><select id="vmMySongs"><option value="">Sign in to browse saved songs</option></select><div class="row"><button type="button" id="vmLoadSongs" class="btn">↻ Refresh my songs</button><button type="button" id="vmSelectSong" class="btn gold">♫ Use selected song</button></div><span class="tiny" id="vmSongsStatus">Only tracks from your own account appear here.</span></div>
 <div class="field"><label for="vmAudioFile">Upload your own song (MP3, WAV, OGG, M4A)</label><input id="vmAudioFile" type="file" accept="audio/*"></div><audio id="vmAudioPreview" controls preload="metadata" aria-label="Preview selected song"></audio>
+<label class="check-row small"><input id="vmAutoTranscribe" type="checkbox" checked> Automatically detect lyrics from selected audio with Gemini (max 13 MB; sign-in required).</label>
+<p class="small">Audio transcription sends a copy of your selected recording to Gemini; lyrics may need corrections, especially with loud instruments. Cloud lyrics are loaded first for your own saved RhymeOrbit songs.</p>
 <div class="row"><button class="btn gold" type="button" data-next="lyrics">Next · Add lyrics →</button><a class="btn" href="/#downloads">My saved songs ↗</a></div></div>
 <div class="tab-panel" id="vmPanelLyrics" role="tabpanel" aria-labelledby="vmTabLyrics" hidden><h2>Create your lyrics</h2><p class="small">No lyrics? Tell us your idea and Gemini will write original lyrics through RhymeOrbit's existing secure AI service. Sign-in required; usage is subject to API availability.</p>
 <div class="field"><label for="vmIdea">Describe your song or story</label><textarea id="vmIdea" style="min-height:86px" maxlength="1200" placeholder="A cute animated cat singing about the first rain, romantic Hindi pop…"></textarea></div>
 <div class="row"><div class="field" style="flex:1;min-width:135px"><label for="vmLanguage">Language</label><select id="vmLanguage"><option>Hindi</option><option>English</option><option>Haryanvi</option><option>Punjabi</option><option>Urdu</option><option>Bhojpuri</option><option>Spanish</option><option>Other</option></select></div><div class="field" style="flex:1;min-width:135px"><label for="vmLyricMood">Mood</label><select id="vmLyricMood"><option>Romantic</option><option>Dreamy</option><option>Sad</option><option>Happy</option><option>Lo-fi</option><option>Devotional</option><option>Energetic</option></select></div></div>
 <div class="row"><button id="vmGenerateLyrics" class="btn gold" type="button">✧ Generate Lyrics with AI</button><button id="vmUndoLyrics" class="btn" type="button" hidden>↶ Undo</button><a class="small" href="/#studio">Need to sign in? Open AI Studio ↗</a></div>
 <div class="field"><label for="vmLyrics">One lyric line per row</label><textarea id="vmLyrics" placeholder="Teri aankhon mein, meri duniya...&#10;Chupke se dil ne ye kaha..."></textarea></div>
+<div class="row"><button type="button" id="vmTranscribe" class="btn">🎙 Transcribe selected audio</button><button type="button" id="vmSaveSongLyrics" class="btn gold" hidden>☁ Save lyrics to this song</button></div><p class="small" id="vmLyricsStatus" role="status" aria-live="polite">You can edit all detected lyrics before making the video.</p>
 <div class="field"><label for="vmLyricDelay">Lyrics start delay: <output id="vmLyricDelayValue">0 sec</output></label><input id="vmLyricDelay" type="range" min="0" max="15" value="0" step="1"></div>
 <button type="button" class="btn gold" data-next="style">Next · Choose style →</button></div>
 <div class="tab-panel" id="vmPanelStyle" role="tabpanel" aria-labelledby="vmTabStyle" hidden><h2>Choose your look</h2><p class="small">Pick a mood and an animated character. These are built-in cartoon presets, not AI prompt-to-character video generation.</p>
@@ -96,6 +99,6 @@ footer{border-top:1px solid var(--line);padding:25px 12px 32px;text-align:center
 <div id="vmSceneStrip" class="scene-strip" aria-label="Five repeating visual styles"><div class="scene-chip" style="--a:#a16693;--b:#48284e">01<small>Dream</small></div><div class="scene-chip" style="--a:#675a9d;--b:#172740">02<small>Float</small></div><div class="scene-chip" style="--a:#b78a66;--b:#694466">03<small>Glow</small></div><div class="scene-chip" style="--a:#4b829e;--b:#202d5b">04<small>Pulse</small></div><div class="scene-chip" style="--a:#ad7c8c;--b:#432341">05<small>Forever</small></div></div>
 <p class="preview-note">This is an animated lyric-video composer with original cartoon presets, not AI-generated cinematic footage. Preview visuals run silently.</p></aside>
 </div>
-<div class="disclaimer">Original song files and lyrics are not uploaded by this tool. Exported videos are recorded in your browser; when “Save to My Videos” is checked, the completed video alone is uploaded privately to your account's Cloudflare R2 folder. MP4 is preferred where the browser genuinely supports it; otherwise you receive a valid WebM. No NVIDIA or paid video API is used. Cloud videos count against a small storage quota.</div>
+<div class="disclaimer">Video rendering is local. Audio is sent to Gemini only when transcription is enabled or requested. When you save song lyrics, a private lyrics document is stored in R2; “Save to My Videos” stores your exported video privately in R2. MP4 is preferred only when the browser supports it; otherwise you receive WebM. No NVIDIA or paid video API is used. Cloud videos have a storage quota.</div>
 </main><footer>© 2026 RhymeOrbit · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/copyright">Content rights</a></footer>
 </body></html>

@@ -7,11 +7,14 @@ import { handleApi } from '../api/index.js';
 import { forwardApiRequest } from './api-adapter.js';
 import { handleMediaStorageRequest } from './media-storage.js';
 import { handlePrivateVideoRequest } from './private-videos.js';
+import { handleCreatorLyricsRequest } from './creator-lyrics.js';
 
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
     if (path.startsWith('/api/')) {
+      const lyricsResponse = await handleCreatorLyricsRequest(request, env);
+      if (lyricsResponse) return lyricsResponse;
       const videoResponse = await handlePrivateVideoRequest(request, env);
       if (videoResponse) return videoResponse;
       const mediaResponse = await handleMediaStorageRequest(request, env);

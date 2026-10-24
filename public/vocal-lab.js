@@ -26,6 +26,17 @@
   let activeLoad = 0;
   let processVersion = 0;
   let busy = false;
+  let stemUrls = [];
+  let stemBlobs = null;
+
+  function clearStems() {
+    stemUrls.forEach(url => URL.revokeObjectURL(url));
+    stemUrls = [];
+    stemBlobs = null;
+    for (const id of ['centerAudio', 'sideAudio']) { $(id).removeAttribute('src'); $(id).load(); }
+    $('centerDownload').disabled = $('sideDownload').disabled = true;
+    $('splitStatus').textContent = 'Select a stereo track to create two rough center/side mixes.';
+  }
 
   const presets = {
     gentle: { gate: 20, clarity: 25 },
@@ -120,6 +131,8 @@
     source = null;
     decoded = null;
     processBtn.disabled = true;
+    $('splitBtn').disabled = true;
+    clearStems();
     invalidateOutput();
     if (sourceUrl) URL.revokeObjectURL(sourceUrl);
     sourceUrl = URL.createObjectURL(blob);
@@ -147,6 +160,8 @@
       }
       source = { blob, name: fileName || 'my-vocals' };
       decoded = buffer;
+      $('splitBtn').disabled = buffer.numberOfChannels !== 2;
+      $('splitStatus').textContent = buffer.numberOfChannels === 2 ? 'Stereo audio ready for experimental splitting.' : 'Mono audio cannot be separated with this center/side technique.';
       $('originalInfo').textContent = buffer.duration.toFixed(1) + ' sec';
       drawWaveform($('beforeCanvas'), buffer, '#b2a0e9');
       processBtn.disabled = false;
@@ -441,6 +456,57 @@
     return new Blob([raw], { type: 'audio/wav' });
   }
 
+  $('splitBtn').addEventListener('click', async () => {
+    if (!decoded || decoded.numberOfChannels !== 2 || busy) return;
+    const sourceBuffer = decoded;
+    const version = activeLoad;
+    const button = $('splitBtn'); button.disabled = true;
+    $('splitStatus').textContent = 'Splitting stereo center and sides locally…';
+    await new Promise(resolve => setTimeout(resolve, 20));
+    try {
+      // This is mid/side DSP, not AI source separation. Center instruments will
+      // still be in the center mix, and centered sounds disappear from the sides.
+      const make = () => new OfflineAudioContextClass(1, sourceBuffer.length, sourceBuffer.sampleRate)
+        .createBuffer(1, sourceBuffer.length, sourceBuffer.sampleRate);
+      const center = make(), sides = make();
+      const left = sourceBuffer.getChannelData(0), right = sourceBuffer.getChannelData(1);
+      const middle = center.getChannelData(0), edge = sides.getChannelData(0);
+      let maxCenter = 0, maxSide = 0;
+      for (let i = 0; i < sourceBuffer.length; i++) {
+        middle[i] = (left[i] + right[i]) * .5;
+        edge[i] = (left[i] - right[i]) * .5;
+        maxCenter = Math.max(maxCenter, Math.abs(middle[i]));
+        maxSide = Math.max(maxSide, Math.abs(edge[i]));
+      }
+      if (version !== activeLoad) return;
+      const centerGain = maxCenter > 0.0001 ? Math.min(4, .93 / maxCenter) : 1;
+      const sideGain = maxSide > 0.0001 ? Math.min(4, .93 / maxSide) : 1;
+      for (let i = 0; i < sourceBuffer.length; i++) {
+        middle[i] = Math.max(-1, Math.min(1, middle[i] * centerGain));
+        edge[i] = Math.max(-1, Math.min(1, edge[i] * sideGain));
+      }
+      clearStems();
+      stemBlobs = { center: toWav(center), side: toWav(sides) };
+      stemUrls = [URL.createObjectURL(stemBlobs.center), URL.createObjectURL(stemBlobs.side)];
+      $('centerAudio').src = stemUrls[0]; $('sideAudio').src = stemUrls[1];
+      $('centerDownload').disabled = $('sideDownload').disabled = false;
+      $('splitStatus').textContent = '✓ Two WAV mixes ready. Compare carefully—these are rough stereo mixes, not isolated stems.';
+    } catch (error) {
+      $('splitStatus').textContent = 'Stereo split could not finish. Try a shorter audio file on desktop.';
+      console.info('Vocal Lab stereo split:', error?.name || 'Error');
+    } finally { button.disabled = !decoded || decoded.numberOfChannels !== 2; }
+  });
+
+  function downloadStem(type) {
+    const blob = stemBlobs?.[type]; if (!blob) return;
+    const url = type === 'center' ? stemUrls[0] : stemUrls[1];
+    const name = (source?.name || 'rhymeorbit').replace(/\.[^.]+$/, '').replace(/[^a-z0-9_-]+/gi, '-').slice(0, 55);
+    const link = document.createElement('a'); link.href = url; link.download = name + '-' + type + '-mix.wav';
+    document.body.append(link); link.click(); link.remove();
+  }
+  $('centerDownload').addEventListener('click', () => downloadStem('center'));
+  $('sideDownload').addEventListener('click', () => downloadStem('side'));
+
   processBtn.addEventListener('click', cleanVocals);
   downloadBtn.addEventListener('click', () => {
     if (!outputBuffer || !outputUrl || !source) return;
@@ -458,6 +524,7 @@
     clearTimeout(recordingTimer);
     if (sourceUrl) URL.revokeObjectURL(sourceUrl);
     if (outputUrl) URL.revokeObjectURL(outputUrl);
+    clearStems();
   });
   drawWaveform($('beforeCanvas'), null, '#b2a0e9');
   drawWaveform($('afterCanvas'), null, '#e5c9a2');

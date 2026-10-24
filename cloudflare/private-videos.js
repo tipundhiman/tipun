@@ -47,11 +47,14 @@ async function listObjects(bucket, user) {
 async function upload(request, env, user) {
   if (request.method !== 'POST') return reply(405, { error: 'Use POST' });
   const mime = (request.headers.get('content-type') || '').split(';')[0].toLowerCase();
-  const size = Number(request.headers.get('content-length'));
+  // Browsers / Worker proxies may stream a Blob without Content-Length. Treat
+  // a missing header as unknown (Number(null) would incorrectly become zero).
+  const lengthHeader = request.headers.get('content-length');
+  const announcedSize = lengthHeader == null ? null : Number(lengthHeader);
   const title = (request.headers.get('x-video-title') || '').trim();
   const duration = Number(request.headers.get('x-video-duration'));
   if (!validType(mime)) return reply(415, { error: 'Only real WebM or MP4 video files can be stored' });
-  if (!Number.isSafeInteger(size) || size < 1024 || size > MAX_VIDEO_BYTES || !request.body)
+  if (!request.body || (announcedSize !== null && (!Number.isSafeInteger(announcedSize) || announcedSize < 1024 || announcedSize > MAX_VIDEO_BYTES)))
     return reply(413, { error: 'Video must be under 50 MB. Download larger videos to your device.' });
   if (!title || title.length > 100 || /[\u0000-\u001f]/.test(title)) return reply(400, { error: 'Enter a video title under 100 characters' });
   if (!Number.isFinite(duration) || duration < 1 || duration > 301) return reply(400, { error: 'Video duration must be 1–300 seconds' });
@@ -59,6 +62,25 @@ async function upload(request, env, user) {
     const attempt = await env.MEDIA_UPLOAD_RATE_LIMITER.limit({ key: 'private-videos:' + user });
     if (!attempt.success) return reply(429, { error: 'Please wait before uploading another video' });
   }
+  // Check actual streamed bytes, even when Content-Length was sent, to enforce
+  // the limit without ever trusting user-provided header values.
+  const reader = request.body.getReader();
+  const chunks = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_VIDEO_BYTES) {
+        await reader.cancel().catch(() => {});
+        return reply(413, { error: 'Video exceeds 50 MB. Download it to your device instead.' });
+      }
+      chunks.push(value);
+    }
+  } finally { reader.releaseLock(); }
+  if (size < 1024 || (announcedSize !== null && announcedSize !== size))
+    return reply(400, { error: 'The video upload was incomplete. Please retry.' });
   const existing = await listObjects(env.SONGS_BUCKET, user);
   const total = existing.reduce((sum, item) => sum + Number(item.size || 0), 0);
   if (existing.length >= MAX_LIBRARY_ITEMS || total + size > MAX_LIBRARY_BYTES)
@@ -66,7 +88,7 @@ async function upload(request, env, user) {
   const id = crypto.randomUUID();
   const key = prefix(user) + id + '.' + suffix(mime);
   try {
-    await env.SONGS_BUCKET.put(key, request.body, {
+    await env.SONGS_BUCKET.put(key, new Blob(chunks, { type: mime }), {
       httpMetadata: { contentType: mime },
       customMetadata: { title, duration: String(duration), created: new Date().toISOString() }
     });

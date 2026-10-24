@@ -18,10 +18,14 @@ test('Vocal Lab exposes accessible record, process, preview and download control
     assert.match(html, new RegExp(`id="${id}"`), `${id} is missing`);
     assert.ok(script.includes(`'${id}'`), `${id} not wired up`);
   }
-  assert.match(html, /<script src="\/vocal-lab\.js\?v=20261024-pitch-assist-1" defer>/);
+  assert.match(html, /<script src="\/vocal-lab\.js\?v=20261025-stereo-stems-1" defer>/);
+  for (const id of ['splitBtn', 'splitStatus', 'centerAudio', 'sideAudio', 'centerDownload', 'sideDownload']) {
+    assert.match(html, new RegExp(`id="${id}"`));
+    assert.ok(script.includes(`'${id}'`), `${id} not wired up`);
+  }
   assert.match(html, /role="status" aria-live="polite"/);
   assert.match(html, /prefers-reduced-motion:reduce/);
-  assert.match(html, /not studio-grade Auto-Tune, neural AI denoising/i);
+  assert.match(html, /does not use neural AI separation or voice cloning/i);
 });
 
 test('Vocal Lab keeps recordings local and explicitly limits processing', () => {

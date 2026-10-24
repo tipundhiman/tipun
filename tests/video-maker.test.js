@@ -25,7 +25,10 @@ test('Full-song output uses repeating ten-second animated lyric scenes up to fiv
 
 test('Video export runs locally, accepts private songs safely and never calls a GPU trial API', () => {
   assert.match(page, /not AI-generated cinematic footage/);
-  assert.match(page, /Original song files and lyrics are not uploaded/);
+  assert.match(page, /Audio is sent to Gemini only when transcription is enabled or requested/);
+  assert.match(page, /id="vmAutoTranscribe"/);
+  assert.match(script, /apiRequest\('\/api\/lyrics\/transcribe'/);
+  assert.match(script, /apiRequest\('\/api\/music\/lyrics'/);
   assert.match(script, /const MAX_AUDIO_BYTES = 25 \* 1024 \* 1024/);
   assert.match(script, /sessionStorage\.getItem\('ro_video_selected_song'\)/);
   assert.match(script, /\/api\\\/music\\\/audio\\\//);

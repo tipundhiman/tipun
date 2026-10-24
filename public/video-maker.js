@@ -30,6 +30,13 @@
   let latestVideoBlob = null;
   let latestVideoName = '';
   let savedVideoObjectUrl = null;
+  let lastVideoSaveError = '';
+  let selectedSongId = null;
+  let lyricDraftVersion = 0;
+  let transcribing = false;
+  const TRANSCRIBE_LIMIT = 13 * 1024 * 1024;
+  const lyricsInfo = message => { $('vmLyricsStatus').textContent = message; };
+  $('vmLyrics').addEventListener('input', () => { lyricDraftVersion++; });
 
   const themes = {
     romantic: [['#3d254d','#c27690'],['#332648','#8c78b6'],['#502b52','#dca18d'],['#253d55','#7893c4'],['#3d2248','#d17f9e']],
@@ -108,7 +115,14 @@
   }
   $('vmAudioFile').addEventListener('change', () => {
     const file = $('vmAudioFile').files?.[0];
-    if (file) setLoadedBlob(file, file.name.replace(/\.[^.]*$/, ''), file.name);
+    if (file) {
+      selectedSongId = null;
+      $('vmSaveSongLyrics').hidden = true;
+      $('vmLyrics').value = '';
+      lyricDraftVersion++;
+      setLoadedBlob(file, file.name.replace(/\.[^.]*$/, ''), file.name);
+      if ($('vmAutoTranscribe').checked) transcribeAudio(file);
+    }
   });
 
   async function loadSavedSong(selected = null) {
@@ -121,8 +135,23 @@
       }
     } catch { return; }
     if (!data || typeof data !== 'object') return;
+    const selectionTicket = ++activeLoad;
+    selectedSongId = typeof data.id === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(data.id) ? data.id : null;
+    $('vmSaveSongLyrics').hidden = !selectedSongId;
+    $('vmLyrics').value = '';
+    lyricDraftVersion++;
     if (typeof data.title === 'string') audioTitle = data.title.slice(0, 100);
     if (typeof data.lyrics === 'string') $('vmLyrics').value = data.lyrics.slice(0, 8000);
+    if (selectedSongId) {
+      try {
+        const existing = await (await apiRequest('/api/music/lyrics?taskId=' + encodeURIComponent(selectedSongId))).json();
+        if (selectionTicket !== activeLoad) return;
+        if (existing.saved && existing.lyrics) $('vmLyrics').value = existing.lyrics;
+        lyricsInfo($('vmLyrics').value.trim() ? '✓ Saved lyrics loaded. You can edit and save changes.' : 'No saved lyrics yet. Audio transcription will try to recover them.');
+      } catch (error) {
+        lyricsInfo('Could not load cloud lyrics: ' + error.message + '. You can still transcribe or type them.');
+      }
+    }
     const source = typeof data.proxyUrl === 'string' && /^\/api\/music\/audio\/[a-zA-Z0-9_-]{1,100}\?token=/.test(data.proxyUrl)
       ? data.proxyUrl : null;
     if (!source) {
@@ -153,7 +182,10 @@
         if (offset === total) break;
       }
       if (offset !== total) throw Error('The song did not finish loading.');
-      setLoadedBlob(new Blob(chunks, { type }), audioTitle, 'rhymeorbit-song.ogg');
+      const downloaded = new Blob(chunks, { type });
+      if (selectionTicket !== activeLoad) return;
+      setLoadedBlob(downloaded, audioTitle, 'rhymeorbit-song.ogg');
+      if (!$('vmLyrics').value.trim() && $('vmAutoTranscribe').checked) transcribeAudio(downloaded);
     } catch (error) {
       status((error?.message || 'Could not load saved audio.') + ' You can still upload an MP3 or WAV.');
     }
@@ -193,6 +225,49 @@
     }
     return response;
   }
+
+  async function transcribeAudio(blob) {
+    if (transcribing) { lyricsInfo('Already transcribing audio. Please wait.'); return; }
+    if (!blob) { lyricsInfo('Choose a song first.'); return; }
+    if (blob.size > TRANSCRIBE_LIMIT) {
+      lyricsInfo('This audio is over 13 MB; upload a smaller MP3 for automatic transcription, or type lyrics.');
+      return;
+    }
+    const thisSong = selectedSongId;
+    const startedWith = lyricDraftVersion;
+    transcribing = true;
+    $('vmTranscribe').disabled = true;
+    lyricsInfo('🎙 Gemini is listening for words in your recording. This can take a minute…');
+    try {
+      const response = await apiRequest('/api/lyrics/transcribe', {
+        method: 'POST', headers: { 'Content-Type': /\.m4a$/i.test(blob.name || sourceName) ? 'audio/mp4' : (blob.type || 'audio/mpeg').split(';')[0] }, body: blob
+      });
+      const result = await response.json();
+      if (thisSong !== selectedSongId || startedWith !== lyricDraftVersion) {
+        lyricsInfo('You changed the song or lyrics while transcription was running; existing text was kept.');
+        return;
+      }
+      if (!result.lyrics) throw Error('No audible lyrics were found.');
+      $('vmLyrics').value = result.lyrics.slice(0, 8000);
+      lyricDraftVersion++;
+      lyricsInfo('✓ Audio lyrics detected. Review mistakes and' + (selectedSongId ? ' select “Save lyrics to this song” for your R2 library.' : ' edit the text before exporting.'));
+    } catch (error) { lyricsInfo('Audio transcription unavailable: ' + error.message + ' You can type or generate lyrics instead.'); }
+    finally { transcribing = false; $('vmTranscribe').disabled = false; }
+  }
+  $('vmTranscribe').addEventListener('click', () => transcribeAudio(audioBlob || $('vmAudioFile').files?.[0]));
+  $('vmSaveSongLyrics').addEventListener('click', async () => {
+    if (!selectedSongId) { lyricsInfo('Choose a saved RhymeOrbit song first.'); return; }
+    const button = $('vmSaveSongLyrics');
+    button.disabled = true;
+    try {
+      await apiRequest('/api/music/lyrics', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId: selectedSongId, lyrics: $('vmLyrics').value.slice(0, 8000) })
+      });
+      lyricsInfo('✓ Edited lyrics saved privately with this song in Cloudflare R2.');
+    } catch (error) { lyricsInfo('Lyrics could not be saved: ' + error.message); }
+    finally { button.disabled = false; }
+  });
 
   async function refreshSongs() {
     const select = $('vmMySongs');
@@ -240,11 +315,13 @@
       });
       const saved = await response.json();
       if (!saved.saved) throw Error('Cloud save could not be confirmed.');
+      lastVideoSaveError = '';
       $('vmFormatNote').textContent += ' · ✓ Saved privately in Cloudflare R2';
       saveButton.hidden = true;
       status('✓ Video ready and saved to My Videos in Cloudflare R2. You can download it anytime.');
       refreshVideos();
     } catch (error) {
+      lastVideoSaveError = error.message;
       status('Video ready on this device, but cloud save failed: ' + error.message + ' Use Download now or retry Save.');
     } finally { saveButton.disabled = false; }
   }
@@ -256,7 +333,12 @@
     try {
       const data = await (await apiRequest('/api/videos')).json();
       library.replaceChildren();
-      if (!data.items?.length) { library.textContent = 'No videos in R2 yet. Create one, and keep “Save to My Videos” selected.'; return; }
+      if (!data.items?.length) {
+        library.textContent = lastVideoSaveError
+          ? 'No videos saved yet. Your most recent cloud upload failed: ' + lastVideoSaveError + '. Return to Export and retry Save.'
+          : 'No videos in R2 yet. Create one and confirm that “Save to My Videos” completed successfully.';
+        return;
+      }
       for (const video of data.items) {
         const card = document.createElement('div');
         card.className = 'library-item';

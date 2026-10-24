@@ -82,3 +82,14 @@ test('Video is stored privately in R2, listed only by owner, supports ranges and
   assert.equal(removal.status, 200);
   assert.equal(objects.size, 0);
 });
+
+test('Browser video uploads work when Content-Length is absent', async t => {
+  const { env, objects } = fixture(t);
+  const payload = new Blob(['z'.repeat(3200)], { type: 'video/webm' });
+  const upload = await handlePrivateVideoRequest(call('/api/videos/upload', 'POST', {
+    authorization: 'Bearer a', 'content-type': 'video/webm',
+    'x-video-title': 'Chrome export', 'x-video-duration': '30'
+  }, payload), env);
+  assert.equal(upload.status, 201);
+  assert.equal(objects.size, 1);
+});
