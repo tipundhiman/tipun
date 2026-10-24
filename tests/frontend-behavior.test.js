@@ -89,7 +89,7 @@ test('AI Studio has a single canonical set of song-generation controls',()=>{
  const app=start();
  app.exec("state.user={id:'real-user',name:'Test Creator'};state.page='studio'");
  const studio=app.exec('studio()');
- for(const id of ['roCanvasGenerate','roCanvasPrompt','roCanvasGenerationStatus']){
+ for(const id of ['songLyrics','roCanvasGenerate','roSongGenerate','roSongCreditStatus','roCanvasGenerationStatus']){
   assert.equal(studio.split('id="'+id+'"').length-1,1,'Duplicate or missing '+id);
  }
 });
@@ -109,4 +109,13 @@ test('Discover replaces fictional tracks with real feature destinations',()=>{
  assert.match(app.node.innerHTML,/Listen & Chill/);
  assert.doesNotMatch(app.node.innerHTML,/DEMO SUGGESTION|FEATURED DEMO CREATOR/);
  assert.doesNotMatch(app.node.innerHTML,/YOUR CREATIVE SPACE/);
+});
+
+test('Studio does not duplicate the Describe your song field',()=>{
+ const app=start();app.exec("state.user={id:'creator',name:'Creator'}");
+ const markup=app.exec('studio()');
+ assert.equal(markup.includes('id="roCanvasPrompt"'),false);
+ assert.equal(markup.includes('Music style (optional)'),true);
+ assert.ok(markup.includes('Generate Song with Vocals'));
+ assert.ok(markup.includes('3 free songs / month'));
 });

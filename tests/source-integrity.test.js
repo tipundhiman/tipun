@@ -67,7 +67,7 @@ test('Membership entry uses shared user session and payments remain disabled', (
   assert.match(html, /aria-label="View Memberships"/);
   assert.match(html, /<script src="\/memberships\.js\?/);
   assert.match(membership, /typeof state==='undefined'\|\|!state\.user/);
-  assert.match(membership, /Checkout coming soon/);
+  assert.match(membership, /Checkout unavailable/);
   assert.match(membership, /disabled>/);
   for (const plan of ['Free', 'Premium', 'Pro']) assert.match(membership, new RegExp("name:'" + plan + "'"));
 });
@@ -78,7 +78,7 @@ test('Music generation remains protected by server-side checks', () => {
   assert.match(api, /const user = await auth\(req, res\)/);
   assert.match(api, /PUBLIC_MUSIC_GENERATION_ENABLED/);
   assert.match(api, /ro_reserve_song/);
-  assert.match(api, /instrumental: false/);
+  assert.match(api, /instrumental:\s*false/);
 });
 
 test('SEO structured data and public legal links exist',()=>{
@@ -101,4 +101,32 @@ test('No fictional demo catalog or old assistant name is visible in main UI',()=
  assert.doesNotMatch(html,/FEATURED DEMO CREATOR/);
  assert.doesNotMatch(html,/Riya Grover/);
  assert.match(html,/riya-chat\.js/);
+});
+
+test('Public music quota and ownership are enforced server-side',()=>{
+ const api=read('api/index.js');
+ const migration=read('supabase/migrations/20261024_public_music_launch.sql');
+ assert.match(api,/path === '\/api\/music\/generate'/);
+ assert.match(api,/ro_reserve_song/);
+ assert.match(api,/music_generation_reservations\?user_id=eq\./);
+ assert.match(api,/ro_refund_failed_song/);
+ assert.match(api,/ideaOrLyrics/);
+ assert.match(api,/isFullLyrics\?\{lyrics:ideaOrLyrics\}:\{\}/);
+ assert.match(migration,/create table if not exists public\.music_generation_reservations/);
+ assert.match(migration,/create table if not exists public\.generated_songs/);
+ assert.match(migration,/v_limit:=least\(3/);
+ assert.match(migration,/pg_advisory_xact_lock/);
+ assert.match(migration,/create or replace function public\.ro_refund_failed_song/);
+ assert.match(migration,/audio\/ogg/);
+});
+test('Public AI Studio is a single no-popup vocal-song workflow',()=>{
+ assert.match(html,/id="songLyrics"/);
+ assert.match(html,/id="roCanvasGenerate"/);
+ assert.match(html,/id="roSongGenerate"/);
+ assert.match(html,/id="roSongCreditStatus"/);
+ assert.doesNotMatch(html,/id="roCanvasPrompt"/);
+ assert.doesNotMatch(html,/Music style \(Treblo\)|No AI API connected yet/);
+ const generation=html.slice(html.indexOf('window.roStartMurekaTest=async function(){'));
+ assert.ok(generation.includes("/api/music/generate"));
+ assert.ok(!generation.slice(0,2500).includes("confirm("));
 });

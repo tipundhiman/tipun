@@ -3,8 +3,8 @@
 'use strict';
 const plans=[
  {name:'Free',monthly:0,annual:0,credits:300,songs:3,tag:'Start your orbit',perks:['Unlimited AI lyrics & Shayari (provider limits apply)','Community & Vibe Match','3 AI songs per calendar month']},
- {name:'Premium',monthly:599,annual:549,credits:3500,songs:35,tag:'Most popular',perks:['35 standard AI songs per month','Premium creator tools (coming soon)','Advanced analytics (coming soon)']},
- {name:'Pro',monthly:1299,annual:1199,credits:7500,songs:75,tag:'For serious creators',perks:['75 standard AI songs per month','Professional portfolio (coming soon)','Collaboration tools (coming soon)']}
+ {name:'Premium',monthly:599,annual:549,credits:3500,songs:35,tag:'Most popular',perks:['35 standard AI songs per month','Paid creator tools are not active','Paid analytics are not active']},
+ {name:'Pro',monthly:1299,annual:1199,credits:7500,songs:75,tag:'For serious creators',perks:['75 standard AI songs per month','Paid portfolio tools are not active','Paid collaboration tools are not active']}
 ];
 let annual=false;
 const css=document.createElement('style');
@@ -62,8 +62,8 @@ function openMemberships(reason){
  <div class="ro-membership-amount">₹${annual?p.annual:p.monthly}<small style="font-size:13px;color:#b3aebe">/mo</small></div>
  <p class="ro-membership-muted">${annual&&p.annual?'₹'+p.annual*12+' billed annually':'Monthly membership'}</p>
  <p><strong>${p.credits.toLocaleString('en-IN')} credits</strong> / month<br><span class="ro-membership-muted">≈ ${p.songs} standard songs (100 credits/song)</span></p>
- <ul>${p.perks.map(x=>'<li>'+escapeHTML(x)+'</li>').join('')}</ul><button type="button" disabled>${i===0?'Free plan':'Checkout coming soon'}</button></article>`).join('')}</div>
- <p class="ro-membership-muted" style="text-align:center;margin-top:20px">Plans are a preview. Payments are not enabled. Paid credits and benefits require verified provider capacity, billing and server-side entitlements. Annual pricing is billed yearly with monthly credit refresh.</p></section>`;
+ <ul>${p.perks.map(x=>'<li>'+escapeHTML(x)+'</li>').join('')}</ul><button type="button" disabled>${i===0?'Free plan':'Checkout unavailable'}</button></article>`).join('')}</div>
+ <p class="ro-membership-muted" style="text-align:center;margin-top:20px">Free includes 3 songs/month when generation is available. Paid plans are not currently purchasable. Paid credits and benefits require verified provider capacity, billing and server-side entitlements. Annual pricing is billed yearly with monthly credit refresh.</p></section>`;
  document.body.appendChild(overlay);
  overlay.querySelector('.ro-membership-close').onclick=()=>overlay.remove();
  overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};

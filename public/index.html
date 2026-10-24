@@ -104,7 +104,7 @@ async function roCopyLyrics(){
     toast('Select the lyrics and press Ctrl+C to copy');
   }
 }
-function studio(){if(!requireUser('studio'))return appPage(`${heading('AI STUDIO','The space to <span class="serif">create.</span>','Your creative workspace is ready. Sign in to start.')}`);let p=state.editId?state.projects.find(x=>x.id===state.editId):null;return appPage(`${heading('AI STUDIO / YOUR CREATIVE SANCTUARY','Give your ideas <span class="serif">a voice.</span>','Shape your lyrics, explore song directions, and save your work as a private browser draft.','<button class="btn" onclick="go(\'projects\')">My projects ↗</button>')}<div class="grid2"><section class="panel"><div class="row between" style="margin-bottom:20px"><span class="eyebrow">LYRIC CANVAS</span><span class="badge">LOCAL WORKSPACE</span></div><div class="field"><label for="songTitle">Song title</label><input id="songTitle" maxlength="100" placeholder="Give your song a name..." value="${esc(p?.title||'')}"></div><div class="formrow"><div class="field"><label for="songGenre">Genre</label><select id="songGenre">${['Indie','Pop','Hip-hop','R&B','Acoustic','Lo-fi','Bollywood','Haryanvi','Punjabi','Other'].map(x=>`<option ${p?.genre===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="field"><label for="songMood">Mood</label><select id="songMood">${['Dreamy','Romantic','Sad','Heartbreak','Emotional','Energetic','Party','Devotional','Spiritual','Nostalgic','Motivational','Peaceful','Intense','Hopeful','Playful','Friendship','Celebration','Chill','Dark','Sufi','Patriotic','Heartwarming'].map(x=>`<option ${p?.mood===x?'selected':''}>${x}</option>`).join('')}</select></div></div><div class="field"><label for="songLanguage">🌐 Song language</label><select id="songLanguage">${roLanguages.map(x=>`<option value="${esc(x)}" ${p?.language===x?'selected':''}>${esc(x)}${roNativeNames[x]?' — '+esc(roNativeNames[x]):''}</option>`).join('')}${p?.language&&!roLanguages.includes(p.language)?`<option selected value="${esc(p.language)}">${esc(p.language)}</option>`:''}</select><span class="muted small">Language choice is saved with your lyrics. Singing support depends on the AI model.</span></div><div class="field"><label for="songLyrics">Your lyrics</label><textarea id="songLyrics" placeholder="[Verse 1]\nWrite the words only you can write...\n\n[Chorus]\nLet the feeling find its melody...">${esc(p?.lyrics||'')}</textarea></div><div class="field" style="margin-top:17px"><label for="roCanvasPrompt">Describe your song</label><textarea id="roCanvasPrompt" maxlength="1500" placeholder="Describe the song you want..."></textarea></div><div class="field"><label for="roMusicStyle">Music style (Treblo)</label><input id="roMusicStyle" maxlength="1024" placeholder="Hindi pop, guitar, 95 BPM"></div><div class="field"><label for="roVocalVoice">Singer voice</label><select id="roVocalVoice"><option value="auto">Auto</option><option value="male">Male voice</option><option value="female">Female voice</option><option value="duet">Male + Female duet</option></select></div><div class="row" style="margin:12px 0 18px"><button class="btn gold" type="button" id="roCanvasGenerate" onclick="roGenerateCanvasLyrics()">✧ Generate Lyrics</button><button class="btn" type="button" onclick="roCanvasSongNotice()">♫ Generate Song</button></div><div id="roAdminTrebloTools" hidden><p class="muted small">Admin-only Treblo trial test (100 credits per new song).</p><div class="field"><label for="roTrebloTaskId">Already generated? Recover by task ID (no new generation credits)</label><input id="roTrebloTaskId" placeholder="Treblo task ID" autocomplete="off"></div><button class="btn" type="button" onclick="roRecoverTrebloSong()">↻ Recover Existing Song</button></div><div id="roMurekaResult" style="margin-top:12px" aria-live="polite"></div><section id="roSongLibrary" class="panel" style="margin-top:22px;padding:16px"><h3>♫ My Generated Songs</h3><p class="muted small">Saved in this browser. Open a song to refresh its audio link.</p><div id="roSongLibraryItems"></div></section><div id="roCanvasGenerationStatus" aria-live="polite"></div><div class="row"><span id="roAutosaveStatus" class="muted small">Autosave enabled</span><button class="btn" type="button" onclick="roCopyLyrics()">⧉ Copy lyrics</button><span id="wordCount" class="muted small">0 words</span><span id="roCharCount" class="muted small">0 characters</span></div></section><div><section class="panel" style="margin-bottom:18px"><span class="eyebrow">SONG DOCTOR</span><h3 style="margin-top:14px">A second set of ears.</h3><p class="muted">Get instant on-device writing feedback about line length, repetition and song structure. No AI API connected yet.</p><button class="btn" onclick="songDoctor()">Analyze my lyrics ↗</button><div id="doctorResult" style="margin-top:15px"></div></section><section class="panel"><span class="eyebrow">VIBE TO SONG</span><h3 style="margin-top:14px">Start with a feeling.</h3><p class="muted">Build a creative brief from a mood. This generates a writing prompt, not an AI-composed song.</p><div class="field"><label for="vibeInput">What's the vibe?</label><input id="vibeInput" placeholder="e.g. a rainy midnight drive"></div><button class="btn" onclick="vibeBrief()">Create writing brief ↗</button><div id="vibeResult" style="margin-top:15px"></div></section></div></div>`)}
+function studio(){if(!requireUser('studio'))return appPage(`${heading('AI STUDIO','The space to <span class="serif">create.</span>','Your creative workspace is ready. Sign in to start.')}`);let p=state.editId?state.projects.find(x=>x.id===state.editId):null;return appPage(`${heading('AI STUDIO / YOUR CREATIVE SANCTUARY','Give your ideas <span class="serif">a voice.</span>','Write a short idea or your own lyrics, then create a complete song with vocals.','<button class="btn" onclick="go(\'projects\')">My projects ↗</button>')}<div class="grid2"><section class="panel"><div class="row between" style="margin-bottom:20px"><span class="eyebrow">LYRIC CANVAS</span><span class="badge">3 free songs / month</span></div><div class="field"><label for="songTitle">Song title</label><input id="songTitle" maxlength="100" placeholder="Give your song a name..." value="${esc(p?.title||'')}"></div><div class="formrow"><div class="field"><label for="songGenre">Genre</label><select id="songGenre">${['Indie','Pop','Hip-hop','R&B','Acoustic','Lo-fi','Bollywood','Haryanvi','Punjabi','Other'].map(x=>`<option ${p?.genre===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="field"><label for="songMood">Mood</label><select id="songMood">${['Dreamy','Romantic','Sad','Heartbreak','Emotional','Energetic','Party','Devotional','Spiritual','Nostalgic','Motivational','Peaceful','Intense','Hopeful','Playful','Friendship','Celebration','Chill','Dark','Sufi','Patriotic','Heartwarming'].map(x=>`<option ${p?.mood===x?'selected':''}>${x}</option>`).join('')}</select></div></div><div class="field"><label for="songLanguage">🌐 Song language</label><select id="songLanguage">${roLanguages.map(x=>`<option value="${esc(x)}" ${p?.language===x?'selected':''}>${esc(x)}${roNativeNames[x]?' — '+esc(roNativeNames[x]):''}</option>`).join('')}${p?.language&&!roLanguages.includes(p.language)?`<option selected value="${esc(p.language)}">${esc(p.language)}</option>`:''}</select><span class="muted small">Language choice is saved with your lyrics. Singing support depends on the AI model.</span></div><div class="field"><label for="songLyrics">Song idea or lyrics</label><textarea id="songLyrics" placeholder="Write a song idea (e.g. A Hindi romantic song about first rain) or paste your lyrics with [Verse] and [Chorus].">${esc(p?.lyrics||'')}</textarea></div><div class="field"><label for="roMusicStyle">Music style (optional)</label><input id="roMusicStyle" maxlength="1024" placeholder="e.g. Hindi pop, guitar, 95 BPM"></div><div class="field"><label for="roVocalVoice">Singer voice</label><select id="roVocalVoice"><option value="auto">Auto</option><option value="male">Male voice</option><option value="female">Female voice</option><option value="duet">Male + Female duet</option></select></div><div class="row" style="margin:12px 0 18px"><button class="btn gold" type="button" id="roCanvasGenerate" onclick="roGenerateCanvasLyrics()">✧ Generate Lyrics</button><button class="btn" type="button" id="roSongGenerate" onclick="roCanvasSongNotice()">♫ Generate Song with Vocals</button></div><div id="roCanvasGenerationStatus" aria-live="polite"></div><button type="button" class="btn sm" id="roUndoGeneratedLyrics" hidden onclick="roUndoGeneratedLyrics()">↶ Restore previous lyrics</button><p id="roSongCreditStatus" class="muted small" role="status" aria-live="polite">Checking song balance…</p><div id="roAdminTrebloTools" hidden><p class="muted small">Admin tools for recovering an existing song.</p><div class="field"><label for="roTrebloTaskId">Recover existing song by task ID</label><input id="roTrebloTaskId" placeholder="song task ID" autocomplete="off"></div><button class="btn" type="button" onclick="roRecoverTrebloSong()">↻ Recover Existing Song</button></div><div id="roMurekaResult" style="margin-top:12px" aria-live="polite"></div><section id="roSongLibrary" class="panel" style="margin-top:22px;padding:16px"><h3>♫ My Generated Songs</h3><p class="muted small">Songs appear here after generation. Cloud backup is attempted when audio is ready.</p><div id="roSongLibraryItems"></div></section><div class="row"><span id="roAutosaveStatus" class="muted small">Autosave enabled</span><button class="btn" type="button" onclick="roCopyLyrics()">⧉ Copy lyrics</button><span id="wordCount" class="muted small">0 words</span><span id="roCharCount" class="muted small">0 characters</span></div></section><div><section class="panel" style="margin-bottom:18px"><span class="eyebrow">SONG DOCTOR</span><h3 style="margin-top:14px">A second set of ears.</h3><p class="muted">Analyze rhyme, structure and potential hooks in your lyrics.</p><button class="btn" onclick="songDoctor()">Analyze my lyrics ↗</button><div id="doctorResult" style="margin-top:15px"></div></section><section class="panel"><span class="eyebrow">HOW TO CREATE</span><h3 style="margin-top:14px">From idea to vocal song.</h3><p class="muted">1. Write an idea or paste lyrics.<br>2. Generate or refine lyrics if you like.<br>3. Choose a voice and create your song.</p><p class="muted small">Up to 3 songs per calendar month. Song creation may take several minutes.</p></section></div></div>`)}
 function projects(){if(!requireUser('projects'))return appPage(heading('MY STUDIO','Your private <span class="serif">orbit.</span>','Join to create and save drafts.'));return appPage(`${heading('MY STUDIO / YOUR COLLECTION','Every idea, <span class="serif">preserved.</span>','Projects you save can sync to your account. Export important drafts as a backup.','<button class="btn gold" onclick="clearEditor();go(\'studio\')">+ New project</button>')}${state.projects.length?`<div class="grid3">${state.projects.map(p=>`<article class="panel tile"><span class="badge">${esc(p.genre)}</span><h3 style="margin:22px 0 8px">${esc(p.title)}</h3><p class="card-sub">${esc(p.mood)} · ${esc(p.language)}</p><p class="muted small">${esc(p.lyrics.slice(0,100))}${p.lyrics.length>100?'…':''}</p><div class="card-actions"><button class="btn sm" onclick="editProject('${p.id}')">Edit ↗</button><button class="btn sm" onclick="exportProject('${p.id}')">Export ↓</button><button class="btn sm" onclick="deleteProject('${p.id}')">Delete</button></div></article>`).join('')}</div>`:`<div class="empty"><div class="big">✧</div><h3>Your next masterpiece starts here.</h3><p>No drafts yet. Open AI Studio and start writing.</p><button class="btn gold" onclick="go('studio')">Open AI Studio ↗</button></div>`}`)}
 function listen(){return appPage(`${heading('LISTEN & CHILL','Your <span class="serif">audio universe.</span>','Discover music through supported players.')}<section class="panel ro-cc-lounge"><div class="eyebrow">LISTEN & CHILL</div><h2>Find your next favorite song 🎶</h2><p class="muted small">Search music through connected sources. Available tracks and playback depend on the provider.</p><div id="roCcScene" class="ro-cc-scene"><div class="ro-cc-stars">✦　✧　⋆　✦　✧</div><div id="roCcMascot" class="ro-cc-mascot">🐱🎧</div><div class="ro-cc-bars">${Array.from({length:17},(_,i)=>'<i style="--i:'+i+'"></i>').join('')}</div><div id="roCcSceneText">Your cartoon DJ is ready ✨</div></div><div class="ro-yt-search-shell"><div class="ro-yt-search-note" aria-hidden="true">🎶</div><form id="roYtForm" class="row ro-yt-search-form" onsubmit="roYtSearch(event)"><input id="roYtQuery" aria-label="Search YouTube music" placeholder="🎤 Type a song, artist or your next obsession…" maxlength="100" required autocomplete="off"><button class="btn gold ro-yt-search-button" type="submit">Let's Jam ✨</button></form><div class="ro-yt-search-spark" aria-hidden="true">✦</div></div><div id="roYtStatus" class="muted small" role="status">🎧 Your next favorite track is one search away!</div><div id="roYtGrid" class="ro-cc-grid" style="margin-top:16px"></div><div id="roYtPlayer" style="margin-top:18px"></div><p class="muted small" style="margin-top:18px">Third-party music may require attribution or have licensing restrictions. Follow each source’s terms.</p></section>`)}
 
@@ -120,14 +120,14 @@ function render(){const content=state.page==='home'?home():state.page==='about'?
 // Automatically persist studio drafts locally without navigating away or deleting other projects.
 let roAutosaveTimer;
 function roInstallStudioAutosave(){
-  const fields=['songTitle','songGenre','songMood','songLanguage','songLyrics','roCanvasPrompt','roMusicStyle','roVocalVoice'];
+  const fields=['songTitle','songGenre','songMood','songLanguage','songLyrics','roMusicStyle','roVocalVoice'];
   const userKey=state.user?.id||'guest';
   const draftKey='ro_studio_active_draft_'+userKey;
   let id=state.editId||localStorage.getItem(draftKey);
   if(!state.editId&&id){
     const saved=state.projects.find(p=>p.id===id);
     if(saved){
-      for(const [field,value] of Object.entries({songTitle:saved.title==='Untitled Song'?'':saved.title,songGenre:saved.genre,songMood:saved.mood,songLanguage:saved.language,songLyrics:saved.lyrics,roCanvasPrompt:saved.prompt,roMusicStyle:saved.musicStyle,roVocalVoice:saved.voice})){
+      for(const [field,value] of Object.entries({songTitle:saved.title==='Untitled Song'?'':saved.title,songGenre:saved.genre,songMood:saved.mood,songLanguage:saved.language,songLyrics:saved.lyrics,roMusicStyle:saved.musicStyle,roVocalVoice:saved.voice})){
         const el=document.getElementById(field);if(el&&value!=null)el.value=value;
       }
       countWords();
@@ -136,11 +136,11 @@ function roInstallStudioAutosave(){
   function persist(){
     if(state.page!=='studio'||!state.user)return;
     const read=k=>document.getElementById(k)?.value||'';
-    const title=read('songTitle').trim(),lyrics=read('songLyrics').trim(),prompt=read('roCanvasPrompt').trim();
-    if(!title&&!lyrics&&!prompt)return;
+    const title=read('songTitle').trim(),lyrics=read('songLyrics').trim();
+    if(!title&&!lyrics)return;
     if(!id)id='p'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
     const previous=state.projects.find(p=>p.id===id)||{};
-    const data={...previous,id,title:title||'Untitled Song',lyrics,genre:read('songGenre'),mood:read('songMood'),language:read('songLanguage'),prompt,musicStyle:read('roMusicStyle'),voice:read('roVocalVoice'),updated:new Date().toISOString()};
+    const data={...previous,id,title:title||'Untitled Song',lyrics,genre:read('songGenre'),mood:read('songMood'),language:read('songLanguage'),musicStyle:read('roMusicStyle'),voice:read('roVocalVoice'),updated:new Date().toISOString()};
     const index=state.projects.findIndex(p=>p.id===id);
     if(index>=0)state.projects[index]=data;else state.projects.unshift(data);
     if(put('projects',state.projects)){
@@ -641,29 +641,36 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     input.placeholder='e.g. '+roVibeExamples[roVibeIndex];
   }
   setInterval(roRotateVibe,180000);
-  window.roCanvasSongNotice = function () {
-    const style = document.getElementById('roMusicStyle');
-    if (!style) return toast('Music generator is unavailable. Refresh the page.');
-    if (!style.value.trim()) {
-      const brief = document.getElementById('roCanvasPrompt')?.value.trim() || '';
-      if (brief) style.value = brief.slice(0, 1024);
-    }
-    if (!style.value.trim()) {
-      style.focus();
-      return toast('Add a music style first, then generate your song.');
+  window.roCanvasSongNotice=function(){
+    const text=document.getElementById('songLyrics')?.value.trim()||'';
+    const message=document.getElementById('roMurekaResult');
+    if(text.length<5){
+      if(message)message.textContent='Enter your song idea or lyrics above to continue.';
+      document.getElementById('songLyrics')?.focus();
+      return;
     }
     return window.roStartMurekaTest();
   };
+  window.roUndoGeneratedLyrics=function(){
+    const area=document.getElementById('songLyrics');
+    if(!area||typeof window.roPreviousLyrics!=='string')return;
+    area.value=window.roPreviousLyrics;
+    area.dispatchEvent(new Event('input',{bubbles:true}));
+    const undo=document.getElementById('roUndoGeneratedLyrics');if(undo)undo.hidden=true;
+    const result=document.getElementById('roCanvasGenerationStatus');
+    if(result)result.textContent='Previous lyrics restored.';
+  };
   window.roGenerateCanvasLyrics = async function () {
-    const topic = document.getElementById('roCanvasPrompt')?.value.trim();
+    const topic = document.getElementById('songLyrics')?.value.trim();
     const lyricsBox = document.getElementById('songLyrics');
     const result = document.getElementById('roCanvasGenerationStatus');
     const button = document.getElementById('roCanvasGenerate');
     if (!topic || !lyricsBox || !result || !button) {
-      toast('Describe your song first');
+      if(result)result.textContent='Write a song idea or a draft in the editor first.';
+      lyricsBox?.focus();
       return;
     }
-    if (lyricsBox.value.trim() && !confirm('Replace your current lyrics with newly generated lyrics? Save or copy them first if needed.')) return;
+    window.roPreviousLyrics=lyricsBox.value;
     if (!sb || !state.user) {
       toast('Log in to generate lyrics');
       return;
@@ -678,7 +685,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       'Language: ' + language,
       'Genre: ' + genre,
       'Mood: ' + mood,
-      'Song idea: ' + topic,
+      'Song idea or draft to expand into original complete lyrics: ' + topic,
       'Use natural vocabulary and meaningful rhymes, with [Verse], [Chorus] and optional [Bridge] sections.',
       'Avoid unnatural forced rhymes and lengthy explanations.',
       language === 'Haryanvi' ? 'Use authentic Sonipat-Rohtak Haryanvi in Devanagari; avoid generic Hindi.' : '',
@@ -717,8 +724,9 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       lyricsBox.value=cleaned;
       lyricsBox.dispatchEvent(new Event('input', {bubbles:true}));
       document.getElementById('songTitle')?.dispatchEvent(new Event('input',{bubbles:true}));
-      result.textContent = 'Lyrics generated and song title suggested. Review, then save your project.';
-      toast('Lyrics added to your canvas ✦');
+      result.textContent = 'Lyrics ready. You can restore your previous text if needed.';
+      const undo=document.getElementById('roUndoGeneratedLyrics');if(undo)undo.hidden=false;
+
     } catch (error) {
       result.textContent = error.message || 'Could not generate lyrics';
     } finally {
@@ -727,7 +735,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
   };
 })();
 </script><script>
-/* Admin-only Mureka test. Public generation stays gated on server. */
+/* Song generation and cloud library. Server verifies quota and song ownership. */
 (function(){
   const trebleStorageKey='ro_treblo_last_task';
   const roLibraryKey=()=> 'ro_treblo_library_'+(state.user?.id||'guest');
@@ -756,7 +764,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const root=document.getElementById('roSongLibraryItems');if(!root)return;
     root.replaceChildren();
     const items=roLibraryRead();
-    if(!items.length){root.textContent='No songs saved here yet. Recover an existing task ID to add it.';return}
+    if(!items.length){root.textContent='Your generated songs will appear here once created.';return}
     for(const item of items){
       const row=document.createElement('div');row.style.cssText='padding:12px 0;border-top:1px solid #444;display:flex;align-items:center;gap:12px;flex-wrap:wrap';
       const art=document.createElement('span');art.textContent='♫';art.style.cssText='width:44px;height:44px;display:grid;place-items:center;border-radius:10px;background:#4b3c59;font-size:24px';
@@ -768,8 +776,31 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       const remove=document.createElement('button');remove.type='button';remove.className='btn';remove.textContent='Delete';remove.onclick=()=>window.roDeleteSong(item.id);row.append(art,title,play,remove);root.append(row);
     }
   };
-  const roBaseRenderWithLibrary=window.render;
-  window.render=function(...args){const result=roBaseRenderWithLibrary.apply(this,args);if(state.page==='studio')window.roRenderSongLibrary();return result};
+  window.roRefreshMusicCredits=async function(){
+    const out=document.getElementById('roSongCreditStatus'),button=document.getElementById('roSongGenerate');
+    if(!out||!sb?.auth||!state.user)return;
+    try{
+      const session=(await sb.auth.getSession()).data.session;
+      if(!session?.access_token){out.textContent='Sign in to see your monthly song balance.';return}
+      const responses=await Promise.all([
+        fetch('/api/music/credits',{headers:{Authorization:'Bearer '+session.access_token}}),
+        fetch('/api/music/status')
+      ]);
+      const balance=await responses[0].json().catch(()=>({}));
+      const status=await responses[1].json().catch(()=>({}));
+      if(!responses[0].ok)throw Error(balance.error||'Song balance unavailable');
+      const remaining=Math.max(0,Math.min(3,Number(balance.remaining)||0));
+      if(responses[1].ok&&status.publicGenerationEnabled===false){
+        out.textContent='♫ Song generation is temporarily unavailable. Your monthly balance is '+remaining+'/3.';
+        if(button)button.disabled=true;
+        return;
+      }
+      out.textContent='♫ '+remaining+' of 3 free songs left this month · Resets monthly (UTC)';
+      if(button)button.disabled=remaining===0||!!window.roSongBusy;
+    }catch(error){out.textContent='Monthly song balance unavailable right now.';if(button)button.disabled=!!window.roSongBusy}
+  };
+    const roBaseRenderWithLibrary=window.render;
+  window.render=function(...args){const result=roBaseRenderWithLibrary.apply(this,args);if(state.page==='studio'){window.roRenderSongLibrary();window.roRefreshMusicCredits?.();}return result};
 
   async function roCloudToken(){return (await sb?.auth.getSession())?.data?.session?.access_token||null}
   window.roLoadCloudSongs=async function(){
@@ -893,16 +924,15 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const name=document.createElement('h3');
     name.textContent=localStorage.getItem('ro_treblo_song_title_'+id)||'My AI Song';
     name.style.cssText='margin:0 0 5px;font-size:21px';
-    const subtitle=document.createElement('p');subtitle.textContent='RhymeOrbit · Generated with Treblo';subtitle.style.cssText='color:#aaa;margin:0 0 16px';
+    const subtitle=document.createElement('p');subtitle.textContent='RhymeOrbit · AI-generated vocal song';subtitle.style.cssText='color:#aaa;margin:0 0 16px';
     const audio=document.createElement('audio');audio.controls=true;audio.preload='metadata';audio.src=url;audio.style.width='100%';
     audio.addEventListener('loadedmetadata',()=>{if(Number.isFinite(audio.duration))roLibraryUpsert(id,{duration:Math.round(audio.duration)})});
     const row=document.createElement('div');row.style.cssText='display:flex;gap:10px;flex-wrap:wrap;margin-top:12px';
     const back=document.createElement('button');back.type='button';back.className='btn';back.textContent='↶ 10 sec';back.onclick=()=>{audio.currentTime=Math.max(0,audio.currentTime-10)};
     const forward=document.createElement('button');forward.type='button';forward.className='btn';forward.textContent='10 sec ↷';forward.onclick=()=>{if(Number.isFinite(audio.duration))audio.currentTime=Math.min(audio.duration,audio.currentTime+10)};
     const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='↓ Open / Download';link.className='btn gold';
-    const rename=document.createElement('button');rename.type='button';rename.className='btn';rename.textContent='✎ Rename';rename.onclick=()=>{const next=prompt('Song title',name.textContent);if(next&&next.trim()){name.textContent=next.trim().slice(0,100);localStorage.setItem('ro_treblo_song_title_'+id,name.textContent);roLibraryUpsert(id,{title:name.textContent});window.roSaveSongToCloud(id,{title:name.textContent}).catch(()=>{})}};
-    row.append(back,forward,link,rename);
-    const info=document.createElement('p');info.textContent='Save your song soon: Treblo audio URLs can expire. Task ID: '+id;info.style.cssText='font-size:12px;color:#aaa;margin-top:14px;overflow-wrap:anywhere';
+    row.append(back,forward,link);
+    const info=document.createElement('p');info.textContent='A cloud backup will be attempted. Song ID: '+id;info.style.cssText='font-size:12px;color:#aaa;margin-top:14px;overflow-wrap:anywhere';
     card.append(cover,name,subtitle,audio,row,info);box.append(card);roAttachTime(audio);
     roLibraryUpsert(id,{title:name.textContent,status:'Ready',url});
     const notice=document.createElement('p');notice.className='muted small';notice.textContent='Saving permanent copy to cloud…';card.append(notice);
@@ -915,7 +945,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     if(!box)return toast('Open AI Studio first');
     id=String(id||document.getElementById('roTrebloTaskId')?.value||localStorage.getItem(trebleStorageKey)||'').trim();
     if(!id)return toast('Enter the task ID from Treblo, or generate a new song to save its ID automatically.');
-    if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id))return toast('Enter a valid Treblo task ID');
+    if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id))return toast('Enter a valid song task ID');
     if(!sb)return toast('Log in first');
     const session=(await sb.auth.getSession()).data.session;
     if(!session?.access_token)return toast('Log in first');
@@ -936,25 +966,39 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     }catch(e){box.textContent=(e.message||'Could not fetch song')+' — Task ID: '+id;}
   };
   window.roStartMurekaTest=async function(){
-    const lyrics=document.getElementById('songLyrics')?.value.trim()||'';
+    const text=document.getElementById('songLyrics')?.value.trim()||'';
     const style=document.getElementById('roMusicStyle')?.value.trim()||'';
     const box=document.getElementById('roMurekaResult');
+    const button=document.getElementById('roSongGenerate');
     if(!box)return;
-    if(lyrics.length<20||style.length<5)return toast('Add lyrics and a music style first');
-    if(!confirm('Generate ONE Treblo song using 100 trial credits? Existing songs can be recovered without generating again.'))return;
-    const session=(await sb.auth.getSession()).data.session;
-    if(!session?.access_token)return toast('Log in first');
-    box.textContent='Starting your Treblo song…';
+    if(text.length<5){box.textContent='Enter a song idea or lyrics above.';return}
+    if(!sb||!state.user){box.textContent='Sign in to generate songs.';return}
+    if(window.roSongBusy)return;
+    window.roSongBusy=true;
+    if(button)button.disabled=true;
+    box.textContent='♫ Starting your song with vocals…';
     try{
-      const response=await fetch('/api/music/generate',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({lyrics,prompt:style,voice:document.getElementById('roVocalVoice')?.value||'auto'})});
-      const data=await response.json();
-      if(!response.ok)throw Error(data.error||'Could not start song');
-      if(!data.id)throw Error('Provider did not return a task ID');
-      localStorage.setItem(trebleStorageKey,String(data.id));
-      localStorage.setItem('ro_treblo_song_title_'+data.id,(document.getElementById('songTitle')?.value||'My AI Song').trim().slice(0,100));
-      roLibraryUpsert(String(data.id),{title:localStorage.getItem('ro_treblo_song_title_'+data.id),voice:document.getElementById('roVocalVoice')?.value||'auto',status:'Processing'});
-      await window.roRecoverTrebloSong(data.id);
-    }catch(e){box.textContent=e.message||'Song generation failed'}
+      const session=(await sb.auth.getSession()).data.session;
+      if(!session?.access_token)throw Error('Your session expired. Log in again.');
+      const response=await fetch('/api/music/generate',{method:'POST',headers:{
+        'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},
+        body:JSON.stringify({lyrics:text,prompt:style,genre:document.getElementById('songGenre')?.value||'Pop',
+          mood:document.getElementById('songMood')?.value||'Creative',
+          language:document.getElementById('songLanguage')?.value||'Hindi',
+          voice:document.getElementById('roVocalVoice')?.value||'auto'})});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw Error(data.error||'Could not start your song.');
+      if(!data.id)throw Error('Song started without a tracking ID. Contact support.');
+      const id=String(data.id);
+      localStorage.setItem(trebleStorageKey,id);
+      const title=(document.getElementById('songTitle')?.value||'My AI Song').trim().slice(0,100);
+      localStorage.setItem('ro_treblo_song_title_'+id,title);
+      roLibraryUpsert(id,{title,voice:document.getElementById('roVocalVoice')?.value||'auto',status:'Processing'});
+      window.roRefreshMusicCredits?.();
+      box.textContent='Your song is being created with vocals. It will appear in your song library when ready.';
+      await window.roRecoverTrebloSong(id);
+    }catch(error){box.textContent=error.message||'Song generation is unavailable. Please retry.'}
+    finally{window.roSongBusy=false;if(button)button.disabled=false;window.roRefreshMusicCredits?.()}
   };
 })();
 </script>

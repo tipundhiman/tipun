@@ -93,16 +93,18 @@ async function trebleAudio(id) {
   return (song.song_paths||[]).find(url=>typeof url==='string'&&url.startsWith('https://'))||null;
 }
 async function archiveAudio(userId,id,url) {
-  const c=config(),path=userId+'/'+id+'.mp3';
+  const c=config();
   const download=await fetch(url,{signal:AbortSignal.timeout(16000)});
   if(!download.ok)throw Error('Treblo audio download failed');
   const mime=(download.headers.get('content-type')||'').toLowerCase();
   if(!mime.includes('audio/')&&!mime.includes('octet-stream'))throw Error('Provider returned non-audio data');
   if(Number(download.headers.get('content-length')||0)>20_000_000)throw Error('Audio exceeds 20 MB storage limit');
+  const isOgg=mime.includes('ogg')||/\.ogg(?:\?|$)/i.test(url);
+  const path=userId+'/'+id+(isOgg?'.ogg':'.mp3');
   const bytes=await download.arrayBuffer();
   if(bytes.byteLength>20_000_000||bytes.byteLength<1000)throw Error('Invalid audio size');
   const upload=await fetch(c.url+'/storage/v1/object/song-audio/'+path,{
-    method:'POST',headers:{apikey:c.service,Authorization:'Bearer '+c.service,'Content-Type':mime.includes('mpeg')?'audio/mpeg':'application/octet-stream','x-upsert':'true'},
+    method:'POST',headers:{apikey:c.service,Authorization:'Bearer '+c.service,'Content-Type':isOgg?'audio/ogg':'audio/mpeg','x-upsert':'true'},
     body:bytes,signal:AbortSignal.timeout(16000)
   });
   if(!upload.ok)throw Error('Cloud audio upload failed');
@@ -126,7 +128,7 @@ async function isAdmin(userId) {
 }
 async function aiGenerate(kind, input) {
   const key = env('GEMINI_API_KEY');
-  if (!key) return { error: 'AI is not configured. Add GEMINI_API_KEY to server environment.' };
+  if (!key) return { error: 'Writing assistant temporarily unavailable.' };
   const prompts = {
     lyrics: 'You are a creative songwriting collaborator. Write original song lyrics based on the user brief. Avoid copying existing songs. Respond in the requested language. Output clear sections.',
     doctor: 'Analyze the supplied lyrics. Give specific, constructive notes on rhyme, meter, hooks, originality and structure. Preserve original lyrics; do not rewrite unless asked.',
@@ -148,7 +150,7 @@ async function aiGenerate(kind, input) {
     signal: AbortSignal.timeout(30000)
   });
   const result = await response.json();
-  if (!response.ok) return { error: result.error?.message || 'AI provider failed' };
+  if (!response.ok) return { error: 'Writing assistant temporarily unavailable. Please try again later.' };
   return { text: result.candidates?.[0]?.content?.parts?.map(x => x.text || '').join('') || 'No text returned' };
 }
 function pathOf(req) {
@@ -192,14 +194,20 @@ export async function handleApi(req, res) {
       });
     }
     if (req.method === 'GET' && path === '/api/music/status') {
-      return send(res, 200, {
-        configured: Boolean(env('TREBLO_API_KEY')),
-        provider: env('TREBLO_API_KEY') ? 'Treblo' : null,
-        supportsVocals: Boolean(env('TREBLO_API_KEY')),
-        publicGenerationEnabled: env('PUBLIC_MUSIC_GENERATION_ENABLED') === 'true' && Boolean(env('TREBLO_API_KEY')),
-        checkoutEnabled: false,
-        message: env('TREBLO_API_KEY') ? 'Treblo is configured for admin testing only; public generation and payments are not yet enabled.' : 'Treblo API key is not configured; music generation is unavailable.'
-      });
+      const providerReady=Boolean(env('TREBLO_API_KEY'));
+      const publicAllowed=env('PUBLIC_MUSIC_GENERATION_ENABLED')!=='false';
+      let quotaReady=false;
+      if(providerReady&&publicAllowed&&config().service){
+        const checks=await Promise.all([
+          supaFetch('/rest/v1/music_usage?select=user_id&limit=0'),
+          supaFetch('/rest/v1/music_generation_reservations?select=id&limit=0'),
+          supaFetch('/rest/v1/generated_songs?select=task_id&limit=0')
+        ]);
+        quotaReady=checks.every(x=>x.ok);
+      }
+      const ready=providerReady&&publicAllowed&&quotaReady;
+      return send(res,200,{publicGenerationEnabled:ready,supportsVocals:ready,freeMonthlySongs:3,checkoutEnabled:false,
+        message:ready?'Song generation is available. Sign in to create.':'Song generation is temporarily unavailable. Please try again later.'});
     }
     if (req.method === 'GET' && path === '/api/music/credits') {
       if (!rate(req, res)) return;
@@ -214,7 +222,7 @@ export async function handleApi(req, res) {
       const s = subscription.data?.[0];
       const u = usage.data?.[0];
       const active = !s || (s.status === 'active' && (!s.expires_at || Date.parse(s.expires_at) > Date.now()));
-      const limit = !active ? 0 : (!s || s.plan === 'free' ? 3 : (s.monthly_song_limit ?? 0));
+      const limit = !active ? 0 : 3;
       const used = u?.songs_used || 0;
       const reserved = u?.songs_reserved || 0;
       return send(res, 200, { plan: s?.plan || 'free', monthlyLimit: limit, used, reserved, remaining: Math.max(0, limit - used - reserved), monthStart: month });
@@ -234,7 +242,14 @@ export async function handleApi(req, res) {
       if (!rate(req, res)) return;
       const data = await body(req);
       const user=await auth(req,res);if(!user)return;
-      if(!await isAdmin(user.id))return send(res,403,{error:'Admin testing only'});
+      const admin=await isAdmin(user.id);
+      if(!admin){
+        const requestedId=String(data.taskId||'').trim();
+        if(!/^[a-zA-Z0-9_-]{1,100}$/.test(requestedId))return send(res,400,{error:'Invalid task ID'});
+        const own=await supaFetch('/rest/v1/music_generation_reservations?user_id=eq.'+encodeURIComponent(user.id)+'&task_id=eq.'+encodeURIComponent(requestedId)+'&select=id&limit=1');
+        if(!own.ok)return send(res,503,{error:'Song ownership verification unavailable'});
+        if(!own.data?.length)return send(res,404,{error:'Song not found in your account'});
+      }
       const id=String(data.taskId||'').trim();
       if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id))return send(res,400,{error:'Invalid Treblo task ID'});
       const existing=await supaFetch('/rest/v1/generated_songs?user_id=eq.'+encodeURIComponent(user.id)+'&task_id=eq.'+encodeURIComponent(id)+'&select=storage_path&limit=1');
@@ -310,24 +325,29 @@ export async function handleApi(req, res) {
       if (!rate(req, res)) return;
       const user = await auth(req, res);
       if (!user) return;
-      if (!await isAdmin(user.id)) return send(res, 403, { error: 'Admin test only' });
+      const admin=await isAdmin(user.id);
       const id = decodeURIComponent(path.slice('/api/music/prediction/'.length));
       if (!/^[a-zA-Z0-9_-]{1,100}$/.test(id)) return send(res, 400, { error: 'Invalid task ID' });
-      if (!env('TREBLO_API_KEY')) return send(res, 503, { error: 'Treblo key missing' });
+      if(!admin){
+        const own=await supaFetch('/rest/v1/music_generation_reservations?user_id=eq.'+encodeURIComponent(user.id)+'&task_id=eq.'+encodeURIComponent(id)+'&select=id&limit=1');
+        if(!own.ok)return send(res,503,{error:'Song ownership verification unavailable'});
+        if(!own.data?.length)return send(res,404,{error:'Song not found in your account'});
+      }
+      if (!env('TREBLO_API_KEY')) return send(res, 503, { error: 'Music service unavailable' });
       const headers = { Authorization: 'Bearer ' + env('TREBLO_API_KEY') };
       const response = await fetch('https://api.treblo.com/v1/generations/status/' + encodeURIComponent(id), {
         headers, signal: AbortSignal.timeout(12000)
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) return send(res, 502, { error: result.error?.message || result.detail || 'Treblo status unavailable' });
+      if (!response.ok) return send(res, 502, { error: 'Song status temporarily unavailable' });
       const raw = typeof result === 'string' ? result : (result.status || result.state || '');
-      if (raw === 'FAILURE') return send(res, 200, { id, status: 'failed', error: result.error_message || 'Treblo generation failed' });
+      if (raw === 'FAILURE') { if(!admin)await rpc('ro_refund_failed_song',{p_user:user.id,p_task:id}); return send(res,200,{id,status:'failed',error:'Generation failed. A charged song credit is restored after confirmed failure.'}); }
       if (raw !== 'SUCCESS') return send(res, 200, { id, status: 'processing' });
       const finished = await fetch('https://api.treblo.com/v1/generations/' + encodeURIComponent(id), {
         headers, signal: AbortSignal.timeout(12000)
       });
       const song = await finished.json().catch(() => ({}));
-      if (!finished.ok) return send(res, 502, { error: song.error_message || 'Treblo completed but audio lookup failed' });
+      if (!finished.ok) return send(res, 502, { error: 'Song audio is temporarily unavailable' });
       const output = (song.song_paths || []).find(x => typeof x === 'string' && /^https:\/\//.test(x));
       return send(res, 200, { id, status: output ? 'succeeded' : 'failed', output: output || null, error: output ? null : 'No audio URL returned' });
     }
@@ -356,20 +376,35 @@ export async function handleApi(req, res) {
       const user = await auth(req, res);
       if (!user) return;
       const admin = await isAdmin(user.id);
-      const publicEnabled = env('PUBLIC_MUSIC_GENERATION_ENABLED') === 'true';
-      if (!admin && !publicEnabled) return send(res, 503, { error: 'Music generation is not open to public users yet' });
-      if (!env('TREBLO_API_KEY')) return send(res, 503, { error: 'Treblo API key is not configured' });
-      const lyrics = String(data.lyrics || '').trim();
-      const voice = ['male','female','duet','auto'].includes(data.voice) ? data.voice : 'auto';
-      const prompt = String(data.prompt || '').trim();
-      if (lyrics.length < 20 || lyrics.length > 5000 || prompt.length < 5 || prompt.length > 1024) return send(res, 400, { error: 'Enter lyrics (20–5000 characters) and music style (5–1024 characters)' });
+      const publicEnabled = env('PUBLIC_MUSIC_GENERATION_ENABLED') !== 'false';
+      if (!admin && !publicEnabled) return send(res, 503, { error: 'Song generation temporarily unavailable' });
+      if (!env('TREBLO_API_KEY')) return send(res, 503, { error: 'Song generation temporarily unavailable' });
+      const ideaOrLyrics=String(data.lyrics||'').trim();
+      const voice=['male','female','duet','auto'].includes(data.voice)?data.voice:'auto';
+      const style=String(data.prompt||'').trim();
+      const genre=String(data.genre||'Pop').trim().slice(0,60);
+      const mood=String(data.mood||'Creative').trim().slice(0,60);
+      const language=String(data.language||'Hindi').trim().slice(0,60);
+      if(ideaOrLyrics.length<5||ideaOrLyrics.length>5000||style.length>1024)
+        return send(res,400,{error:'Enter your idea or lyrics (5–5000 characters); music style is optional.'});
+      const hasSections=/\[(verse|chorus|hook|bridge|intro|outro|मुखड़ा|अंतरा)/i.test(ideaOrLyrics);
+      const hasLines=ideaOrLyrics.split(/\r?\n/).filter(Boolean).length>=3;
+      const isFullLyrics=hasSections||hasLines||ideaOrLyrics.length>=260;
+      const vocal=voice==='duet'?'male and female duet, alternating singers':voice==='auto'?'natural lead vocals':voice+' lead vocals';
+      const instructions=[style||(genre+' music, '+mood+' mood'),'Language: '+language,'Vocals: '+vocal,
+        isFullLyrics?'Compose a complete song with the supplied lyrics.':
+        'Write complete original lyrics and compose a vocal song from this idea: '+ideaOrLyrics].join('. ').slice(0,1450);
       let reservationId = null;
+      if(!admin){
+        const backing=await supaFetch('/rest/v1/generated_songs?select=task_id&limit=0');
+        if(!backing.ok)return send(res,503,{error:'Song library is unavailable. Please try again later.'});
+      }
       if (!admin) {
         const reserved = await rpc('ro_reserve_song', { p_user: user.id });
         if (!reserved.ok || typeof reserved.data !== 'string') {
           const msg = JSON.stringify(reserved.data || {});
           return send(res, /quota exhausted|subscription inactive/i.test(msg) ? 403 : 503, {
-            error: /quota exhausted/i.test(msg) ? 'Monthly song limit reached. Explore Premium or Pro.' : 'Music quota unavailable. Please try again later.'
+            error: /quota exhausted/i.test(msg) ? 'You have used your 3 free songs this month. Your limit resets next calendar month.' : 'Song balance unavailable. Please try again later.'
           });
         }
         reservationId = reserved.data;
@@ -379,7 +414,7 @@ export async function handleApi(req, res) {
         response = await fetch('https://api.treblo.com/v1/generations/v3', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + env('TREBLO_API_KEY'), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: voice === 'auto' ? prompt : prompt + '. Vocal direction: ' + (voice === 'duet' ? 'male and female duet, distinct alternating singers' : voice + ' lead singer only') + '.', lyrics, instrumental: false }),
+        body: JSON.stringify({prompt:instructions,...(isFullLyrics?{lyrics:ideaOrLyrics}:{}),instrumental:false}),
         signal: AbortSignal.timeout(25000)
       });
       } catch (error) {
@@ -389,7 +424,7 @@ export async function handleApi(req, res) {
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.task_id) {
         if (reservationId) await rpc('ro_finish_song', { p_user: user.id, p_reservation: reservationId, p_task: null, p_success: false });
-        return send(res, response.status === 429 ? 429 : 502, { error: result.error?.message || result.detail || result.message || 'Treblo could not start song generation' });
+        return send(res, response.status === 429 ? 429 : 502, { error: 'Song generation could not start. Your monthly credit was not used.' });
       }
       if (reservationId) {
         const finalized = await rpc('ro_finish_song', { p_user: user.id, p_reservation: reservationId, p_task: String(result.task_id), p_success: true });
