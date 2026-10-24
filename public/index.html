@@ -56,14 +56,14 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const get=(k,f)=>{try{const v=JSON.parse(localStorage.getItem('ro_luxe_'+k));return v??f}catch{return f}};
 const put=(k,v)=>{try{localStorage.setItem('ro_luxe_'+k,JSON.stringify(v));return true}catch{toast('Browser storage is unavailable');return false}};
 const state={page:'home',user:null,projects:get('projects',[]),likes:get('likes',[]),follows:get('follows',[]),matches:get('matches',[]),mood:'Dreamy',genre:'All',search:'',editId:null,authMode:'signup',mobile:false};
-const nav=[['home','Home'],['discover','Discover'],['studio','AI Studio'],['projects','My Studio'],['listen','Listen & Chill'],['community','Community'],['match','Vibe Match'],['help','Help']];
+const nav=[['home','Home'],['discover','Discover'],['studio','AI Studio'],['projects','My Studio'],['downloads','Download Audio'],['video','Video Maker'],['listen','Listen & Chill'],['community','Community'],['match','Vibe Match'],['help','Help']];
 function brand(){return `<a class="brand" href="#home" onclick="go('home');return false" aria-label="RhymeOrbit home"><span class="brand-mark"></span><span class="brand-name">Rhyme<span>Orbit</span></span></a>`}
-function header(){return `<header class="container topbar">${brand()}<nav class="desktop-nav" aria-label="Main navigation">${[['home','Home'],['discover','Discover'],['studio','AI Studio'],['community','Community'],['about','About']].map(([p,n])=>`<button class="navlink ${state.page===p?'active':''}" onclick="go('${p}')">${n}</button>`).join('')}</nav><div class="header-actions">${state.user?`<button class="btn sm desktop-only" onclick="go('projects')">My Studio ↗</button><button class="btn sm desktop-only" type="button" onclick="window.roOpenPricing?.('plans')" aria-label="View Memberships">✦ Memberships</button><button class="btn gold sm" onclick="go('profile')">◉ ${esc(state.user.name.split(' ')[0])}</button><button class="btn sm ro-signout desktop-only" onclick="logout()" title="Sign out of RhymeOrbit">↪ Log out</button>`:`<button class="btn sm desktop-only" onclick="openAuth('login')">Log in</button><button class="btn gold sm" onclick="openAuth('signup')">Join the orbit ↗</button>`}<button class="btn icononly mobile-menu" aria-label="Open menu" onclick="state.mobile=!state.mobile;render()">☰</button></div>${state.mobile?`<div class="mobile-drawer">${[...nav,['profile','Profile'],['about','About']].map(([p,n])=>`<button onclick="go('${p}')">${n}</button>`).join('')}${state.user?'<button onclick="window.roOpenPricing?.(\'plans\')">✦ Memberships</button><button onclick="logout()">Sign out</button>':'<button onclick="openAuth(\'login\')">Log in</button>'}</div>`:''}</header>`}
-function footer(){return "<footer class=\"footer\"><div class=\"container\"><div class=\"footer-main\"><div>"+brand()+"<p class=\"muted small\">Original ideas. A connected creator universe.</p><p class=\"muted small\"><a href=\"https://treblo.com\" target=\"_blank\" rel=\"noopener noreferrer\">Powered by Treblo ↗</a> · <a href=\"/licenses.html\">Open-source notices</a></p></div><nav class=\"footer-links\" aria-label=\"Footer links\"><a href=\"/features\">Features</a><a href=\"/ai-song-generator\">AI Song Generator</a><a href=\"/vocal-lab\">Free Vocal Cleaner</a><a href=\"/ai-lyrics-generator\">AI Lyrics</a><a href=\"/shayari-generator\">Shayari</a><a href=\"#about\" onclick=\"go('about');return false\">About</a><a href=\"#help\" onclick=\"go('help');return false\">Help Center</a><a href=\"mailto:dtipun@gmail.com\">Contact</a><a href=\"/privacy\">Privacy</a><a href=\"/terms\">Terms</a><a href=\"/copyright\">Content & Copyright</a></nav></div><div class=\"footer-bottom\"><span>© "+new Date().getFullYear()+" RhymeOrbit. All rights reserved.</span><span>Made for original creators ✦</span></div></div></footer>"}
+function header(){return `<header class="container topbar">${brand()}<nav class="desktop-nav" aria-label="Main navigation">${[['home','Home'],['discover','Discover'],['studio','AI Studio'],['downloads','Download Audio'],['community','Community'],['about','About']].map(([p,n])=>`<button class="navlink ${state.page===p?'active':''}" onclick="go('${p}')">${n}</button>`).join('')}</nav><div class="header-actions">${state.user?`<button class="btn sm desktop-only" onclick="go('projects')">My Studio ↗</button><button class="btn sm desktop-only" type="button" onclick="window.roOpenPricing?.('plans')" aria-label="View Memberships">✦ Memberships</button><button class="btn gold sm" onclick="go('profile')">◉ ${esc(state.user.name.split(' ')[0])}</button><button class="btn sm ro-signout desktop-only" onclick="logout()" title="Sign out of RhymeOrbit">↪ Log out</button>`:`<button class="btn sm desktop-only" onclick="openAuth('login')">Log in</button><button class="btn gold sm" onclick="openAuth('signup')">Join the orbit ↗</button>`}<button class="btn icononly mobile-menu" aria-label="Open menu" onclick="state.mobile=!state.mobile;render()">☰</button></div>${state.mobile?`<div class="mobile-drawer">${[...nav,['profile','Profile'],['about','About']].map(([p,n])=>`<button onclick="go('${p}')">${n}</button>`).join('')}${state.user?'<button onclick="window.roOpenPricing?.(\'plans\')">✦ Memberships</button><button onclick="logout()">Sign out</button>':'<button onclick="openAuth(\'login\')">Log in</button>'}</div>`:''}</header>`}
+function footer(){return "<footer class=\"footer\"><div class=\"container\"><div class=\"footer-main\"><div>"+brand()+"<p class=\"muted small\">Original ideas. A connected creator universe.</p><p class=\"muted small\"><a href=\"https://treblo.com\" target=\"_blank\" rel=\"noopener noreferrer\">Powered by Treblo ↗</a> · <a href=\"/licenses.html\">Open-source notices</a></p></div><nav class=\"footer-links\" aria-label=\"Footer links\"><a href=\"/features\">Features</a><a href=\"/ai-song-generator\">AI Song Generator</a><a href=\"/vocal-lab\">Free Vocal Cleaner</a><a href=\"/video-maker\">Free Video Maker</a><a href=\"/ai-lyrics-generator\">AI Lyrics</a><a href=\"/shayari-generator\">Shayari</a><a href=\"#about\" onclick=\"go('about');return false\">About</a><a href=\"#help\" onclick=\"go('help');return false\">Help Center</a><a href=\"mailto:dtipun@gmail.com\">Contact</a><a href=\"/privacy\">Privacy</a><a href=\"/terms\">Terms</a><a href=\"/copyright\">Content & Copyright</a></nav></div><div class=\"footer-bottom\"><span>© "+new Date().getFullYear()+" RhymeOrbit. All rights reserved.</span><span>Made for original creators ✦</span></div></div></footer>"}
 function home(){return `<main><section class="hero container"><div class="hero-copy reveal"><div class="eyebrow">✦ A NEW UNIVERSE FOR MUSIC CREATORS</div><h1 class="display">Your sound.<br>Your story.<br><span class="serif">Your orbit.</span></h1><p>Where lyrics become possibilities, music finds its people, and every creator belongs somewhere extraordinary.</p><div class="hero-actions"><button class="btn gold" onclick="go('studio')">Enter AI Studio <span>↗</span></button><button class="btn" onclick="go('discover')">Explore the universe <span>↗</span></button></div><div class="micro"><div class="avatars"><i>✦</i><i>◈</i><i>◇</i><i>◎</i></div><span>For the <strong>artists, dreamers & original voices.</strong></span></div></div><div class="orb-stage"><div class="orb-glow"></div><div class="orbit-ring r3"></div><div class="orbit-ring"></div><div class="orbit-ring r2"></div><div class="orb"></div><i class="star a"></i><i class="star b"></i><i class="star c"></i><i class="star d"></i></div><div class="hero-bottom"><span class="scroll-line">Scroll to explore</span><span>001 / THE BEGINNING</span></div></section><hr class="hairline"><section class="section container"><div class="section-header"><div><div class="eyebrow">THE RHYMEORBIT EXPERIENCE</div><h2 class="section-title">Everything your <span class="serif">creativity</span> needs.</h2></div><p class="muted">A beautifully connected space to write, explore, share and find your creative frequency.</p></div><div class="features">${[['01','✧','AI Studio','Turn a spark of inspiration into your next lyrical masterpiece.','studio','#a585b2'],['02','◉','Discover','Explore emerging voices, genres and new creative worlds.','discover','#7599a4'],['03','◎','Vibe Match','Meet creators who share your frequency and artistic vision.','match','#bd9b7e'],['04','⌁','Community','A universe built around real music-loving connections.','community','#9986b9']].map(([n,g,t,d,p,c],i)=>`<article class="feature reveal delay${i%4}" style="--tint:${c}" onclick="go('${p}')" tabindex="0" role="button" onkeydown="if(event.key==='Enter')go('${p}')"><span class="number">${n} / EXPLORE</span><span class="glyph">${g}</span><div><h3>${t}</h3><p>${d}</p></div><span class="arrow">↗</span></article>`).join('')}</div></section><section class="container section" style="padding-top:10px"><div class="editorial"><div class="textside"><span class="eyebrow">YOUR CREATIVE SANCTUARY</span><h2>More than music.<br><span class="serif">A feeling.</span></h2><p class="muted">A space designed for the moments when a melody lives in your head and the right words are just out of reach.</p><button class="btn gold" onclick="go('studio')">Start creating ↗</button></div><div class="artside"><div class="record"></div></div></div></section><section class="section container quote"><div class="eyebrow">THE PHILOSOPHY</div><p>“Somewhere in the universe, there's a frequency that feels exactly like you.”</p><span>FIND YOUR ORBIT · RHYMEORBIT</span></section></main>`}
 function heading(k,t,d,action=''){return `<div class="page-head"><div><div class="eyebrow">${k}</div><h1>${t}</h1><p>${d}</p></div>${action}</div>`}
 function requireUser(target){if(state.user)return true;state.pending=target||state.page;openAuth('signup');toast('Join the orbit to access this feature');return false}
-function appSidebar(){return `<aside class="app-sidebar"><span class="sidebar-label">EXPLORE</span><div class="side-list">${nav.filter(([p])=>!['home','discover'].includes(p)).map(([p,n])=>`<button class="side-link ${state.page===p?'active':''}" onclick="go('${p}')"><span>${({home:'⌂',discover:'✧',studio:'✎',projects:'▤',listen:'♫',community:'♧',match:'◎',help:'?'}[p])}</span>${n}</button>`).join('')}</div></aside>`}
+function appSidebar(){return `<aside class="app-sidebar"><span class="sidebar-label">EXPLORE</span><div class="side-list">${nav.filter(([p])=>!['home','discover'].includes(p)).map(([p,n])=>`<button class="side-link ${state.page===p?'active':''}" onclick="go('${p}')"><span>${({home:'⌂',discover:'✧',studio:'✎',projects:'▤',downloads:'⇩',video:'▣',listen:'♫',community:'♧',match:'◎',help:'?'}[p])}</span>${n}</button>`).join('')}</div></aside>`}
 function appPage(content){return `<div class="app-shell">${appSidebar()}<main class="app-main reveal">${content}</main></div>`}
 function discover(){return appPage("<section class=\"page-head\"><div><div class=\"eyebrow\">DISCOVER / EXPLORE</div><h1>Find your next <span class=\"serif\">connection.</span></h1><p>Discover real creator posts, supported music sources and new ways to create.</p></div></section><div class=\"grid3\"><article class=\"panel tile\"><div class=\"eyebrow\">01 / COMMUNITY</div><h3>Creator community ✦</h3><p class=\"muted\">See posts shared by RhymeOrbit users.</p><button class=\"btn gold\" onclick=\"go('community')\">Explore posts ↗</button></article><article class=\"panel tile\"><div class=\"eyebrow\">02 / LISTEN</div><h3>Listen & Chill ♫</h3><p class=\"muted\">Explore tracks with supported third-party players.</p><button class=\"btn\" onclick=\"go('listen')\">Listen now ↗</button></article><article class=\"panel tile\"><div class=\"eyebrow\">03 / CREATE</div><h3>Original ideas ✎</h3><p class=\"muted\">Write lyrics, craft Shayari and save projects in AI Studio.</p><button class=\"btn\" onclick=\"go('studio')\">Start creating ↗</button></article></div><p class=\"muted small\" style=\"margin-top:22px\">Community content comes from users. Music and AI availability depend on configured services and their terms.</p>")}
 // RHYMEORBIT QUICK STUDIO UPGRADE — frontend only
@@ -123,6 +123,17 @@ function studio(){if(!requireUser('studio'))return appPage(`${heading('AI STUDIO
 <span>I confirm these lyrics and references are my original work or I have permission to use them. <a href="/copyright" target="_blank" rel="noopener noreferrer" style="text-decoration:underline">Content & Copyright</a></span>
 </label><div class="row" style="margin:12px 0 18px"><button class="btn gold" type="button" id="roCanvasGenerate" onclick="roGenerateCanvasLyrics()">✧ Generate Lyrics</button><button class="btn" type="button" id="roSongGenerate" onclick="roCanvasSongNotice()">♫ Generate Song with Vocals</button></div><div id="roCanvasGenerationStatus" aria-live="polite"></div><button type="button" class="btn sm" id="roUndoGeneratedLyrics" hidden onclick="roUndoGeneratedLyrics()">↶ Restore previous lyrics</button><p id="roSongCreditStatus" class="muted small" role="status" aria-live="polite">Checking song balance…</p><div id="roAdminTrebloTools" hidden><p class="muted small">Admin tools for recovering an existing song.</p><div class="field"><label for="roTrebloTaskId">Recover existing song by task ID</label><input id="roTrebloTaskId" placeholder="song task ID" autocomplete="off"></div><button class="btn" type="button" onclick="roRecoverTrebloSong()">↻ Recover Existing Song</button></div><div id="roMurekaResult" style="margin-top:12px" aria-live="polite"></div><section id="roSongLibrary" class="panel" style="margin-top:22px;padding:16px"><h3>♫ My Generated Songs</h3><p class="muted small">Songs appear here after generation. Cloud backup is attempted when audio is ready.</p><div id="roSongLibraryItems"></div></section><div class="row"><span id="roAutosaveStatus" class="muted small">Autosave enabled</span><button class="btn" type="button" onclick="roCopyLyrics()">⧉ Copy lyrics</button><span id="wordCount" class="muted small">0 words</span><span id="roCharCount" class="muted small">0 characters</span></div></section><div><section class="panel" style="margin-bottom:18px"><span class="eyebrow">SONG DOCTOR</span><h3 style="margin-top:14px">A second set of ears.</h3><p class="muted">Analyze rhyme, structure and potential hooks in your lyrics.</p><button class="btn" onclick="songDoctor()">Analyze my lyrics ↗</button><div id="doctorResult" style="margin-top:15px"></div></section><section class="panel"><span class="eyebrow">HOW TO CREATE</span><h3 style="margin-top:14px">From idea to vocal song.</h3><p class="muted">1. Write an idea or paste lyrics.<br>2. Generate or refine lyrics if you like.<br>3. Choose a voice and create your song.</p><p class="muted small">Up to 3 songs per calendar month. Song creation may take several minutes.</p></section></div></div>`)}
 function projects(){if(!requireUser('projects'))return appPage(heading('MY STUDIO','Your private <span class="serif">orbit.</span>','Join to create and save drafts.'));return appPage(`${heading('MY STUDIO / YOUR COLLECTION','Every idea, <span class="serif">preserved.</span>','Projects you save can sync to your account. Export important drafts as a backup.','<button class="btn gold" onclick="clearEditor();go(\'studio\')">+ New project</button>')}${state.projects.length?`<div class="grid3">${state.projects.map(p=>`<article class="panel tile"><span class="badge">${esc(p.genre)}</span><h3 style="margin:22px 0 8px">${esc(p.title)}</h3><p class="card-sub">${esc(p.mood)} · ${esc(p.language)}</p><p class="muted small">${esc(p.lyrics.slice(0,100))}${p.lyrics.length>100?'…':''}</p><div class="card-actions"><button class="btn sm" onclick="editProject('${p.id}')">Edit ↗</button><button class="btn sm" onclick="exportProject('${p.id}')">Export ↓</button><button class="btn sm" onclick="deleteProject('${p.id}')">Delete</button></div></article>`).join('')}</div>`:`<div class="empty"><div class="big">✧</div><h3>Your next masterpiece starts here.</h3><p>No drafts yet. Open AI Studio and start writing.</p><button class="btn gold" onclick="go('studio')">Open AI Studio ↗</button></div>`}`)}
+function downloads(){
+  if(!requireUser('downloads'))return appPage(heading('DOWNLOAD AUDIO','Your private <span class="serif">song library.</span>','Sign in to play and download your saved songs.'));
+  return appPage(`
+    <div class="ro-downloads-head">
+      <div><span class="eyebrow">YOUR MUSIC / DOWNLOAD AUDIO</span><h1>Saved <span class="serif">songs.</span></h1><p>Play, check progress, choose format and download. Song creation stays in AI Studio.</p></div>
+      <button class="btn sm" type="button" onclick="window.roLoadCloudSongs?.({force:true}).then(()=>window.roRenderMyStudioSongs?.())">↻ Refresh library</button>
+    </div>
+    <section class="ro-downloads-list" aria-label="Your saved songs"><div id="roMyStudioSongs" role="list" aria-live="polite"></div></section>
+    <p class="muted small ro-downloads-footnote">MP3 128/192 kbps is free. Higher formats require a verified Premium/Pro membership. Audio is fetched from private cloud storage only when needed.</p>
+  `);
+}
 function listen(){return appPage(`${heading('LISTEN & CHILL','Your <span class="serif">audio universe.</span>','Discover music through supported players.')}<section class="panel ro-cc-lounge"><div class="eyebrow">LISTEN & CHILL</div><h2>Find your next favorite song 🎶</h2><p class="muted small">Search music through connected sources. Available tracks and playback depend on the provider.</p><div id="roCcScene" class="ro-cc-scene"><div class="ro-cc-stars">✦　✧　⋆　✦　✧</div><div id="roCcMascot" class="ro-cc-mascot">🐱🎧</div><div class="ro-cc-bars">${Array.from({length:17},(_,i)=>'<i style="--i:'+i+'"></i>').join('')}</div><div id="roCcSceneText">Your cartoon DJ is ready ✨</div></div><div class="ro-yt-search-shell"><div class="ro-yt-search-note" aria-hidden="true">🎶</div><form id="roYtForm" class="row ro-yt-search-form" onsubmit="roYtSearch(event)"><input id="roYtQuery" aria-label="Search YouTube music" placeholder="🎤 Type a song, artist or your next obsession…" maxlength="100" required autocomplete="off"><button class="btn gold ro-yt-search-button" type="submit">Let's Jam ✨</button></form><div class="ro-yt-search-spark" aria-hidden="true">✦</div></div><div id="roYtStatus" class="muted small" role="status">🎧 Your next favorite track is one search away!</div><div id="roYtGrid" class="ro-cc-grid" style="margin-top:16px"></div><div id="roYtPlayer" style="margin-top:18px"></div><p class="muted small" style="margin-top:18px">Third-party music may require attribution or have licensing restrictions. Follow each source’s terms.</p></section>`)}
 
 function community(){return appPage("<div class=\"page-head\"><div><div class=\"eyebrow\">COMMUNITY</div><h1>Find your <span class=\"serif\">people.</span></h1><p>Explore real member posts when the connected community feed is available.</p></div></div><div class=\"empty\"><h3>Your orbit starts here</h3><p>Sign in to discover fellow creators.</p><button class=\"btn gold\" onclick=\"openAuth('signup')\">Join RhymeOrbit ↗</button></div>")}
@@ -131,7 +142,7 @@ function profile(){if(!requireUser('profile'))return appPage(heading('PROFILE','
 function help(){return appPage("<div class=\"page-head\"><div><div class=\"eyebrow\">SUPPORT / HELP CENTER</div><h1>Here when you <span class=\"serif\">need us.</span></h1><p>Get answers about account tools, music and your creative projects.</p></div></div><div class=\"grid2\"><div class=\"panel faq\"><h3>Frequently asked questions</h3><details><summary>Is RhymeOrbit free?</summary><p>You can create an account and use eligible free features. Music generation has usage limits and may not yet be enabled for everyone. Paid checkout is not active.</p></details><details><summary>Can I write lyrics and Shayari?</summary><p>Sign in and use AI Studio. Availability depends on the connected AI provider.</p></details><details><summary>Where are projects saved?</summary><p>Projects you explicitly save can sync to your account. Automatic drafts may remain only in this browser, so export important work.</p></details><details><summary>Does music generation include vocals?</summary><p>The connected backend is designed for full songs with vocals, but public generation depends on provider and server availability.</p></details><details><summary>How can I chat with Riya?</summary><p>Use the Riya chat bubble. Log in to receive AI responses. Do not send sensitive details.</p></details><details><summary>How do I report a copyright concern?</summary><p>Email dtipun@gmail.com with the URL, your rights and the relevant details. See our Content & Copyright policy.</p></details></div><div><div class=\"panel\" style=\"margin-bottom:18px\"><div class=\"eyebrow\">RIYA / AI GUIDE</div><h3>Chat with Riya ✦</h3><p class=\"muted\">Ask about writing, features and RhymeOrbit. AI can make mistakes; verify important information.</p><button class=\"btn gold\" onclick=\"roToggleOrbitHelp(true)\">Open Riya chat ↗</button></div><div class=\"panel\"><h3>Contact and copyright</h3><p><a href=\"mailto:dtipun@gmail.com\">✉ dtipun@gmail.com</a></p><p><a href=\"/copyright\">Read Content & Copyright policy ↗</a></p><div class=\"field\"><label for=\"supportInput\">Message</label><textarea id=\"supportInput\" style=\"min-height:90px\" placeholder=\"Tell us how we can help\"></textarea></div><button class=\"btn\" onclick=\"supportEmail()\">Compose email ↗</button><p class=\"muted small\">This opens an email draft and does not create a support ticket.</p></div></div></div>")}
 function about(){return `<main class="container section">${heading('OUR STORY','Built for the <span class="serif">originals.</span>','RhymeOrbit is a vision for a more connected, expressive creative world.')}<div class="editorial"><div class="textside"><span class="eyebrow">THE MISSION</span><h2>Every creator<br>deserves an <span class="serif">orbit.</span></h2><p class="muted">A creative space for lyricists, emerging artists and music lovers to explore ideas, discover sounds and build meaningful collaborations.</p><button class="btn gold" onclick="go('discover')">Explore RhymeOrbit ↗</button></div><div class="artside"><div class="record"></div></div></div></main>`}
 function legal(which){return which==='privacy'?"<main class=\"container section\" style=\"max-width:860px\"><h1>Privacy Policy</h1><div class=\"panel\"><p class=\"muted\">Read the current RhymeOrbit privacy policy in our dedicated policy page.</p><a class=\"btn gold\" href=\"/privacy\">Read policy ↗</a><p class=\"muted small\">Questions? Email dtipun@gmail.com.</p></div></main>":"<main class=\"container section\" style=\"max-width:860px\"><h1>Terms of Use</h1><div class=\"panel\"><p class=\"muted\">Read the current RhymeOrbit terms of use in our dedicated policy page.</p><a class=\"btn gold\" href=\"/terms\">Read policy ↗</a><p class=\"muted small\">Questions? Email dtipun@gmail.com.</p></div></main>"}
-function go(page){state.mobile=false;if(['studio','projects','profile','match'].includes(page)&&!state.user){state.page=page;render();requireUser(page);return}state.page=page;state.search='';state.genre='All';history.replaceState(null,'','#'+page);render();window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'})}
+function go(page){if(page==='video'){window.location.assign('/video-maker');return}state.mobile=false;if(['studio','projects','downloads','profile','match'].includes(page)&&!state.user){state.page=page;render();requireUser(page);return}state.page=page;state.search='';state.genre='All';history.replaceState(null,'','#'+page);render();window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'})}
 function roObserveLandingMotion(){
   window.roLandingObserver?.disconnect();
   if(state.page!=='home'||!('IntersectionObserver' in window)||window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;
@@ -142,7 +153,7 @@ function roObserveLandingMotion(){
   window.roLandingObserver=observer;
   elements.forEach(element=>{element.classList.add('ro-scroll-reveal');observer.observe(element)});
 }
-function render(){const content=state.page==='home'?home():state.page==='about'?about():['privacy','terms'].includes(state.page)?legal(state.page):({discover,studio,projects,listen,community,match,profile,help}[state.page]||home)();$('root').innerHTML=header()+content+footer();document.title=(state.page==='home'?'Create Your Sound. Find Your Orbit.':state.page.charAt(0).toUpperCase()+state.page.slice(1))+' — RhymeOrbit';if(state.page==='studio'&&state.user){const ta=$('songLyrics');ta?.addEventListener('input',countWords);countWords();roInstallStudioAutosave()}if(state.page==='listen')queueMicrotask(()=>window.roCcMount?.());roObserveLandingMotion()}
+function render(){if(state.user&&location.hash==='#downloads'&&state.page==='home')state.page='downloads';const content=state.page==='home'?home():state.page==='about'?about():['privacy','terms'].includes(state.page)?legal(state.page):({discover,studio,projects,downloads,listen,community,match,profile,help}[state.page]||home)();$('root').innerHTML=header()+content+footer();document.title=(state.page==='home'?'Create Your Sound. Find Your Orbit.':state.page.charAt(0).toUpperCase()+state.page.slice(1))+' — RhymeOrbit';if(state.page==='studio'&&state.user){const ta=$('songLyrics');ta?.addEventListener('input',countWords);countWords();roInstallStudioAutosave()}if(state.page==='listen')queueMicrotask(()=>window.roCcMount?.());roObserveLandingMotion()}
 
 // Automatically persist studio drafts locally without navigating away or deleting other projects.
 let roAutosaveTimer;
@@ -817,7 +828,11 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const next={...previous,...patch,id,updatedAt:new Date().toISOString()};
     const updated=[next,...all.filter(x=>x.id!==id)].slice(0,100);
     localStorage.setItem(roLibraryKey(),JSON.stringify(updated));
-    window.roRenderSongLibrary?.();
+    // Cloud sync can refresh dozens of saved songs; paint the list once after the batch.
+    if(!window.roCloudSyncRunning){
+      window.roRenderSongLibrary?.();
+      window.roRenderMyStudioSongs?.();
+    }
   }
   let roMp3EncoderPromise;
   async function roLoadMp3Encoder(){
@@ -1069,8 +1084,28 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const del=document.createElement('button');del.type='button';del.className='ro-song-action';
     del.textContent='Delete';del.onclick=()=>window.roDeleteSong(item.id);
     head.append(del);card.append(head);
+    const drawer=document.createElement('details');drawer.className='ro-song-drawer';
+    const summary=document.createElement('summary');
+    summary.textContent=roIsAudioUrl(item.url)||roIsPrivateAudioUrl(item.proxyUrl)?'▶ Play · Choose quality · Download':roPendingSong(item)?'◷ View generation progress':'ⓘ View song details';
+    drawer.append(summary);
     if(roIsAudioUrl(item.url)||roIsPrivateAudioUrl(item.proxyUrl)){
-      card.append(roAudioPlayer(roIsAudioUrl(item.url)?item.url:item.proxyUrl,item.id,item.proxyUrl));
+      drawer.append(roAudioPlayer(roIsAudioUrl(item.url)?item.url:item.proxyUrl,item.id,item.proxyUrl));
+      if(roIsPrivateAudioUrl(item.proxyUrl)){
+        const video=document.createElement('button');video.type='button';video.className='ro-song-action';
+        video.textContent='🎬 Make a lyric video';
+        video.style.marginTop='11px';
+        video.onclick=()=>{
+          try{
+            sessionStorage.setItem('ro_video_selected_song',JSON.stringify({
+              title:String(item.title||'My RhymeOrbit Song').slice(0,100),
+              lyrics:String(item.lyrics||'').slice(0,8000),
+              proxyUrl:item.proxyUrl
+            }));
+            window.location.assign('/video-maker');
+          }catch{toast('Could not open Video Maker. Download your song first, then upload it there.');}
+        };
+        drawer.append(video);
+      }
     }else if(roPendingSong(item)){
       const pending=document.createElement('div');pending.className='ro-song-pending';
       const progress=document.createElement('div');progress.className='ro-song-pending-label';
@@ -1083,12 +1118,13 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       const bar=document.createElement('div');bar.className='ro-song-pending-track';
       bar.setAttribute('role','progressbar');bar.setAttribute('aria-label','Song generation in progress');
       bar.setAttribute('aria-valuetext','Generating; percentage unavailable');
-      pending.append(bar);card.append(pending);
+      pending.append(bar);drawer.append(pending);
     }else{
       const note=document.createElement('div');note.className='ro-song-note';
       note.textContent='Player is not ready. Tap Load player to refresh this song. No new song credit is used.';
-      card.append(note);
+      drawer.append(note);
     }
+    card.append(drawer);
     return card;
   }
   function roPaintSongCards(root,items){
@@ -1103,6 +1139,9 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       const newPlayer=rebuilt.querySelector('.ro-song-player');
       if(oldPlayer&&newPlayer&&oldPlayer.dataset.audioUrl===newPlayer.dataset.audioUrl)
         newPlayer.replaceWith(oldPlayer);
+      const oldDrawer=card?.querySelector('.ro-song-drawer');
+      const newDrawer=rebuilt.querySelector('.ro-song-drawer');
+      if(oldDrawer&&newDrawer)newDrawer.open=oldDrawer.open;
       return rebuilt;
     });
     for(let i=0;i<cards.length;i++){
@@ -1133,7 +1172,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
   setInterval(()=>{
     if(document.visibilityState==='hidden')return;
     roUpdatePendingClocks();
-    if(state.user&&['studio','projects'].includes(state.page)&&roLibraryRead().some(roPendingSong))
+    if(state.user&&['studio','downloads'].includes(state.page)&&roLibraryRead().some(roPendingSong))
       window.roLoadCloudSongs?.();
   },25000);
   window.roRefreshMusicCredits=async function(){
@@ -1213,7 +1252,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
             .catch(()=>{});
         }
       }
-      if(state.page==='projects')window.roRenderMyStudioSongs?.();
+      if(state.page==='downloads')window.roRenderMyStudioSongs?.();
     }catch(error){
       window.roCloudLibraryError='Connection unavailable; retry syncing your song library.';
     }finally{window.roCloudSyncRunning=false}
@@ -1249,7 +1288,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
   const roOldRenderCloud=window.render;
   window.render=function(...args){
     const result=roOldRenderCloud.apply(this,args);
-    if(['studio','projects'].includes(state.page)&&state.user)window.roLoadCloudSongs();
+    if(['studio','downloads'].includes(state.page)&&state.user)window.roLoadCloudSongs();
     return result;
   };
 
@@ -1298,17 +1337,10 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     roPaintSongCards(root,items);
     roUpdatePendingClocks();
   };
-  const roBaseProjectsSongs=window.projects;
-  window.projects=function(...args){
-    const page=roBaseProjectsSongs.apply(this,args);
-    if(!state.user)return page;
-    const section='<section class="panel" style="margin:24px 0"><div class="eyebrow">YOUR MUSIC COLLECTION</div><h2 style="margin:12px 0 18px">♫ My Generated Songs</h2><div id="roMyStudioSongs"></div></section>';
-    return page.replace('</main>',section+'</main>');
-  };
   const roBaseRenderStudioSongs=window.render;
   window.render=function(...args){
     const result=roBaseRenderStudioSongs.apply(this,args);
-    if(state.page==='projects'){
+    if(state.page==='downloads'){
       window.roRenderMyStudioSongs();
       window.roLoadCloudSongs?.().then(()=>window.roRenderMyStudioSongs()).catch(()=>{});
     }
@@ -1458,7 +1490,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       localStorage.setItem(trebleStorageKey,id);
       const title=(document.getElementById('songTitle')?.value||'My AI Song').trim().slice(0,100);
       localStorage.setItem('ro_treblo_song_title_'+id,title);
-      roLibraryUpsert(id,{title,voice:document.getElementById('roVocalVoice')?.value||'auto',status:'Processing'});
+      roLibraryUpsert(id,{title,lyrics:text,voice:document.getElementById('roVocalVoice')?.value||'auto',status:'Processing'});
       window.roRefreshMusicCredits?.();
       box.textContent='Your song is being created with vocals. It will appear in your song library when ready.';
       await window.roRecoverTrebloSong(id);
@@ -1541,4 +1573,5 @@ window.roCcMount=function(){if(state.page!=='listen')return;changeScene();if(sce
 <script src="/memberships.js?v=20261024-download-quality-1"></script>
 <script src="/admin-music-visibility.js?v=cloudflare-r2-20261024"></script>
 <script src="/creator-kit.js?v=20261024-5"></script>
+<script src="/creator-workspace.js?v=20261024-1"></script>
 </body></html>

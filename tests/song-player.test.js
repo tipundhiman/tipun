@@ -45,24 +45,24 @@ class El {
 }
 function visible(node){return [node.textContent,...node.children.map(visible)].filter(x=>typeof x==='string').join(' ')}
 function fixture(initial=[]){
- const studio=new El('main'),projects=new El('main'),data=new Map();
- const state={user:{id:'sample-account'},page:'studio'};
+ const studio=new El('main'),downloads=new El('main'),data=new Map();
+ const state={user:{id:'sample-account'},page:'downloads'};
  const localStorage={getItem:key=>data.get(key)||null,setItem:(key,value)=>data.set(key,value)};
  data.set('ro_treblo_library_sample-account',JSON.stringify(initial));
  const document={createElement:tag=>new El(tag),visibilityState:'visible',
-  getElementById:id=>id==='roSongLibraryItems'?studio:id==='roMyStudioSongs'?projects:null};
+  getElementById:id=>id==='roSongLibraryItems'?null:id==='roMyStudioSongs'?downloads:null};
  const window={roRecoverTrebloSong(){},roDeleteSong(){},roLoadCloudSongs(){}};
  const context=createContext({document,window,state,localStorage,setInterval(){},console});
  runInContext(chunk("  const trebleStorageKey='ro_treblo_last_task';","  window.roRefreshMusicCredits=async function(){")+'\n'+
-  chunk('  function roClock(sec){','  const roBaseProjectsSongs=window.projects;'),context);
- return {studio,projects,state,window,context,run:s=>runInContext(s,context)};
+  chunk('  function roClock(sec){',"  const songCss=document.createElement('style');"),context);
+ return {studio,downloads,state,window,context,run:s=>runInContext(s,context)};
 }
 test('Cloud-ready song gets visible full audio player, real elapsed time and seek control',()=>{
  const uid='internal-task-id-should-not-appear';
  const env=fixture([{id:uid,title:'Raahon Me Khoya Chaand',status:'ready',voice:'female',
    cloudSaved:true,url:'https://example.com/private-audio.mp3'}]);
- env.window.roRenderSongLibrary();
- const card=env.studio.children[0],audio=card.querySelector('audio');
+ env.window.roRenderMyStudioSongs();
+ const card=env.downloads.children[0],audio=card.querySelector('audio');
  assert.ok(audio,'Native player with full audio controls');
  assert.equal(audio.controls,true);
  assert.equal(audio.preload,'metadata');
@@ -77,35 +77,36 @@ test('Cloud-ready song gets visible full audio player, real elapsed time and see
  assert.equal(seek.disabled,false);
  seek.value='500';seek.emit('input');
  assert.equal(audio.currentTime,102);
- env.window.roRenderSongLibrary();
- assert.equal(env.studio.children[0],card,'Re-render must preserve currently playing audio controls');
+ env.window.roRenderMyStudioSongs();
+ assert.equal(env.downloads.children[0],card,'Re-render must preserve currently playing audio controls');
 });
 test('Pending track displays truthful stage instead of fake percent or task key',()=>{
  const id='internal-pending-id';
  const env=fixture([{id,title:'New Song',status:'Checking',createdAt:'2026-10-24T00:10:00Z'}]);
- env.window.roRenderSongLibrary();
- const card=env.studio.children[0];
+ env.window.roRenderMyStudioSongs();
+ const card=env.downloads.children[0];
  assert.ok(card.querySelector('.ro-song-pending-track'));
  assert.equal(card.querySelector('audio'),null,'Audio must not be fabricated before ready');
  assert.doesNotMatch(visible(card),/internal-pending-id|\b[1-9][0-9]?% done\b/);
  assert.equal(card.querySelector('.ro-song-pending-track').attributes['aria-valuetext'],'Generating; percentage unavailable');
  env.run("roLibraryUpsert('internal-pending-id',{status:'Cloud saved',cloudSaved:true,url:'https://example.com/finished.ogg'})");
- assert.ok(env.studio.children[0].querySelector('audio'),'Cloud-ready song immediately becomes playable');
+ assert.ok(env.downloads.children[0].querySelector('audio'),'Cloud-ready song immediately becomes playable');
 });
-test('My Studio and AI Studio use the same shared player card',()=>{
+test('Song cards live in Download Audio only, not in AI Studio',()=>{
  const env=fixture([{id:'task-internal',title:'Test Duet',status:'ready',voice:'duet',cloudSaved:true,
   url:'https://example.com/saved.ogg'}]);
  env.window.roRenderSongLibrary();
  env.window.roRenderMyStudioSongs();
- assert.ok(env.studio.children[0].querySelector('.ro-song-player'));
- assert.ok(env.projects.children[0].querySelector('.ro-song-player'));
- assert.equal(visible(env.projects.children[0]).includes('task-internal'),false);
+ assert.equal(env.studio.children.length,0);
+ assert.ok(env.downloads.children[0].querySelector('.ro-song-player'));
+ assert.ok(env.downloads.children[0].querySelector('.ro-song-drawer'));
+ assert.equal(visible(env.downloads.children[0]).includes('task-internal'),false);
 });
 test('A blocked cross-origin player falls back to private same-origin playback and offers download',()=>{
  const env=fixture([{id:'private-track',title:'Khoyi Hui Si Raat',status:'ready',cloudSaved:true,
   url:'https://r2.example.com/signed.ogg',proxyUrl:'/api/music/audio/private-track?token=signed-token'}]);
- env.window.roRenderSongLibrary();
- const card=env.studio.children[0],audio=card.querySelector('audio');
+ env.window.roRenderMyStudioSongs();
+ const card=env.downloads.children[0],audio=card.querySelector('audio');
  assert.equal(audio.src,'https://r2.example.com/signed.ogg');
  audio.emit('error');
  assert.equal(audio.src,'/api/music/audio/private-track?token=signed-token');

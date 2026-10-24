@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#08090c">
+<meta name="robots" content="index,follow">
+<title>Free Music Video Maker — 5 Scenes, One Video | RhymeOrbit</title>
+<meta name="description" content="Create a free 50-second music lyrics video from your song. Merge five animated 10-second scenes with timed lyrics and your audio, privately in your browser.">
+<link rel="canonical" href="https://rhymeorbit.in/video-maker">
+<meta property="og:title" content="RhymeOrbit — Free 50s Music Video Maker">
+<meta property="og:description" content="Five beautiful animated scenes, synced lyrics and your music. Free browser-based export, no GPU required.">
+<meta property="og:url" content="https://rhymeorbit.in/video-maker">
+<meta property="og:type" content="website">
+<style>
+:root{color-scheme:dark;--gold:#e5c9a2;--ink:#f6f4f2;--muted:#afa9ba;--line:#ffffff20}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#09090f;color:var(--ink);font:14px/1.6 system-ui,Segoe UI,Arial,sans-serif}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;background:radial-gradient(ellipse at 76% 12%,#815b9e27,transparent 45%),radial-gradient(ellipse at 14% 82%,#ad7d6220,transparent 51%)}
+button,input,textarea,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.55;cursor:wait}
+a{color:var(--gold)}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.wrap{width:min(1190px,calc(100% - 32px));margin:auto}header{border-bottom:1px solid var(--line);background:#111018d9;backdrop-filter:blur(14px)}
+.top{min-height:69px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{color:#fff;font-size:22px;letter-spacing:-1px;font-weight:900;text-decoration:none}.brand span{color:var(--gold)}nav{display:flex;gap:18px;flex-wrap:wrap}nav a{font-size:12px;text-decoration:none;color:#d7d1d8}nav a:hover{color:var(--gold)}
+.lead{padding:35px 0 22px}.eyebrow{font-size:10px;letter-spacing:2.2px;color:var(--gold);font-weight:850;text-transform:uppercase}
+h1{font-size:clamp(32px,5vw,52px);line-height:1.12;letter-spacing:-1.8px;margin:7px 0 10px}h1 em{font-family:Georgia,serif;font-weight:400;color:var(--gold)}
+.lead p{color:var(--muted);font-size:14px;max-width:680px;margin:0}.pills{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px}.pill{border-radius:999px;border:1px solid #e5c9a239;padding:5px 10px;font-size:10px;color:#dfc6b3}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.85fr);gap:19px;align-items:start;margin:2px 0 24px}
+.panel{border:1px solid var(--line);border-radius:22px;background:linear-gradient(145deg,#211d29,#12131a 75%);padding:23px;min-width:0;box-shadow:0 15px 60px #0003}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;border-bottom:1px solid var(--line);padding-bottom:15px;margin-bottom:18px}
+.tabs button{border:1px solid #d1b6aa34;background:#e5c9a20a;color:#c3b9c9;border-radius:12px;padding:10px 5px;font-size:11px;font-weight:800;transition:background .2s,transform .2s}
+.tabs button[aria-selected=true]{color:#241820;background:var(--gold);border-color:var(--gold)}
+.tabs button:hover{transform:translateY(-2px)}
+.tab-panel[hidden]{display:none}.tab-panel h2{font-size:20px;letter-spacing:-.7px;margin:0 0 5px}.small{font-size:12px;color:var(--muted)}.tab-panel p{color:var(--muted);margin:4px 0 14px}
+.field{display:grid;gap:7px;margin:15px 0}.field label{font-size:12px;font-weight:750;color:#f3e5da}.field input,.field textarea,.field select{width:100%;border:1px solid #ffffff35;border-radius:11px;padding:12px 13px;color:#fff;background:#101118;min-width:0}
+.field input[type=file]{padding:12px;font-size:12px}.field textarea{min-height:160px;resize:vertical;line-height:1.7}.field input[type=range]{padding:2px;accent-color:var(--gold)}
+.field output{color:var(--gold);font-weight:750}.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.row>*{min-width:0}
+.btn{border:1px solid #e5c9a260;border-radius:999px;padding:11px 17px;font-weight:750;color:#f6e3ca;background:#e5c9a20b;transition:transform .2s,background .2s;text-decoration:none;font-size:12px}
+.btn:hover:not(:disabled){transform:translateY(-2px);background:#e5c9a225}.btn.gold{color:#241b21;background:var(--gold);border-color:var(--gold)}.btn.gold:hover{background:#f8debd}
+.status{border:1px solid #e5c9a228;background:#090a0f7f;border-radius:12px;padding:11px 13px;margin-top:15px;min-height:39px;color:#d5c7bb;font-size:12px;overflow-wrap:anywhere}
+.preview{position:sticky;top:13px}.preview-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:13px}.preview-head h2{font-size:18px;margin:0}
+.canvas-shell{background:#05050b;border:1px solid #ffffff29;border-radius:18px;overflow:hidden;display:grid;place-items:center;min-height:270px}
+canvas{display:block;width:100%;max-height:490px;aspect-ratio:16/9;object-fit:contain}
+.scene-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:13px 0 3px}.scene-chip{padding:7px 3px;border-radius:8px;background:linear-gradient(145deg,var(--a),var(--b));font-size:9px;font-weight:750;text-align:center;color:#fff;border:1px solid #ffffff18;overflow:hidden;text-overflow:ellipsis}
+.scene-chip small{display:block;font-size:8px;opacity:.85}.preview-note{margin-top:12px;font-size:11px;color:#afa9b6}
+audio{width:100%;margin-top:4px}progress{width:100%;height:9px;accent-color:var(--gold);margin:8px 0}
+.download-result[hidden]{display:none}.download-result{display:grid;gap:11px;margin-top:13px}
+.disclaimer{color:#aba5ae;border-left:3px solid var(--gold);padding:10px 15px;font-size:11px;background:#e5c9a20a;margin:18px 0 34px;border-radius:6px}
+footer{border-top:1px solid var(--line);padding:25px 12px 32px;text-align:center;color:#89848f;font-size:12px}
+@media(max-width:780px){.layout{grid-template-columns:1fr}.panel{padding:19px}.preview{position:static}.lead{padding:25px 0 18px}.canvas-shell{min-height:210px}.tabs{gap:5px}.tabs button{font-size:10px;padding:10px 4px}.top{padding:12px 0}nav{gap:11px}}
+@media(prefers-reduced-motion:reduce){.tabs button,.btn{transition:none!important}}
+</style>
+<script src="/video-maker.js" defer></script>
+</head>
+<body>
+<header><div class="wrap top"><a href="/" class="brand">Rhyme<span>Orbit</span></a><nav aria-label="Site navigation"><a href="/">Home</a><a href="/#studio">AI Studio</a><a href="/#downloads">Download Audio</a><a href="/vocal-lab">Vocal Lab</a></nav></div></header>
+<main class="wrap">
+<div class="lead"><div class="eyebrow">✦ FREE CREATOR TOOL / VIDEO STUDIO</div><h1>Five scenes. <em>One feeling.</em></h1><p>Turn your own song into a beautiful lyric video. Five animated 10-second scenes blend into one video, all on your device.</p><div class="pills"><span class="pill">♫ Up to 50 seconds</span><span class="pill">✧ 5 animated scenes</span><span class="pill">◈ Your own audio</span><span class="pill">✦ No GPU or video API</span></div></div>
+<div class="layout">
+<section class="panel" aria-label="Music video settings">
+<div id="vmTabs" class="tabs" role="tablist" aria-label="Video maker steps">
+<button type="button" role="tab" id="vmTabMusic" aria-controls="vmPanelMusic" aria-selected="true" data-tab="music">1 · Music</button>
+<button type="button" role="tab" id="vmTabLyrics" aria-controls="vmPanelLyrics" aria-selected="false" data-tab="lyrics">2 · Lyrics</button>
+<button type="button" role="tab" id="vmTabStyle" aria-controls="vmPanelStyle" aria-selected="false" data-tab="style">3 · Style</button>
+<button type="button" role="tab" id="vmTabExport" aria-controls="vmPanelExport" aria-selected="false" data-tab="export">4 · Export</button>
+</div>
+<div class="tab-panel" id="vmPanelMusic" role="tabpanel" aria-labelledby="vmTabMusic"><h2>Choose your music</h2><p class="small">Use any song you own, or select a saved RhymeOrbit track from Download Audio. Your audio stays in this browser.</p>
+<div id="vmSavedTrack" class="status" hidden></div>
+<div class="field"><label for="vmAudioFile">Upload your own song (MP3, WAV, OGG, M4A)</label><input id="vmAudioFile" type="file" accept="audio/*"></div><audio id="vmAudioPreview" controls preload="metadata" aria-label="Preview selected song"></audio>
+<div class="row"><button class="btn gold" type="button" data-next="lyrics">Next · Add lyrics →</button><a class="btn" href="/#downloads">My saved songs ↗</a></div></div>
+<div class="tab-panel" id="vmPanelLyrics" role="tabpanel" aria-labelledby="vmTabLyrics" hidden><h2>Show your lyrics</h2><p class="small">Lyrics from new RhymeOrbit songs may load automatically. For your own recordings, paste or correct the lines here. Timing is estimated, so preview it before export.</p>
+<div class="field"><label for="vmLyrics">One lyric line per row</label><textarea id="vmLyrics" placeholder="Teri aankhon mein, meri duniya...&#10;Chupke se dil ne ye kaha..."></textarea></div>
+<div class="field"><label for="vmLyricDelay">Lyrics start delay: <output id="vmLyricDelayValue">0 sec</output></label><input id="vmLyricDelay" type="range" min="0" max="15" value="0" step="1"></div>
+<button type="button" class="btn gold" data-next="style">Next · Choose style →</button></div>
+<div class="tab-panel" id="vmPanelStyle" role="tabpanel" aria-labelledby="vmTabStyle" hidden><h2>Choose your look</h2><p class="small">Every style has five unique 10-second animations; no third-party AI videos or commercial trial credits are used.</p>
+<div class="field"><label for="vmTheme">Visual mood</label><select id="vmTheme"><option value="romantic">🌸 Romantic dream</option><option value="night">🌙 Starry nights</option><option value="lofi">🌧 Lo-fi rainy city</option><option value="sunset">🌅 Golden sunset</option><option value="neon">✨ Neon pop</option></select></div>
+<div class="field"><label for="vmAspect">Video format</label><select id="vmAspect"><option value="portrait">9:16 · Instagram Reels / Shorts</option><option value="landscape">16:9 · YouTube</option></select></div><button class="btn gold" type="button" data-next="export">Next · Create video →</button></div>
+<div class="tab-panel" id="vmPanelExport" role="tabpanel" aria-labelledby="vmTabExport" hidden><h2>Export your video</h2><p class="small">We'll combine five animated scenes, your song and estimated lyric timing into one video. Keep this tab open while recording.</p>
+<label class="row small"><input id="vmRights" type="checkbox"> I own this recording and lyrics or have permission to use them.</label>
+<div class="row" style="margin-top:16px"><button id="vmExport" class="btn gold" type="button">✦ Create my 50s video</button><button id="vmStop" class="btn" type="button" disabled>■ Stop</button></div>
+<progress id="vmProgress" max="50" value="0" aria-label="Video export progress"></progress><div id="vmProgressLabel" class="small">Ready to create.</div>
+<div id="vmDownloadResult" class="download-result" hidden><a id="vmDownloadLink" class="btn gold" download="rhymeorbit-video.webm">↓ Download your video</a><p class="small" id="vmFormatNote"></p></div></div>
+<div id="vmStatus" class="status" role="status" aria-live="polite">Start by choosing a song.</div>
+</section>
+<aside class="panel preview" aria-label="Video preview"><div class="preview-head"><h2>✦ Live preview</h2><span class="pill">5 × 10 seconds</span></div><div class="canvas-shell"><canvas id="vmCanvas" width="1280" height="720" aria-label="Animated video preview" role="img"></canvas></div>
+<div id="vmSceneStrip" class="scene-strip" aria-label="Five video scenes"><div class="scene-chip" style="--a:#a16693;--b:#48284e">01<small>0–10s</small></div><div class="scene-chip" style="--a:#675a9d;--b:#172740">02<small>10–20s</small></div><div class="scene-chip" style="--a:#b78a66;--b:#694466">03<small>20–30s</small></div><div class="scene-chip" style="--a:#4b829e;--b:#202d5b">04<small>30–40s</small></div><div class="scene-chip" style="--a:#ad7c8c;--b:#432341">05<small>40–50s</small></div></div>
+<p class="preview-note">This is an animated lyrics-video composer, not AI-generated cinematic footage. Preview visuals run silently until you export with your selected song.</p></aside>
+</div>
+<div class="disclaimer">Private by default: RhymeOrbit generates these visuals and the video on your device. It does not upload your selected audio, lyrics or exported video automatically. Browser export may produce WebM; MP4 availability depends on your browser. Keep this tab active during export.</div>
+</main><footer>© 2026 RhymeOrbit · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/copyright">Content rights</a></footer>
+</body></html>
