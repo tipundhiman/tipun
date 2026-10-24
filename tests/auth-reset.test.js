@@ -10,6 +10,7 @@ const read=p=>readFileSync(join(root,p),'utf8');
 test('Signup requires email verification for unconfirmed accounts',()=>{
  const auth=read('public/integration.js');
  assert.match(auth,/auth\.signUp\(/);
+ assert.match(auth,/emailRedirectTo:'https:\/\/rhymeorbit\.in\/'/);
  assert.match(auth,/if\(result\.data\?\.session\)/);
  assert.match(auth,/await syncSession\(result\.data\.session\)/);
  assert.match(auth,/Please verify your email address before using RhymeOrbit/);
@@ -22,7 +23,7 @@ test('Signup requires email verification for unconfirmed accounts',()=>{
 });
 test('Forgot password retains email reset link and routes to a dedicated recovery page',()=>{
  const auth=read('public/integration.js');
- assert.match(auth,/resetPasswordForEmail\(email,\{redirectTo:location\.origin\+'\/reset-password\.html'\}\)/);
+ assert.match(auth,/resetPasswordForEmail\(email,\{redirectTo:'https:\/\/rhymeorbit\.in\/reset-password\.html'\}\)/);
  const page=read('public/reset-password.html');
  const script=read('public/reset-password.js');
  assert.match(page,/noindex,nofollow/);
