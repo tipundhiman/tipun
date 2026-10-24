@@ -67,6 +67,30 @@ async function supaFetch(endpoint, opts = {}) {
   return { ok: response.ok, status: response.status, data };
 }
 
+
+/** Safe readiness checks: never return secrets or provider credentials. */
+async function musicReadiness() {
+  const providerReady=Boolean(env('TREBLO_API_KEY'));
+  const publicAllowed=env('PUBLIC_MUSIC_GENERATION_ENABLED')!=='false';
+  const databaseConfigured=Boolean(config().url&&config().service);
+  let quotaTableReady=false,reservationTableReady=false,libraryReady=false,audioStorageReady=false;
+  if(databaseConfigured){
+    const paths=[
+      '/rest/v1/music_usage?select=user_id&limit=0',
+      '/rest/v1/music_generation_reservations?select=id&limit=0',
+      '/rest/v1/generated_songs?select=task_id&limit=0',
+      '/storage/v1/bucket/song-audio'
+    ];
+    const check=await Promise.all(paths.map(path=>supaFetch(path).catch(()=>({ok:false}))));
+    [quotaTableReady,reservationTableReady,libraryReady,audioStorageReady]=check.map(r=>r.ok);
+  }
+  return {
+    providerReady,publicAllowed,databaseConfigured,quotaTableReady,
+    reservationTableReady,libraryReady,audioStorageReady,
+    ready:providerReady&&publicAllowed&&databaseConfigured&&quotaTableReady&&reservationTableReady&&libraryReady&&audioStorageReady
+  };
+}
+
 async function cloudSongs(userId) {
   return supaFetch('/rest/v1/generated_songs?user_id=eq.'+encodeURIComponent(userId)+'&select=task_id,title,voice,status,storage_path,created_at&order=created_at.desc&limit=100');
 }
@@ -194,20 +218,15 @@ export async function handleApi(req, res) {
       });
     }
     if (req.method === 'GET' && path === '/api/music/status') {
-      const providerReady=Boolean(env('TREBLO_API_KEY'));
-      const publicAllowed=env('PUBLIC_MUSIC_GENERATION_ENABLED')!=='false';
-      let quotaReady=false;
-      if(providerReady&&publicAllowed&&config().service){
-        const checks=await Promise.all([
-          supaFetch('/rest/v1/music_usage?select=user_id&limit=0'),
-          supaFetch('/rest/v1/music_generation_reservations?select=id&limit=0'),
-          supaFetch('/rest/v1/generated_songs?select=task_id&limit=0')
-        ]);
-        quotaReady=checks.every(x=>x.ok);
-      }
-      const ready=providerReady&&publicAllowed&&quotaReady;
-      return send(res,200,{publicGenerationEnabled:ready,supportsVocals:ready,freeMonthlySongs:3,checkoutEnabled:false,
-        message:ready?'Song generation is available. Sign in to create.':'Song generation is temporarily unavailable. Please try again later.'});
+      const checks=await musicReadiness();
+      return send(res,200,{
+        publicGenerationEnabled:checks.ready,
+        supportsVocals:checks.ready,
+        freeMonthlySongs:3,checkoutEnabled:false,
+        message:checks.ready?
+          'Song generation is available. Sign in to create.':
+          'Song generation is temporarily unavailable. Please try again later.'
+      });
     }
     if (req.method === 'GET' && path === '/api/music/credits') {
       if (!rate(req, res)) return;
@@ -298,6 +317,38 @@ export async function handleApi(req, res) {
       const result = await supaFetch('/rest/v1/music_generations?user_id=eq.' + encodeURIComponent(user.id) + '&select=id,status,credit_status,created_at,completed_at,output_url&order=created_at.desc&limit=30');
       return result.ok ? send(res, 200, { items: result.data }) : send(res, 503, { error: 'Music history unavailable' });
     }
+    if (req.method === 'GET' && path === '/api/admin/music-readiness') {
+      if(!rate(req,res))return;
+      const user=await auth(req,res);if(!user)return;
+      if(!await isAdmin(user.id))return send(res,403,{error:'Admin access required'});
+      const checks=await musicReadiness();
+      const blockers=[];
+      if(!checks.providerReady)blockers.push('Music provider credential not configured in production');
+      if(!checks.publicAllowed)blockers.push('Public song-generation switch is disabled');
+      if(!checks.databaseConfigured)blockers.push('Supabase service-role database connection unavailable');
+      if(!checks.quotaTableReady)blockers.push('music_usage table missing or inaccessible');
+      if(!checks.reservationTableReady)blockers.push('music_generation_reservations table missing or inaccessible');
+      if(!checks.libraryReady)blockers.push('generated_songs table missing or inaccessible');
+      if(!checks.audioStorageReady)blockers.push('Private song-audio storage bucket missing or inaccessible');
+      const month=new Date().toISOString().slice(0,7)+'-01';
+      const recent=checks.reservationTableReady?
+        await supaFetch('/rest/v1/music_generation_reservations?month_start=eq.'+month+'&select=id,status,created_at&order=created_at.desc&limit=100'):null;
+      const items=recent?.ok&&Array.isArray(recent.data)?recent.data:[];
+      const counts={
+        recordsShown:items.length,
+        submitted:items.filter(x=>x.status==='submitted'||x.status==='completed').length,
+        refunded:items.filter(x=>x.status==='refunded').length,
+        reserved:items.filter(x=>x.status==='reserved').length
+      };
+      const estimate=Number(env('MUSIC_ESTIMATED_COST_PER_SONG_USD'));
+      const validEstimate=env('MUSIC_ESTIMATED_COST_PER_SONG_USD')!==''&&Number.isFinite(estimate)&&estimate>=0;
+      return send(res,200,{
+        isAdmin:true,ready:checks.ready,
+        checks,blockers,month,counts,
+        estimatedCostUsd:validEstimate?Number((counts.submitted*estimate).toFixed(2)):null,
+        estimateDisclaimer:'Optional manual estimate based on up to 100 returned tasks; not actual provider billing. Configure MUSIC_ESTIMATED_COST_PER_SONG_USD to enable.'
+      });
+    }
     if (req.method === 'GET' && path === '/api/admin/overview') {
       if (!rate(req, res)) return;
       const user = await auth(req, res);
@@ -341,7 +392,13 @@ export async function handleApi(req, res) {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) return send(res, 502, { error: 'Song status temporarily unavailable' });
       const raw = typeof result === 'string' ? result : (result.status || result.state || '');
-      if (raw === 'FAILURE') { if(!admin)await rpc('ro_refund_failed_song',{p_user:user.id,p_task:id}); return send(res,200,{id,status:'failed',error:'Generation failed. A charged song credit is restored after confirmed failure.'}); }
+      if (raw === 'FAILURE') {
+        if(!admin)await rpc('ro_refund_failed_song',{p_user:user.id,p_task:id});
+        await supaFetch('/rest/v1/generated_songs?user_id=eq.'+encodeURIComponent(user.id)+'&task_id=eq.'+encodeURIComponent(id),{
+          method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({status:'failed'})
+        });
+        return send(res,200,{id,status:'failed',error:'Generation failed. A charged song credit is restored after confirmed failure.'});
+      }
       if (raw !== 'SUCCESS') return send(res, 200, { id, status: 'processing' });
       const finished = await fetch('https://api.treblo.com/v1/generations/' + encodeURIComponent(id), {
         headers, signal: AbortSignal.timeout(12000)
@@ -379,6 +436,7 @@ export async function handleApi(req, res) {
       const publicEnabled = env('PUBLIC_MUSIC_GENERATION_ENABLED') !== 'false';
       if (!admin && !publicEnabled) return send(res, 503, { error: 'Song generation temporarily unavailable' });
       if (!env('TREBLO_API_KEY')) return send(res, 503, { error: 'Song generation temporarily unavailable' });
+      if(!admin&&data.rightsConfirmed!==true)return send(res,400,{error:'Confirm you own or are authorized to use your lyrics and references before creating a song.'});
       const ideaOrLyrics=String(data.lyrics||'').trim();
       const voice=['male','female','duet','auto'].includes(data.voice)?data.voice:'auto';
       const style=String(data.prompt||'').trim();
@@ -430,7 +488,16 @@ export async function handleApi(req, res) {
         const finalized = await rpc('ro_finish_song', { p_user: user.id, p_reservation: reservationId, p_task: String(result.task_id), p_success: true });
         if (!finalized.ok || finalized.data !== true) return send(res, 503, { error: 'Song submitted but usage confirmation failed. Contact support with task ID: ' + String(result.task_id) });
       }
-      return send(res, 200, { id: String(result.task_id), status: 'processing' });
+      // Register the task immediately. A user can resume it from another device.
+      // A backup failure never erases the task ID or creates another paid generation.
+      const taskId=String(result.task_id);
+      const songTitle=String(data.title||'My AI Song').trim().slice(0,100)||'My AI Song';
+      const registered=await supaFetch('/rest/v1/generated_songs?on_conflict=user_id,task_id',{
+        method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},
+        body:JSON.stringify({user_id:user.id,task_id:taskId,title:songTitle,voice,status:'pending'})
+      });
+      if(!registered.ok)console.warn('[Music archive] Task accepted; pending library registration failed');
+      return send(res,200,{id:taskId,status:'processing',libraryRegistered:registered.ok});
     }
     if (path === '/api/ai') {
       const user = await auth(req, res);
