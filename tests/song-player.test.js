@@ -101,6 +101,22 @@ test('My Studio and AI Studio use the same shared player card',()=>{
  assert.ok(env.projects.children[0].querySelector('.ro-song-player'));
  assert.equal(visible(env.projects.children[0]).includes('task-internal'),false);
 });
+test('A blocked cross-origin player falls back to private same-origin playback and offers download',()=>{
+ const env=fixture([{id:'private-track',title:'Khoyi Hui Si Raat',status:'ready',cloudSaved:true,
+  url:'https://r2.example.com/signed.ogg',proxyUrl:'/api/music/audio/private-track?token=signed-token'}]);
+ env.window.roRenderSongLibrary();
+ const card=env.studio.children[0],audio=card.querySelector('audio');
+ assert.equal(audio.src,'https://r2.example.com/signed.ogg');
+ audio.emit('error');
+ assert.equal(audio.src,'/api/music/audio/private-track?token=signed-token');
+ assert.match(visible(card),/Switching to secure playback/);
+ audio.emit('loadedmetadata');
+ assert.doesNotMatch(visible(card),/Switching to secure playback/);
+ const download=card.querySelectorAll('button').find(button=>button.textContent.includes('Download song'));
+ assert.ok(download,'Private cloud-saved song has a download action');
+ const open=card.querySelector('a');
+ assert.match(open.href,/^\/api\/music\/audio\//);
+});
 test('Library API includes creation time for real pending elapsed timer',()=>{
  assert.match(api,/createdAt:row\.created_at/);
  assert.match(song,/roClock\(Math\.floor\(\(Date\.now\(\)-started\)\/1000\)\)/);
