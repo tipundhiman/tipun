@@ -250,6 +250,30 @@ async function isAdmin(userId) {
   if (!result.ok) throw new Error('Admin authorization unavailable');
   return Array.isArray(result.data) && result.data.length === 1;
 }
+// Optional *licensed production* Riya fallback. NVIDIA developer trial endpoints
+// are not permitted for a public commercial launch; do not activate with trial credits.
+async function nvidiaRiyaGenerate(input) {
+  if (env('NVIDIA_NIM_COMMERCIAL_ENABLED') !== 'true' || !env('NVIDIA_API_KEY')) return null;
+  try {
+    const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + env('NVIDIA_API_KEY'), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: env('NVIDIA_CHAT_MODEL') || 'meta/llama-3.3-70b-instruct',
+        messages: [
+          { role: 'system', content: 'You are Riya, a warm, honest multilingual creative guide for RhymeOrbit. Reply in the user language. Help with original lyrics, Shayari, creator tools and site questions. Never invent prices, features, user data, live news, or payment status. Do not request secrets.' },
+          { role: 'user', content: input.slice(0, 10500) }
+        ],
+        temperature: .75, max_tokens: 750, stream: false
+      }),
+      signal: AbortSignal.timeout(16000)
+    });
+    if (!response.ok) { console.warn('[Riya] licensed NVIDIA unavailable', response.status); return null; }
+    const result = await response.json();
+    const text = String(result.choices?.[0]?.message?.content || '').trim();
+    return text ? { text, provider: 'nvidia' } : null;
+  } catch (error) { console.warn('[Riya] NVIDIA fallback unavailable', error?.name || 'NetworkError'); return null; }
+}
 async function aiGenerate(kind, input) {
   const key = env('GEMINI_API_KEY');
   if (!key) return { error: 'RhymeOrbit AI is not configured yet. Please contact support.', status: 503 };
@@ -290,7 +314,7 @@ async function aiGenerate(kind, input) {
       const result = await response.json().catch(() => ({}));
       if (response.ok) {
         const text = result.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('').trim();
-        return text ? { text } : { error: 'AI could not produce a reply. Try a different question.', status: 502 };
+        return text ? { text, provider: 'gemini' } : { error: 'AI could not produce a reply. Try a different question.', status: 502 };
       }
       console.warn('[RhymeOrbit AI] provider rejected request', currentModel, response.status, result?.error?.status || 'unknown');
       if ([403, 404].includes(response.status) && currentModel !== defaultModel && models.includes(defaultModel)) break;
@@ -664,7 +688,12 @@ export async function handleApi(req, res) {
       const kind = String(data.kind || '');
       const input = String(data.input || '').trim();
       if (!['lyrics', 'doctor', 'vibe', 'help', 'shayari'].includes(kind) || input.length < (kind === 'help' ? 1 : 5) || input.length > 12000) return send(res, 400, { error: 'Invalid AI request' });
-      const result = await aiGenerate(kind, input);
+      // Only an explicitly licensed NVIDIA production integration is eligible.
+      // Gemini remains the primary provider on the existing deployment.
+      const nvidiaFirst = kind === 'help' && env('RIYA_PROVIDER_PRIORITY') === 'nvidia';
+      const early = nvidiaFirst ? await nvidiaRiyaGenerate(input) : null;
+      const primary = early || await aiGenerate(kind, input);
+      const result = kind === 'help' && primary.error ? (await nvidiaRiyaGenerate(input) || primary) : primary;
       return send(res, result.error ? (result.status || 503) : 200, result.error ? { error: result.error } : result);
     }
     if (path === '/api/admin/subscription') {

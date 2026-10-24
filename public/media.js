@@ -10,7 +10,7 @@ header=function(){return baseHeaderMedia().replace('</nav>', '<button class="nav
 const baseSidebarMedia=appSidebar;
 appSidebar=function(){return baseSidebarMedia().replace('<span class="sidebar-label">EXPLORE</span>','<span class="sidebar-label">EXPLORE</span><button class="side-link" onclick="go(\'media\')"><span>▧</span> Media</button>')};
 const baseStudioMedia=studio;
-studio=function(){let s=baseStudioMedia();if(state.user){s=s.replace('<div id="generatedLyrics"',`<div class="field" style="margin-top:15px"><label for="shayariPrompt">Shayari / poetry prompt</label><input id="shayariPrompt" placeholder="Hindi shayari about first love..."></div><button class="btn sm" onclick="generateShayari()">✧ Generate shayari</button><div id="shayariOutput" style="margin-top:12px"></div><div id="generatedLyrics"`);s=s.replace('AI-powered lyric feedback.','AI-powered lyric feedback.')}return s};
+studio=function(){let s=baseStudioMedia();if(state.user){s=s.replace('<div id="generatedLyrics"',`<div class="field" style="margin-top:15px"><label for="shayariPrompt">Shayari / poetry prompt</label><input id="shayariPrompt" placeholder="Hindi shayari about first love..."></div><button class="btn sm" onclick="generateShayari()">✧ Generate shayari</button><p class="muted small">After writing, you can listen to your Shayari with voice, original background music, both or silence. No paid song credits.</p><div id="shayariOutput" style="margin-top:12px"></div><div id="generatedLyrics"`);s=s.replace('AI-powered lyric feedback.','AI-powered lyric feedback.')}return s};
 window.generateShayari=()=>{const q=$('shayariPrompt')?.value.trim();if(!q)return toast('Enter a shayari topic');runAI('shayari',q,'shayariOutput')};
 function mediaPage(){return appPage(`${heading('MEDIA / YOUR SPACE','Your vibe. <span class="serif">Your orbit.</span>','One place to post your thoughts, photos, videos and sounds. Your posts automatically reach Community.')}
 <style>
@@ -113,16 +113,66 @@ async function deleteMedia(id){const m=mediaList.find(x=>x.id===id);if(!m||!conf
     ].join("\n");
   }
 
-  window.generateShayari = function () {
+  let shayariMusic = null;
+  let shayariAudioContext = null;
+  function stopShayariSound() {
+    window.speechSynthesis?.cancel();
+    shayariMusic?.stop();
+    shayariMusic = null;
+    shayariAudioContext?.close().catch(() => {});
+    shayariAudioContext = null;
+  }
+  window.roStopShayariSound = stopShayariSound;
+  window.roPlayShayari = async function () {
+    stopShayariSound();
+    const text = document.getElementById('roShayariEditable')?.value.trim();
+    const sound = document.getElementById('roShayariSoundMode')?.value;
+    const info = document.getElementById('roShayariSoundStatus');
+    if (!text) return toast('Write Shayari first');
+    if (sound === 'silent') { if (info) info.textContent = 'Silent reading selected — no sound.'; return; }
+    try {
+      if (sound === 'music' || sound === 'both') {
+        if (!window.roCreativeAudio?.createAmbientMusic) throw Error('Sound studio is loading. Refresh the page.');
+        shayariAudioContext = new AudioContext();
+        await shayariAudioContext.resume();
+        shayariMusic = window.roCreativeAudio.createAmbientMusic(shayariAudioContext, shayariAudioContext.destination);
+      }
+      if (sound === 'voice' || sound === 'both') {
+        const lang = /[\u0900-\u097f]/.test(text) ? 'hi-IN' : 'en-IN';
+        const voice = window.roCreativeAudio.speak(text, {lang,rate:.88,pitch:1.08,onend:stopShayariSound});
+        if (info) info.textContent = 'Speaking with ' + voice + '. Voice quality depends on your device.';
+      } else if (info) info.textContent = '♫ Playing original music generated inside your browser. No song credits used.';
+    } catch (error) { stopShayariSound(); if (info) info.textContent = error.message || 'Audio is unavailable in this browser.'; }
+  };
+  window.addEventListener('hashchange',stopShayariSound);
+  window.generateShayari = async function () {
     const topic = document.getElementById("shayariPrompt")?.value.trim();
-
     if (!topic) return toast("Enter a shayari topic");
-
-    runAI(
-      "shayari",
-      languagePrompt(topic, "expressive shayari"),
-      "shayariOutput"
-    );
+    stopShayariSound();
+    const output = document.getElementById('shayariOutput');
+    if (!output) return;
+    output.textContent = '✧ Writing your original Shayari…';
+    try {
+      const verse = await window.roGenerateAIText('shayari',languagePrompt(topic,'expressive shayari'));
+      if (!document.getElementById('shayariOutput')) return;
+      output.replaceChildren();
+      const label = document.createElement('label');
+      label.htmlFor = 'roShayariEditable';label.textContent = 'Your Shayari · editable';
+      const editor = document.createElement('textarea');
+      editor.id = 'roShayariEditable';editor.rows = 6;editor.value = verse;
+      editor.style.cssText = 'width:100%;min-height:120px;border-radius:12px;padding:13px;background:#12131a;color:inherit;border:1px solid #ffffff30';
+      const modes = document.createElement('select');
+      modes.id = 'roShayariSoundMode';modes.setAttribute('aria-label','Shayari audio mode');
+      for (const [value,name] of [['both','🎙 Voice + free soft music'],['voice','🎙 Read aloud only'],['music','♫ Free original music only'],['silent','◌ Silent / read only']]) {
+        const option = document.createElement('option');option.value = value;option.textContent = name;modes.append(option);
+      }
+      modes.style.cssText = 'padding:10px;color:inherit;background:#1c1a23;border:1px solid #ffffff40;border-radius:10px;max-width:100%';
+      const row = document.createElement('div');row.className = 'row';row.style.marginTop = '9px';
+      const listen = document.createElement('button');listen.type = 'button';listen.className = 'btn sm';listen.textContent = '▶ Listen';listen.onclick = window.roPlayShayari;
+      const stop = document.createElement('button');stop.type = 'button';stop.className = 'btn sm';stop.textContent = '■ Stop';stop.onclick = stopShayariSound;
+      const note = document.createElement('p');note.id = 'roShayariSoundStatus';note.className = 'muted small';note.textContent = 'Uses your device voice and original browser-generated music; no paid vocal-song API.';
+      row.append(modes,listen,stop);output.append(label,editor,row,note);
+    } catch (error) {output.textContent = error.message || 'Shayari generation failed. Please retry.';}
   };
 
   window.generateLyrics = function () {

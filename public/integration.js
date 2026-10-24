@@ -28,6 +28,7 @@ async function roGenerateAIText(kind,input){
   throw new Error(String(payload.error||'AI request failed. Please try again.'));
  }
  if(typeof payload.text!=='string'||!payload.text.trim())throw new Error('AI returned an empty response. Please try again.');
+ if(kind==='help')window.roLastAIProvider=payload.provider==='nvidia'?'nvidia':'gemini';
  return payload.text.trim();
 }
 window.roGenerateAIText=roGenerateAIText;
@@ -60,26 +61,24 @@ let roWelcomeSerial=0;
 function roWelcomeBack(){
  const user=state.user;if(!user||roWelcomedUser===user.id)return;
  roWelcomedUser=user.id;
- const taglines=['Let your next melody become magic!','Your creativity deserves the spotlight!','A beautiful song begins with one idea!','Keep singing, keep shining, keep creating!','Your music journey starts with a spark!','Make something wonderful today!','Every great artist starts with a dream!'];
+ const taglines=['Aaj ek naya gaana, ek nayi kahaani!','Let your next melody become magic!','Your creativity deserves the spotlight!','A beautiful song begins with one idea!','Keep singing, keep shining, keep creating!','Make something wonderful today!','Every great artist starts with a dream!','Your imagination is the sweetest kind of music!'];
  const previous=Number(sessionStorage.getItem('roWelcomeLastIndex')||'-1');
- const index=(previous+1)%taglines.length;sessionStorage.setItem('roWelcomeLastIndex',String(index));
+ let index=Math.floor(Math.random()*taglines.length);if(index===previous)index=(index+1)%taglines.length;
+ sessionStorage.setItem('roWelcomeLastIndex',String(index));
  const gender=String(user.gender||'prefer_not_to_say').toLowerCase();
  const salutation=gender==='male'?'Hello handsome':gender==='female'?'Hello beautiful':'Hello creator';
  const greeting=salutation+'! Welcome to RhymeOrbit. '+taglines[index];
  toast(greeting);
  const serial=++roWelcomeSerial;
- try{if('speechSynthesis' in window){
-   window.speechSynthesis.cancel();
+ try{if(window.roCreativeAudio?.speak){
    const say=()=>{if(serial!==roWelcomeSerial||roWelcomedUser!==user.id)return;
-     const utterance=new SpeechSynthesisUtterance(greeting);
-     const voices=window.speechSynthesis.getVoices();
-     const preferred=voices.find(v=>/female|zira|heera|samantha|veena|neerja|victoria|karen|moira|aria|jenny/i.test(v.name)&&/^en/i.test(v.lang));
-     if(preferred)utterance.voice=preferred;
-     utterance.lang=preferred?.lang||'en-IN';utterance.rate=1.16;utterance.pitch=1.13;utterance.volume=.85;
-     window.speechSynthesis.speak(utterance);
+     window.roCreativeAudio.speak(greeting,{lang:'en-IN',rate:.92,pitch:1.12});
    };
-   // Speak only once; don't schedule both a voice-load event and a fallback timer.
-   say();
+   // Voices may be reported asynchronously after page load. Still speak only once.
+   if(window.speechSynthesis?.getVoices().length)say();else setTimeout(say,350);
+ }else if('speechSynthesis' in window && 'SpeechSynthesisUtterance' in globalThis){
+   // Graceful fallback for cached pages that have not loaded the voice helper yet.
+   window.speechSynthesis.speak(new SpeechSynthesisUtterance(greeting));
  }}catch(e){console.warn('Voice welcome unavailable',e)}
 }
 

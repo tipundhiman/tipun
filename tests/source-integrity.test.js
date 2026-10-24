@@ -110,13 +110,14 @@ test('Public SEO URLs agree across sitemap, canonical tags and internal navigati
  assert.match(read('public/features.html'),/Full songs with vocals — available for eligible users/);
  assert.doesNotMatch(read('public/features.html'),/planned vocal music generation|integration in progress/i);
 });
-test('Public landing animations remain accessible and video search has a working fallback',()=>{
+test('Public landing animations remain accessible and in-app video tiles do not redirect',()=>{
  assert.match(html,/roObserveLandingMotion/);
  assert.match(html,/prefers-reduced-motion:reduce/);
  assert.match(html,/youtube-fallback\.js/);
  const fallback=read('public/youtube-fallback.js');
- assert.match(fallback,/https:\/\/www\.youtube\.com\/results\?search_query=/);
- assert.match(fallback,/rel='noopener noreferrer'/);
+ assert.match(fallback,/showFeatured/);
+ assert.match(fallback,/window\.roYtPlay/);
+ assert.doesNotMatch(fallback,/https:\/\/www\.youtube\.com\/results\?search_query=/);
 });
 test('Dedicated search landing pages provide accurate, indexable creator flows',()=>{
  const sitemap=read('public/sitemap.xml');

@@ -18,6 +18,7 @@
   let exportAudio = null;
   let exportContext = null;
   let exportStream = null;
+  let exportAmbient = null;
   let exportTarget = MAX_VIDEO_SECONDS;
   let exportStartedAt = 0;
   let analyser = null;
@@ -50,8 +51,9 @@
   const status = text => { $('vmStatus').textContent = text; };
   const lyricRows = () => $('vmLyrics').value.split(/\r?\n/).map(line => line.trim())
     .filter(line => line && !/^\[(verse|chorus|intro|bridge|outro|hook|pre-chorus)[^\]]*\]$/i.test(line)).slice(0, 250);
+  const useSelectedSong = () => $('vmAudioMode')?.value === 'auto' && !!(audioBlob && audioUrl);
   function videoDuration() {
-    if (audioBlob) return Math.min(MAX_VIDEO_SECONDS, Math.max(1, audioDuration));
+    if (useSelectedSong()) return Math.min(MAX_VIDEO_SECONDS, Math.max(1, audioDuration));
     const requested = $('vmSilentDuration').value;
     if (requested !== 'auto') return Number(requested);
     return clamp(lyricRows().length * 4.5, 20, MAX_VIDEO_SECONDS);
@@ -661,9 +663,11 @@
     $('vmExport').disabled = false;
     $('vmStop').disabled = true;
     exportAudio?.pause();
+    exportAmbient?.stop();
     exportStream?.getTracks().forEach(track => track.stop());
     exportContext?.close().catch(() => {});
     exportAudio = null;
+    exportAmbient = null;
     exportContext = null;
     exportStream = null;
     analyser = null;
@@ -672,8 +676,10 @@
   }
   async function exportVideo() {
     if (exporting) return;
-    const hasAudio = !!(audioBlob && audioUrl);
-    if (!hasAudio && !$('vmLyrics').value.trim()) {
+    const hasSongAudio = useSelectedSong();
+    const hasAmbientAudio = !hasSongAudio && $('vmAudioMode').value !== 'silent';
+    const hasAudio = hasSongAudio || hasAmbientAudio;
+    if (!hasSongAudio && !$('vmLyrics').value.trim()) {
       setTab('lyrics'); status('Add or generate some lyrics first, or choose a song.'); return;
     }
     if (!$('vmRights').checked) { status('Confirm you own or are allowed to use the song and lyrics.'); return; }
@@ -693,7 +699,7 @@
     let failed = false;
     try {
       exportStream = canvas.captureStream(24);
-      if (hasAudio) {
+      if (hasSongAudio) {
         exportAudio = new Audio(audioUrl);
         exportAudio.preload = 'auto';
         await waitForMetadata(exportAudio);
@@ -708,6 +714,15 @@
         analyser.connect(dest);
         const audioTrack = dest.stream.getAudioTracks()[0];
         if (!audioTrack) throw Error('Browser audio capture is unavailable.');
+        exportStream.addTrack(audioTrack);
+      } else if (hasAmbientAudio) {
+        if (!window.roCreativeAudio?.createAmbientMusic) throw Error('Free music synthesizer did not load. Please refresh.');
+        exportContext = new AudioContext();
+        await exportContext.resume();
+        const dest = exportContext.createMediaStreamDestination();
+        exportAmbient = window.roCreativeAudio.createAmbientMusic(exportContext, dest);
+        const audioTrack = dest.stream.getAudioTracks()[0];
+        if (!audioTrack) throw Error('Instrumental audio capture is unavailable.');
         exportStream.addTrack(audioTrack);
       }
       const chunks = [];
@@ -746,9 +761,9 @@
       exportStartedAt = performance.now();
       drawVideo(0, .3);
       recorder.start(750);
-      if (hasAudio) await exportAudio.play();
+      if (hasSongAudio) await exportAudio.play();
       else exportStartedAt = performance.now();
-      status('Recording ' + sceneCount() + ' scenes ' + (hasAudio ? 'with your music' : 'without audio') + '…');
+      status('Recording ' + sceneCount() + ' scenes ' + (hasSongAudio ? 'with your song' : hasAmbientAudio ? 'with free instrumental music' : 'silently') + '…');
       const progressTimer = setInterval(() => {
         if (!exporting) { clearInterval(progressTimer); return; }
         const value = Math.min(exportTarget, exportAudio ? exportAudio.currentTime : (performance.now() - exportStartedAt) / 1000);
