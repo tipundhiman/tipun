@@ -47,7 +47,10 @@ async function userFromToken(token) {
     headers: { apikey: anon, Authorization: 'Bearer ' + token },
     signal: AbortSignal.timeout(9000)
   });
-  return response.ok ? await response.json() : null;
+  if (!response.ok) return null;
+  const user = await response.json();
+  // A session must never grant API access to an email that Supabase marks unconfirmed.
+  return user?.email_confirmed_at === null ? null : user;
 }
 async function supaFetch(endpoint, opts = {}) {
   const c = config();
@@ -580,6 +583,8 @@ export async function handleApi(req, res) {
       });
       const result = await response.json();
       if (!response.ok) return send(res, 401, { error: 'Invalid username or password' });
+      if (result.user?.email_confirmed_at === null)
+        return send(res, 403, { error: 'Please verify your email address before signing in.' });
       return send(res, 200, { access_token: result.access_token, refresh_token: result.refresh_token, expires_in: result.expires_in, user: result.user });
     }
     if (path === '/api/music/generate') {

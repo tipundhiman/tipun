@@ -16,5 +16,12 @@
       "binding": "SONGS_BUCKET",
       "bucket_name": "rhymeorbit-songs"
     }
+  ],
+  "ratelimits": [
+    {
+      "name": "MEDIA_UPLOAD_RATE_LIMITER",
+      "namespace_id": "739421",
+      "simple": { "limit": 3, "period": 60 }
+    }
   ]
 }

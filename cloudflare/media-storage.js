@@ -5,6 +5,8 @@
  */
 const LIMIT = 50 * 1024 * 1024;
 const SONG_LIMIT = 20_000_000;
+const DAILY_UPLOADS = 10;
+const DAILY_BYTES = 100 * 1024 * 1024;
 const TYPES = Object.freeze({
   'image/jpeg': ['jpg', 'image'],
   'image/png': ['png', 'image'],
@@ -52,7 +54,7 @@ async function authenticatedUser(request, env) {
   });
   if (!response.ok) return null;
   const user = await response.json();
-  return UUID.test(user?.id || '') ? user : null;
+  return UUID.test(user?.id || '') && user.email_confirmed_at !== null ? user : null;
 }
 
 async function requireAdmin(request, env) {
@@ -82,10 +84,26 @@ async function upload(request, env) {
   if (!title || title.length > 140) return json(400, { error: 'Caption must be 1–140 characters' });
   if (!request.body) return json(400, { error: 'File is empty' });
 
+  // Authenticated accounts are also subject to an abuse cap (separate from music credits).
+  if (env.MEDIA_UPLOAD_RATE_LIMITER) {
+    const decision = await env.MEDIA_UPLOAD_RATE_LIMITER.limit({ key: user.id });
+    if (!decision.success) return json(429, { error: 'Too many uploads. Please wait a minute.' });
+  }
+  const from = encodeURIComponent(new Date(Date.now() - 86400000).toISOString());
+  const recent = await db(env, `creator_media?select=size_bytes&owner=eq.${user.id}&created_at=gte.${from}&limit=${DAILY_UPLOADS + 1}`);
+  const bytesUsed = recent.reduce((sum, row) => sum + Math.max(0, Number(row.size_bytes) || 0), 0);
+  if (recent.length >= DAILY_UPLOADS || bytesUsed + length > DAILY_BYTES)
+    return json(429, { error: 'Daily media limit reached: 10 files or 100 MB in 24 hours.' });
+
   const id = crypto.randomUUID();
   const key = `media/${user.id}/${id}.${descriptor[0]}`;
-  // R2 accepts a ReadableStream; no 50 MB body goes through the 128 KB JSON adapter.
-  await env.SONGS_BUCKET.put(key, request.body, { httpMetadata: { contentType: mime } });
+  // R2 requires a known-length stream; transforming request.body strips that property.
+  // Validate the declared size first, and verify R2's actual stored length immediately after upload.
+  try { await env.SONGS_BUCKET.put(key, request.body, { httpMetadata: { contentType: mime } }); }
+  catch (error) {
+    await env.SONGS_BUCKET.delete(key).catch(() => {});
+    throw error;
+  }
   const object = await env.SONGS_BUCKET.head(key);
   if (!object || Number(object.size) !== length) {
     await env.SONGS_BUCKET.delete(key);

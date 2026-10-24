@@ -7,12 +7,16 @@ import { Script } from 'node:vm';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const read=p=>readFileSync(join(root,p),'utf8');
-test('Signup uses password and accepts an immediate session when confirmations are disabled',()=>{
+test('Signup requires email verification for unconfirmed accounts',()=>{
  const auth=read('public/integration.js');
  assert.match(auth,/auth\.signUp\(/);
  assert.match(auth,/if\(result\.data\?\.session\)/);
  assert.match(auth,/await syncSession\(result\.data\.session\)/);
- assert.match(auth,/Account created\. Email confirmation is currently required by the authentication settings/);
+ assert.match(auth,/Please verify your email address before using RhymeOrbit/);
+ assert.match(auth,/click the RhymeOrbit verification link before logging in/);
+ assert.match(auth,/email_confirmed_at===null/);
+ assert.match(read('api/index.js'),/Please verify your email address before signing in/);
+ assert.match(read('cloudflare/media-storage.js'),/user\.email_confirmed_at !== null/);
  assert.match(auth,/Username/);
  assert.match(auth,/Forgot password\?/);
 });

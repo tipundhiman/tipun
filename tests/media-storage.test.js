@@ -36,7 +36,7 @@ function setup(t) {
   t.mock.method(globalThis, 'fetch', async (input, init = {}) => {
     const url = new URL(String(input));
     const auth = init.headers?.authorization || init.headers?.Authorization;
-    if(url.pathname === '/auth/v1/user')return auth === 'Bearer owner' || auth === 'Bearer admin' ? response({id:owner,user_metadata:{name:'Tipun'}}) : response({message:'Invalid token'},401);
+    if(url.pathname === '/auth/v1/user')return auth === 'Bearer owner' || auth === 'Bearer admin' ? response({id:owner,email_confirmed_at:'2026-10-24T00:00:00Z',user_metadata:{name:'Tipun'}}) : auth === 'Bearer unverified' ? response({id:owner,email_confirmed_at:null}) : response({message:'Invalid token'},401);
     if(url.pathname.startsWith('/storage/v1/object/')) {
       const item=database.sources.get(url.pathname);
       return item ? raw(item) : response({message:'Missing source'},404);
@@ -90,6 +90,50 @@ test('anonymous uploads are rejected before accessing R2', async t => {
   const result=await handleMediaStorageRequest(request,bindings);
   assert.equal(result.status,401);
   assert.equal(objects.size,0);
+});
+
+test('users who have not verified their email cannot upload media', async t => {
+  const { bindings, objects } = setup(t);
+  const request=call('/api/media/upload','POST',{
+    authorization:'Bearer unverified','content-type':'image/png',
+    'content-length':'4','x-rhymeorbit-title':'Unverified'
+  },new Blob(['abcd'],{type:'image/png'}));
+  const result=await handleMediaStorageRequest(request,bindings);
+  assert.equal(result.status,401);
+  assert.equal(objects.size,0);
+});
+
+test('daily upload count prevents more than ten public media uploads', async t => {
+  const { bindings, database, objects }=setup(t);
+  for (let i=0;i<10;i++) database.media.push({owner,size_bytes:1024,created_at:new Date().toISOString()});
+  const result=await handleMediaStorageRequest(call('/api/media/upload','POST',{
+    authorization:'Bearer owner','content-type':'image/png',
+    'content-length':'4','x-rhymeorbit-title':'Eleventh upload'
+  },new Blob(['abcd'],{type:'image/png'})),bindings);
+  assert.equal(result.status,429);
+  assert.equal(objects.size,0);
+});
+
+test('rate limiting stops repeated uploads before writing to R2',async t=>{
+  const { bindings,objects }=setup(t);
+  bindings.MEDIA_UPLOAD_RATE_LIMITER={limit:async({key})=>({success:key!==owner})};
+  const result=await handleMediaStorageRequest(call('/api/media/upload','POST',{
+    authorization:'Bearer owner','content-type':'image/png',
+    'content-length':'4','x-rhymeorbit-title':'Fast repeat'
+  },new Blob(['abcd'],{type:'image/png'})),bindings);
+  assert.equal(result.status,429);
+  assert.equal(objects.size,0);
+});
+
+test('misreported content length is rejected and invalid R2 object removed',async t=>{
+  const { bindings,objects,database }=setup(t);
+  const result=await handleMediaStorageRequest(call('/api/media/upload','POST',{
+    authorization:'Bearer owner','content-type':'image/png',
+    'content-length':'2','x-rhymeorbit-title':'Mismatch'
+  },new Blob(['abcd'],{type:'image/png'})),bindings);
+  assert.equal(result.status,502);
+  assert.equal(objects.size,0);
+  assert.equal(database.media.length,0);
 });
 
 test('authorized uploads store R2, publish and support browser byte ranges', async t => {

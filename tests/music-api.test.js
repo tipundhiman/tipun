@@ -16,6 +16,24 @@ function request(method,url,payload,session='test-user'){
  const res={writeHead(code){status=code},end(x){body=JSON.parse(x)}};
  return handleApi(req,res).then(()=>({status,body}));
 }
+test('unconfirmed Supabase email cannot access authenticated music endpoints',async()=>{
+  const originalFetch=globalThis.fetch,old={};
+  const keys=['SUPABASE_URL','SUPABASE_ANON_KEY'];
+  for(const key of keys)old[key]=process.env[key];
+  Object.assign(process.env,{SUPABASE_URL:'https://database.test',SUPABASE_ANON_KEY:'mock-anon-key'});
+  globalThis.fetch=async url=>{
+    if(String(url).includes('/auth/v1/user'))return response({id:'unverified-user',email_confirmed_at:null});
+    throw Error('An unconfirmed user must not read any application data');
+  };
+  try{
+    const credits=await request('GET','/api/music/credits');
+    assert.equal(credits.status,401);
+    assert.match(credits.body.error,/Sign in required/);
+  }finally{
+    globalThis.fetch=originalFetch;
+    for(const key of keys){if(old[key]===undefined)delete process.env[key];else process.env[key]=old[key]}
+  }
+});
 test('Public song API enforces 3 credits, ownership, vocal payload and no provider-brand leakage',async()=>{
  const originalFetch=globalThis.fetch,old={};
  const keys=['TREBLO_API_KEY','SUPABASE_URL','SUPABASE_ANON_KEY','SUPABASE_SERVICE_ROLE_KEY','PUBLIC_MUSIC_GENERATION_ENABLED'];
