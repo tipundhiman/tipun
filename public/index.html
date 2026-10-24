@@ -785,11 +785,12 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     catch{return []}
   }
   function roIsAudioUrl(url){return typeof url==='string'&&/^https:\/\//i.test(url)}
+  function roIsPrivateAudioUrl(url){return typeof url==='string'&&/^\/api\/music\/audio\/[a-zA-Z0-9_-]{1,100}\?token=/.test(url)}
   function roPendingSong(item){
-    return !roIsAudioUrl(item?.url)&&/pending|processing|checking|waiting|queued|submitted/i.test(String(item?.status||''));
+    return !roIsAudioUrl(item?.url)&&!roIsPrivateAudioUrl(item?.proxyUrl)&&/pending|processing|checking|waiting|queued|submitted/i.test(String(item?.status||''));
   }
   function roSongStatus(item){
-    if(roIsAudioUrl(item.url))return 'Ready to play';
+    if(roIsAudioUrl(item.url)||roIsPrivateAudioUrl(item.proxyUrl))return 'Ready to play';
     const value=String(item.status||'').toLowerCase();
     if(/failed|error/.test(value))return 'Needs attention';
     if(roPendingSong(item))return 'Creating music & vocals';
@@ -806,9 +807,38 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     localStorage.setItem(roLibraryKey(),JSON.stringify(updated));
     window.roRenderSongLibrary?.();
   }
-  function roAudioPlayer(url,id){
+  async function roDownloadPrivateSong(id,proxyUrl,button){
+    if(!roIsPrivateAudioUrl(proxyUrl))return toast('Private backup is not ready for download yet.');
+    const label=button.textContent;button.disabled=true;button.textContent='↓ Downloading…';
+    try{
+      const chunks=[];let offset=0,total=0,mime='audio/ogg';
+      for(let part=0;part<21;part++){
+        const response=await fetch(proxyUrl,{headers:{Range:'bytes='+offset+'-'+(offset+1024*1024-1)},cache:'no-store'});
+        if(response.status!==206)throw Error('Private audio download unavailable. Refresh the song and retry.');
+        const match=/^bytes (\d+)-(\d+)\/(\d+)$/.exec(response.headers.get('Content-Range')||'');
+        if(!match||Number(match[1])!==offset)throw Error('Incomplete audio download. Please retry.');
+        total=Number(match[3]);
+        if(!Number.isSafeInteger(total)||total<=0||total>20_000_000)throw Error('Audio file exceeds the permitted size.');
+        mime=(response.headers.get('Content-Type')||mime).split(';')[0];
+        const bytes=await response.arrayBuffer();
+        if(!bytes.byteLength||bytes.byteLength!==Number(match[2])-offset+1)throw Error('Incomplete audio download. Please retry.');
+        chunks.push(bytes);offset=Number(match[2])+1;
+        if(offset===total)break;
+      }
+      if(offset!==total)throw Error('Song download stopped early. Please retry.');
+      const song=roLibraryRead().find(item=>item.id===id)||{};
+      const title=(song.title||'RhymeOrbit Song').replace(/[\\/:*?"<>|\x00-\x1f]/g,'_').slice(0,90);
+      const filename=title+(mime==='audio/mpeg'?'.mp3':'.ogg');
+      const blobUrl=URL.createObjectURL(new Blob(chunks,{type:mime}));
+      const link=document.createElement('a');link.href=blobUrl;link.download=filename;
+      document.body.appendChild(link);link.click();link.remove();
+      setTimeout(()=>URL.revokeObjectURL(blobUrl),30000);
+    }catch(error){toast(error.message||'Download temporarily unavailable.');}
+    finally{button.disabled=false;button.textContent=label;}
+  }
+  function roAudioPlayer(url,id,proxyUrl=null){
     const holder=document.createElement('div');holder.className='ro-song-player';
-    holder.dataset.audioUrl=url;
+    holder.dataset.audioUrl=url+'|'+(proxyUrl||'');
     const audio=document.createElement('audio');
     audio.controls=true;audio.preload='metadata';audio.src=url;
     audio.setAttribute('aria-label','Play full song audio');
@@ -826,19 +856,33 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       actions.append(btn);
     }
     const link=document.createElement('a');
-    link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.className='ro-song-action';link.textContent='↗ Open audio';
-    actions.append(link);holder.append(actions);
+    link.href=roIsPrivateAudioUrl(proxyUrl)?proxyUrl:url;link.target='_blank';link.rel='noopener noreferrer';link.className='ro-song-action';link.textContent='↗ Open audio';
+    actions.append(link);
+    if(roIsPrivateAudioUrl(proxyUrl)){
+      const download=document.createElement('button');download.type='button';download.className='ro-song-action';download.textContent='↓ Download song';
+      download.onclick=()=>roDownloadPrivateSong(id,proxyUrl,download);
+      actions.append(download);
+    }
+    holder.append(actions);
     const notice=document.createElement('div');notice.className='ro-song-note';notice.setAttribute('role','status');
+    let fallbackAttempted=false;
     audio.addEventListener('error',()=>{
-      notice.textContent='Audio link could not load or may have expired. Use Refresh audio to get a new private link.';
+      if(!fallbackAttempted&&roIsPrivateAudioUrl(proxyUrl)){
+        fallbackAttempted=true;
+        notice.textContent='Direct audio unavailable. Switching to secure playback…';
+        audio.src=proxyUrl;audio.load?.();
+        return;
+      }
+      notice.textContent='Audio playback failed. Use Refresh audio to renew your private link.';
     });
+    audio.addEventListener('loadedmetadata',()=>{notice.textContent='';});
     holder.append(notice);
     return holder;
   }
   function roMakeSongCard(item){
     const card=document.createElement('article');
     card.className='ro-song-entry';card.dataset.songId=String(item.id);
-    card.dataset.songSignature=JSON.stringify([item.title||'',item.voice||'',roSongStatus(item),item.url||'',!!item.cloudSaved]);
+    card.dataset.songSignature=JSON.stringify([item.title||'',item.voice||'',roSongStatus(item),item.url||'',item.proxyUrl||'',!!item.cloudSaved]);
     const head=document.createElement('div');head.className='ro-song-head';
     const art=document.createElement('div');art.className='ro-song-art';
     art.textContent='♫';art.setAttribute('aria-hidden','true');
@@ -850,17 +894,17 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     metadata.textContent=voiceName+' · '+roSongStatus(item);
     detail.append(name,metadata);head.append(art,detail);
     const button=document.createElement('button');button.type='button';button.className='ro-song-action';
-    button.textContent=roIsAudioUrl(item.url)?'↻ Refresh audio':roPendingSong(item)?'↻ Check progress':'↻ Load player';
+    button.textContent=roIsAudioUrl(item.url)||roIsPrivateAudioUrl(item.proxyUrl)?'↻ Refresh audio':roPendingSong(item)?'↻ Check progress':'↻ Load player';
     button.addEventListener('click',()=>{
-      if(roIsAudioUrl(item.url))window.roLoadCloudSongs?.();
+      if(roIsAudioUrl(item.url)||roIsPrivateAudioUrl(item.proxyUrl))window.roLoadCloudSongs?.({force:true});
       else window.roRecoverTrebloSong?.(item.id);
     });
     head.append(button);
     const del=document.createElement('button');del.type='button';del.className='ro-song-action';
     del.textContent='Delete';del.onclick=()=>window.roDeleteSong(item.id);
     head.append(del);card.append(head);
-    if(roIsAudioUrl(item.url)){
-      card.append(roAudioPlayer(item.url,item.id));
+    if(roIsAudioUrl(item.url)||roIsPrivateAudioUrl(item.proxyUrl)){
+      card.append(roAudioPlayer(roIsAudioUrl(item.url)?item.url:item.proxyUrl,item.id,item.proxyUrl));
     }else if(roPendingSong(item)){
       const pending=document.createElement('div');pending.className='ro-song-pending';
       const progress=document.createElement('div');progress.className='ro-song-pending-label';
@@ -885,7 +929,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const existing=new Map(Array.from(root.children).filter(n=>n.dataset?.songId).map(n=>[n.dataset.songId,n]));
     const cards=items.map(item=>{
       const card=existing.get(String(item.id));
-      const sig=JSON.stringify([item.title||'',item.voice||'',roSongStatus(item),item.url||'',!!item.cloudSaved]);
+      const sig=JSON.stringify([item.title||'',item.voice||'',roSongStatus(item),item.url||'',item.proxyUrl||'',!!item.cloudSaved]);
       if(card?.dataset.songSignature===sig)return card;
       const rebuilt=roMakeSongCard(item);
       // Preserve a playing audio element when only the surrounding card needs an update.
@@ -953,7 +997,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
   window.render=function(...args){const result=roBaseRenderWithLibrary.apply(this,args);if(state.page==='studio'){window.roRenderSongLibrary();window.roRefreshMusicCredits?.();}return result};
 
   async function roCloudToken(){return (await sb?.auth.getSession())?.data?.session?.access_token||null}
-  window.roLoadCloudSongs=async function(){
+  window.roLoadCloudSongs=async function({force=false}={}){
     if(window.roCloudSyncRunning)return;
     const token=await roCloudToken();if(!token)return;
     window.roCloudSyncRunning=true;
@@ -971,17 +1015,21 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
         const existing=roLibraryRead().find(x=>x.id===item.id)||{};
         // Never erase an already playable link when a temporary cloud request returns null.
         const url=roIsAudioUrl(item.url)?item.url:(existing.url||null);
-        const status=url?'Cloud saved':(item.status||existing.status||'Pending');
-        const currentUrl=existing.cloudSaved&&existing.url&&existing.signedAt&&
-          (Date.now()-Date.parse(existing.signedAt)<45*60*1000)?existing.url:url;
+        const proxyUrl=roIsPrivateAudioUrl(item.proxyUrl)?item.proxyUrl:(existing.proxyUrl||null);
+        const status=url||proxyUrl?'Cloud saved':(item.status||existing.status||'Pending');
+        const reuseExisting=!force&&existing.cloudSaved&&existing.signedAt&&
+          (Date.now()-Date.parse(existing.signedAt)<45*60*1000);
+        const currentUrl=reuseExisting&&existing.url?existing.url:url;
+        const currentProxyUrl=reuseExisting&&existing.proxyUrl?existing.proxyUrl:proxyUrl;
         roLibraryUpsert(item.id,{
           title:item.title||existing.title||'My AI Song',
           voice:item.voice||existing.voice||'auto',
           status,
           url:currentUrl,
+          proxyUrl:currentProxyUrl,
           cloudSaved:!!item.cloudSaved,
           createdAt:existing.createdAt||item.createdAt||null,
-          signedAt:currentUrl===existing.url?existing.signedAt:new Date().toISOString()
+          signedAt:reuseExisting?existing.signedAt:new Date().toISOString()
         });
       }
       if(state.page==='studio'){
@@ -1008,7 +1056,8 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const response=await fetch('/api/music/library',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({taskId:id,title:details.title||existing.title||'My AI Song',voice:details.voice||existing.voice||'auto'})});
     const result=await response.json().catch(()=>({error:'Cloud save endpoint returned an invalid response (HTTP '+response.status+')'}));
     if(!response.ok){roLibraryUpsert(id,{cloudSaved:false,status:'Cloud save failed'});toast(result.error||'Cloud save failed');return {ok:false,error:result.error||'Cloud save failed'}}
-    roLibraryUpsert(id,{cloudSaved:result.cloudSaved,status:result.cloudSaved?'Cloud saved':'Pending cloud save',url:result.url||existing.url});
+    roLibraryUpsert(id,{cloudSaved:result.cloudSaved,status:result.cloudSaved?'Cloud saved':'Pending cloud save',
+      url:result.url||existing.url,proxyUrl:result.proxyUrl||existing.proxyUrl||null,signedAt:new Date().toISOString()});
     if(result.warning)toast('Cloud backup pending: '+result.warning);
     return {ok:!!result.cloudSaved,warning:result.warning||null};
   };
@@ -1139,7 +1188,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     const name=document.createElement('h3');name.textContent=title;name.style.margin='0 0 6px';
     const subtitle=document.createElement('p');subtitle.className='muted small';
     subtitle.textContent='♫ Your full song is ready. You can also play it in My Generated Songs.';
-    card.append(name,subtitle,roAudioPlayer(url,id));box.append(card);
+    card.append(name,subtitle,roAudioPlayer(url,id,existing.proxyUrl));box.append(card);
     const note=document.createElement('p');note.className='ro-song-note';
     note.setAttribute('role','status');card.append(note);
     if(existing.cloudSaved){note.textContent='✓ Secure cloud backup available.';return}
