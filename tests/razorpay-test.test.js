@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
-import {testPrices,testKeyConfigured,safeHmac,verifyTestCheckoutSignature,handleTestBilling,handleTestWebhook,sandboxGatewayError} from '../api/razorpay-test.js';
+import {testPrices,testKeyConfigured,safeHmac,verifyTestCheckoutSignature,handleTestBilling,handleTestWebhook,sandboxGatewayError,compareSandboxPlan} from '../api/razorpay-test.js';
 
 const keys=['RAZORPAY_TEST_KEY_ID','RAZORPAY_TEST_KEY_SECRET','RAZORPAY_TEST_WEBHOOK_SECRET','RAZORPAY_TEST_PREMIUM_MONTHLY_PLAN_ID','SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY'];
 const data={
@@ -130,5 +130,53 @@ test('Non-admin user cannot run plan diagnosis',async()=>{
   const r=res();
   await handleTestBilling(req('GET','/api/billing/test/diagnose'),r,{...ctx(false),path:'/api/billing/test/diagnose'});
   assert.equal(r.status,403);assert.equal(requests,0);
+ }finally{globalThis.fetch=prior;end()}
+});
+
+test('Mismatch diagnostic shows the exact amount, period, interval and currency without any keys',()=>{
+ const chosen={plan:'premium',cycle:'monthly',planId:'plan_TestPremiumM',pricePaise:59900};
+ const vendor={
+  id:'plan_TestPremiumM',period:'weekly',interval:2,
+  item:{amount:49900,currency:'USD'}
+ };
+ const result=compareSandboxPlan(vendor,chosen);
+ assert.equal(result.match,false);
+ assert.match(result.message,/Amount: expected ₹599\.00, received ₹499\.00/);
+ assert.match(result.message,/Billing period: expected monthly, received weekly/);
+ assert.match(result.message,/Billing interval: expected 1, received 2/);
+ assert.match(result.message,/Currency: expected INR, received USD/);
+ assert.ok(!result.message.includes('plan_TestPremiumM'),'No internal plan ID should be shown');
+});
+test('Correct test price and cycle continue to be verified',()=>{
+ const chosen={plan:'pro',cycle:'monthly',planId:'plan_Valid',pricePaise:129900};
+ const verified=compareSandboxPlan({
+  id:'plan_Valid',period:'monthly',interval:1,item:{amount:129900,currency:'INR'}
+ },chosen);
+ assert.deepEqual(verified.match,true);
+ assert.equal(verified.message,'Verified');
+});
+test('Missing Razorpay fields fail closed without exposing untrusted API content',()=>{
+ const chosen={plan:'premium',cycle:'monthly',planId:'plan_TestPremiumM',pricePaise:59900};
+ const result=compareSandboxPlan({},chosen);
+ assert.equal(result.match,false);
+ assert.match(result.message,/Amount: expected ₹599\.00, received Missing or invalid/);
+ assert.match(result.message,/Billing period: expected monthly, received missing/);
+});
+test('Admin diagnose displays exact sanitized mismatches without triggering a checkout',async()=>{
+ const end=setup(), prior=globalThis.fetch, calls=[];
+ globalThis.fetch=async(url,opts)=>{
+  calls.push({url:String(url),method:opts.method});
+  return {ok:true,async json(){return{
+   id:'plan_TestPremiumM',period:'monthly',interval:1,
+   item:{amount:49900,currency:'INR'}
+  }}};
+ };
+ try{
+  const r=res(),c={...ctx(),path:'/api/billing/test/diagnose'};
+  await handleTestBilling(req('GET','/api/billing/test/diagnose'),r,c);
+  assert.equal(r.status,200);
+  assert.match(r.body.plans[0].result,/Amount: expected ₹599\.00, received ₹499\.00/);
+  assert.deepEqual(calls.map(x=>x.method),['GET']);
+  assert.ok(!JSON.stringify(r.body).includes('plan_TestPremiumM'));
  }finally{globalThis.fetch=prior;end()}
 });

@@ -16,12 +16,36 @@ export const testKeyConfigured=()=>{
  return /^rzp_test_[A-Za-z0-9]+$/.test(k.id)&&k.secret.length>=8&&k.webhook.length>=8;
 };
 const planVar=(plan,cycle)=>'RAZORPAY_TEST_'+plan.toUpperCase()+'_'+cycle.toUpperCase()+'_PLAN_ID';
+/** Explain a plan mismatch without revealing API credentials or full plan IDs. */
+export function compareSandboxPlan(vendor,choice){
+ const expectedPeriod=choice.cycle==='annual'?'yearly':'monthly';
+ const rawAmount=vendor?.item?.amount??vendor?.item?.unit_amount;
+ const receivedAmount=(rawAmount===null||rawAmount===undefined||rawAmount==='')?null:Number(rawAmount);
+ const actualAmount=Number.isSafeInteger(receivedAmount)&&receivedAmount>=0?receivedAmount:null;
+ const actualPeriod=typeof vendor?.period==='string'?vendor.period:'missing';
+ const actualInterval=Number.isSafeInteger(Number(vendor?.interval))?Number(vendor.interval):null;
+ const actualCurrency=typeof vendor?.item?.currency==='string'?vendor.item.currency:'missing';
+ const checks=[
+  {field:'Plan ID mapping',match:vendor?.id===choice.planId,
+   expected:'Selected TEST plan',actual:vendor?.id===choice.planId?'Correct plan':'Different plan'},
+  {field:'Amount',match:actualAmount===choice.pricePaise,
+   expected:'₹'+(choice.pricePaise/100).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}),
+   actual:actualAmount===null?'Missing or invalid':'₹'+(actualAmount/100).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})},
+  {field:'Billing period',match:actualPeriod===expectedPeriod,
+   expected:expectedPeriod,actual:actualPeriod.slice(0,25)},
+  {field:'Billing interval',match:actualInterval===1,
+   expected:'1',actual:actualInterval===null?'Missing or invalid':String(actualInterval)},
+  {field:'Currency',match:actualCurrency==='INR',
+   expected:'INR',actual:actualCurrency.slice(0,10)}
+ ];
+ const failed=checks.filter(x=>!x.match);
+ const message=failed.length
+  ?failed.map(x=>x.field+': expected '+x.expected+', received '+x.actual).join('; ')
+  :'Verified';
+ return {match:failed.length===0,checks,message};
+}
 function planMatchesGateway(vendor,choice){
- const amount=Number(vendor.item?.amount??vendor.item?.unit_amount);
- return vendor.id===choice.planId&&
-  vendor.period===(choice.cycle==='annual'?'yearly':'monthly')&&
-  Number(vendor.interval)===1&&amount===choice.pricePaise&&
-  vendor.item?.currency==='INR';
+ return compareSandboxPlan(vendor,choice).match;
 }
 /** Explicit safe error categories, never expose Razorpay's raw response or credentials. */
 export function sandboxGatewayError(err){
@@ -117,10 +141,11 @@ export async function handleTestBilling(req,res,{path,send,auth,isAdmin,supaFetc
     if(!choice)continue;
     try{
      const vendor=await razorpayRequest('GET','/plans/'+encodeURIComponent(choice.planId));
+     const comparison=compareSandboxPlan(vendor,choice);
      checked.push({
       plan,cycle,
-      match:planMatchesGateway(vendor,choice),
-      result:planMatchesGateway(vendor,choice)?'Verified':'Plan details differ from RhymeOrbit pricing or billing frequency. Check amount and interval in Razorpay.'
+      match:comparison.match,
+      result:comparison.message
      });
     }catch(error){
      checked.push({plan,cycle,match:false,result:sandboxGatewayError(error)});
@@ -156,8 +181,9 @@ export async function handleTestBilling(req,res,{path,send,auth,isAdmin,supaFetc
   let vendorPlan;
   try{vendorPlan=await razorpayRequest('GET','/plans/'+encodeURIComponent(choice.planId))}
   catch(error){send(res,503,{error:sandboxGatewayError(error)});return true}
-  if(!planMatchesGateway(vendorPlan,choice)){
-    send(res,409,{error:'Razorpay test plan amount or billing frequency does not match the pricing page'});
+  const planComparison=compareSandboxPlan(vendorPlan,choice);
+  if(!planComparison.match){
+    send(res,409,{error:'Razorpay TEST plan mismatch: '+planComparison.message});
     return true;
   }
   let subscription;
