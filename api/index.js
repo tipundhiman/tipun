@@ -1,6 +1,6 @@
 
 import { randomUUID, createHmac, timingSafeEqual } from 'node:crypto';
-import { r2Enabled, r2ConfigState, r2Put, r2PresignedGet, r2Remove } from './r2.js';
+import { r2Enabled, r2ConfigState, r2Put, r2PresignedGet, r2Remove, validR2Key } from './r2.js';
 import {handleTestBilling,handleTestWebhook} from './razorpay-test.js';
 
 const env = k => process.env[k] || '';
@@ -71,7 +71,9 @@ async function supaFetch(endpoint, opts = {}) {
 
 
 /** Safe readiness checks: never return secrets or provider credentials. */
-async function musicReadiness() {
+const hasR2Bucket=bucket=>Boolean(bucket&&typeof bucket.get==='function'&&typeof bucket.put==='function'&&typeof bucket.delete==='function');
+const r2Ready=bucket=>hasR2Bucket(bucket)||r2Enabled();
+async function musicReadiness(bucket) {
   const providerReady=Boolean(env('TREBLO_API_KEY'));
   const publicAllowed=env('PUBLIC_MUSIC_GENERATION_ENABLED')!=='false';
   const databaseConfigured=Boolean(config().url&&config().service);
@@ -86,6 +88,7 @@ async function musicReadiness() {
     const check=await Promise.all(paths.map(path=>supaFetch(path).catch(()=>({ok:false}))));
     [quotaTableReady,reservationTableReady,libraryReady,audioStorageReady]=check.map(r=>r.ok);
   }
+  audioStorageReady=audioStorageReady||r2Ready(bucket);
   return {
     providerReady,publicAllowed,databaseConfigured,quotaTableReady,
     reservationTableReady,libraryReady,audioStorageReady,
@@ -96,9 +99,10 @@ async function musicReadiness() {
 async function cloudSongs(userId) {
   return supaFetch('/rest/v1/generated_songs?user_id=eq.'+encodeURIComponent(userId)+'&select=task_id,title,voice,status,storage_path,created_at&order=created_at.desc&limit=100');
 }
-async function signedAudio(path) {
+async function signedAudio(path,bucket) {
   if(!path)return null;
   if(path.startsWith('r2:')){
+    if(hasR2Bucket(bucket))return null; // Native private playback is used in Workers.
     if(!r2Enabled())return null;
     try{return r2PresignedGet(path.slice(3))}catch{return null}
   }
@@ -129,8 +133,8 @@ function verifyAudioToken(taskId,value,now=Math.floor(Date.now()/1000)) {
   const expected=createHmac('sha256',audioTokenKey()).update('ro-audio-v1:'+userId+':'+taskId+':'+expires).digest();
   return timingSafeEqual(expected,Buffer.from(signature,'hex'))?userId:null;
 }
-function privateAudioUrl(userId,taskId,storagePath) {
-  if(!storagePath?.startsWith('r2:')||!r2Enabled()||!/^[a-zA-Z0-9_-]{1,100}$/.test(taskId))return null;
+function privateAudioUrl(userId,taskId,storagePath,bucket) {
+  if(!storagePath?.startsWith('r2:')||!r2Ready(bucket)||!/^[a-zA-Z0-9_-]{1,100}$/.test(taskId))return null;
   return '/api/music/audio/'+encodeURIComponent(taskId)+'?token='+encodeURIComponent(createAudioToken(userId,taskId));
 }
 async function servePrivateAudio(req,res,taskId,token) {
@@ -139,7 +143,9 @@ async function servePrivateAudio(req,res,taskId,token) {
   const found=await supaFetch('/rest/v1/generated_songs?user_id=eq.'+encodeURIComponent(userId)+'&task_id=eq.'+encodeURIComponent(taskId)+'&select=storage_path&limit=1');
   if(!found.ok)return send(res,503,{error:'Private song library unavailable'});
   const storagePath=found.data?.[0]?.storage_path;
-  if(!storagePath?.startsWith('r2:')||!r2Enabled())return send(res,404,{error:'Archived audio not found'});
+  if(!storagePath?.startsWith('r2:')||!r2Ready(req.r2Bucket))return send(res,404,{error:'Archived audio not found'});
+  const key=storagePath.slice(3);
+  if(!validR2Key(key))return send(res,404,{error:'Archived audio not found'});
   const header=String(req.headers.range||'');
   const match=header? /^bytes=(\d+)-(\d*)$/.exec(header):null;
   if(header&&!match)return send(res,416,{error:'Unsupported audio range'});
@@ -148,6 +154,26 @@ async function servePrivateAudio(req,res,taskId,token) {
   if(!Number.isSafeInteger(start)||!Number.isSafeInteger(requestedEnd)||start<0||start>=20_000_000||requestedEnd<start)
     return send(res,416,{error:'Invalid audio range'});
   const end=Math.min(requestedEnd,start+AUDIO_CHUNK_BYTES-1);
+  if(hasR2Bucket(req.r2Bucket)){
+    // Cloudflare's existing R2 binding avoids exposing or provisioning S3 keys.
+    const object=await req.r2Bucket.get(key,{range:{offset:start,length:end-start+1}});
+    if(!object)return send(res,404,{error:'Archived audio not found'});
+    const total=Number(object.size);
+    if(!Number.isSafeInteger(total)||total<=0||total>20_000_000)return send(res,502,{error:'Invalid archived audio size'});
+    if(start>=total)return send(res,416,{error:'Audio range outside file'});
+    const actualEnd=Math.min(end,total-1);
+    const bytes=Buffer.from(await object.arrayBuffer());
+    if(bytes.length!==actualEnd-start+1||bytes.length>AUDIO_CHUNK_BYTES)
+      return send(res,502,{error:'Incomplete private audio response'});
+    const mime=key.endsWith('.ogg')?'audio/ogg':'audio/mpeg';
+    res.writeHead(206,{
+      'Content-Type':mime,'Content-Length':String(bytes.length),
+      'Content-Range':'bytes '+start+'-'+actualEnd+'/'+total,
+      'Accept-Ranges':'bytes','Cache-Control':'private, no-store',
+      'X-Content-Type-Options':'nosniff'
+    });
+    return res.end(bytes);
+  }
   const upstream=await fetch(r2PresignedGet(storagePath.slice(3)),{
     headers:{Range:'bytes='+start+'-'+end},signal:AbortSignal.timeout(16000)
   });
@@ -180,7 +206,7 @@ async function trebleAudio(id) {
   const song=await result.json();
   return (song.song_paths||[]).find(url=>typeof url==='string'&&url.startsWith('https://'))||null;
 }
-async function archiveAudio(userId,id,url) {
+async function archiveAudio(userId,id,url,bucket) {
   const c=config();
   const download=await fetch(url,{signal:AbortSignal.timeout(16000)});
   if(!download.ok)throw Error('Treblo audio download failed');
@@ -191,9 +217,10 @@ async function archiveAudio(userId,id,url) {
   const path=userId+'/'+id+(isOgg?'.ogg':'.mp3');
   const bytes=await download.arrayBuffer();
   if(bytes.byteLength>20_000_000||bytes.byteLength<1000)throw Error('Invalid audio size');
-  if(r2Enabled()){
+  if(r2Ready(bucket)){
     const key='songs/'+userId+'/'+id+(isOgg?'.ogg':'.mp3');
-    await r2Put(key,bytes,isOgg?'audio/ogg':'audio/mpeg');
+    if(hasR2Bucket(bucket))await bucket.put(key,bytes,{httpMetadata:{contentType:isOgg?'audio/ogg':'audio/mpeg'}});
+    else await r2Put(key,bytes,isOgg?'audio/ogg':'audio/mpeg');
     return 'r2:'+key;
   }
   if(r2ConfigState()!=='not-configured')throw new Error('R2 storage configuration incomplete');
@@ -269,7 +296,7 @@ export async function handleApi(req, res) {
     if (req.method === 'GET' && path === '/api/storage/status') {
       const user=await auth(req,res);if(!user)return;
       if(!await isAdmin(user.id))return send(res,403,{error:'Admin only'});
-      return send(res,200,{storageConfigured:r2Enabled(),state:r2ConfigState(),bucket:r2Enabled()?env('R2_BUCKET_NAME'):null,note:'A song upload is required to verify real R2 write access.'});
+      return send(res,200,{storageConfigured:r2Ready(req.r2Bucket),state:hasR2Bucket(req.r2Bucket)?'bound':r2ConfigState(),bucket:r2Ready(req.r2Bucket)?'rhymeorbit-songs':null,note:'A song upload is required to verify real R2 write access.'});
     }
     if (req.method === 'GET' && path === '/api/health') {
       return send(res, 200, {
@@ -302,7 +329,7 @@ export async function handleApi(req, res) {
       });
     }
     if (req.method === 'GET' && path === '/api/music/status') {
-      const checks=await musicReadiness();
+      const checks=await musicReadiness(req.r2Bucket);
       return send(res,200,{
         publicGenerationEnabled:checks.ready,
         supportsVocals:checks.ready,
@@ -337,7 +364,7 @@ export async function handleApi(req, res) {
       if(!found.ok)return send(res,503,{error:'Cloud song library not set up. Run the Supabase migration SQL first.'});
       const items=await Promise.all(found.data.map(async row=>({
         id:row.task_id,title:row.title,voice:row.voice,status:row.status,createdAt:row.created_at,
-        url:await signedAudio(row.storage_path),proxyUrl:privateAudioUrl(user.id,row.task_id,row.storage_path),cloudSaved:!!row.storage_path
+        url:await signedAudio(row.storage_path,req.r2Bucket),proxyUrl:privateAudioUrl(user.id,row.task_id,row.storage_path,req.r2Bucket),cloudSaved:!!row.storage_path
       })));
       return send(res,200,{items});
     }
@@ -360,7 +387,7 @@ export async function handleApi(req, res) {
       let storagePath=existing.data?.[0]?.storage_path||null;
       let warning=null;
       if(!storagePath){
-        try{const url=await trebleAudio(id);if(url)storagePath=await archiveAudio(user.id,id,url);else warning='Treblo song still processing; try recovery again when ready.'}
+        try{const url=await trebleAudio(id);if(url)storagePath=await archiveAudio(user.id,id,url,req.r2Bucket);else warning='Treblo song still processing; try recovery again when ready.'}
         catch(e){warning=e.message||'Audio archival failed'}
       }
       const title=String(data.title||'My AI Song').trim().slice(0,100)||'My AI Song';
@@ -370,7 +397,7 @@ export async function handleApi(req, res) {
         body:JSON.stringify({user_id:user.id,task_id:id,title,voice,status:storagePath?'ready':'pending',storage_path:storagePath})
       });
       if(!save.ok)return send(res,503,{error:'Unable to save cloud song record',detail:save.data?.message});
-      return send(res,200,{id,cloudSaved:!!storagePath,warning,url:await signedAudio(storagePath),proxyUrl:privateAudioUrl(user.id,id,storagePath)});
+      return send(res,200,{id,cloudSaved:!!storagePath,warning,url:await signedAudio(storagePath,req.r2Bucket),proxyUrl:privateAudioUrl(user.id,id,storagePath,req.r2Bucket)});
     }
     if (req.method === 'DELETE' && path === '/api/music/library') {
       if (!rate(req, res)) return;
@@ -384,7 +411,7 @@ export async function handleApi(req, res) {
       const storagePath=found.data[0].storage_path;
       if(storagePath){
         if(storagePath.startsWith('r2:')){
-          try{await r2Remove(storagePath.slice(3))}
+          try{if(hasR2Bucket(req.r2Bucket))await req.r2Bucket.delete(storagePath.slice(3));else await r2Remove(storagePath.slice(3))}
           catch{return send(res,502,{error:'Audio deletion unavailable. Song record was kept.'})}
         }else{
         const c=config();
@@ -410,7 +437,7 @@ export async function handleApi(req, res) {
       if(!rate(req,res))return;
       const user=await auth(req,res);if(!user)return;
       if(!await isAdmin(user.id))return send(res,403,{error:'Admin access required'});
-      const checks=await musicReadiness();
+      const checks=await musicReadiness(req.r2Bucket);
       const blockers=[];
       if(!checks.providerReady)blockers.push('Music provider credential not configured in production');
       if(!checks.publicAllowed)blockers.push('Public song-generation switch is disabled');
@@ -433,7 +460,7 @@ export async function handleApi(req, res) {
       const validEstimate=env('MUSIC_ESTIMATED_COST_PER_SONG_USD')!==''&&Number.isFinite(estimate)&&estimate>=0;
       return send(res,200,{
         isAdmin:true,ready:checks.ready,
-        checks:{...checks,r2StorageState:r2ConfigState(),r2StorageConfigured:r2Enabled()},blockers,month,counts,
+        checks:{...checks,r2StorageState:hasR2Bucket(req.r2Bucket)?'bound':r2ConfigState(),r2StorageConfigured:r2Ready(req.r2Bucket)},blockers,month,counts,
         estimatedCostUsd:validEstimate?Number((counts.submitted*estimate).toFixed(2)):null,
         estimateDisclaimer:'Optional manual estimate based on up to 100 returned tasks; not actual provider billing. Configure MUSIC_ESTIMATED_COST_PER_SONG_USD to enable.'
       });
@@ -561,7 +588,8 @@ export async function handleApi(req, res) {
         response = await fetch('https://api.treblo.com/v1/generations/v3', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + env('TREBLO_API_KEY'), 'Content-Type': 'application/json' },
-        body: JSON.stringify({prompt:instructions,...(isFullLyrics?{lyrics:ideaOrLyrics}:{}),instrumental:false,output_format:'mp3'}),
+        // Keep a high-bitrate source for optional lower-bitrate user downloads.
+        body: JSON.stringify({prompt:instructions,...(isFullLyrics?{lyrics:ideaOrLyrics}:{}),instrumental:false,output_format:'mp3',output_bit_rate:320}),
         signal: AbortSignal.timeout(25000)
       });
       } catch (error) {

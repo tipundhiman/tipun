@@ -60,6 +60,7 @@ test('Public song API enforces 3 credits, ownership, vocal payload and no provid
   assert.equal(idea.body.id,'owned_task');
   assert.equal(providerSubmits[0].instrumental,false);
   assert.equal(providerSubmits[0].output_format,'mp3','New songs should use widely supported MP3 audio');
+  assert.equal(providerSubmits[0].output_bit_rate,320,'Store the highest supported MP3 source bitrate');
   assert.ok(!Object.hasOwn(providerSubmits[0],'lyrics'),'Idea mode must ask provider to write original lyrics');
   const full=await request('POST','/api/music/generate',{lyrics:'[Verse]\nLove is in the air\n[Chorus]\nSing about our lovely day',prompt:'Acoustic song',rightsConfirmed:true});
   assert.equal(full.status,200);
