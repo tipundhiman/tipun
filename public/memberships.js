@@ -6,6 +6,26 @@ const plans=[
  {name:'Premium',monthly:599,annual:549,credits:3500,songs:35,tag:'Most popular',perks:['35 standard AI songs per month (after paid launch)','High-quality MP3 · 256/320 kbps, WAV & original files','Paid creator tools and analytics are not active']},
  {name:'Pro',monthly:1299,annual:1199,credits:7500,songs:75,tag:'For serious creators',perks:['75 standard AI songs per month (after paid launch)','High-quality MP3 · 256/320 kbps, WAV & original files','Paid portfolio and collaboration tools are not active']}
 ];
+const featureMatrix=[
+ ['AI lyrics & Shayari','✓','✓','✓'],
+ ['Riya writing assistant','✓','✓','✓'],
+ ['Full songs with vocals / month','3','35 · planned','75 · planned'],
+ ['Song editor and saved lyric drafts','✓','✓','✓'],
+ ['Make songs from your own lyrics','✓','✓','✓'],
+ ['Basic MP3 downloads · 128/192 kbps','✓','✓','✓'],
+ ['High-quality MP3 · 256/320 kbps','—','Planned','Planned'],
+ ['Lossless WAV downloads','—','Planned','Planned'],
+ ['Animated lyric video maker','✓','✓','✓'],
+ ['Download videos directly to your device','✓','✓','✓'],
+ ['Original background music in videos','✓','✓','✓'],
+ ['Sing-along / Karaoke audio recorder','✓','✓','✓'],
+ ['Vocal recording and noise cleanup','✓','✓','✓'],
+ ['Vocal EQ and experimental pitch assist','✓','✓','✓'],
+ ['Stereo center/side mix split · beta','✓','✓','✓'],
+ ['Creator profile and Community','✓','✓','✓'],
+ ['Priority generation queue','—','Not active','Not active'],
+ ['Advanced AI stem separation','—','Not active','Not active']
+];
 let annual=false;
 const css=document.createElement('style');
 css.textContent=`
@@ -27,6 +47,13 @@ css.textContent=`
 .ro-membership-card ul{padding-left:18px;line-height:1.85;font-size:12px;color:#e0dbe7;min-height:110px}
 .ro-membership-card button{width:100%;padding:12px;border-radius:24px;border:1px solid #b18be9;background:#b18be9;color:#140d1e;font-weight:800}
 .ro-membership-card button:disabled{opacity:.65;cursor:not-allowed}
+.ro-membership-details{margin-top:21px;border:1px solid #ffffff2d;border-radius:16px;padding:12px;background:#ffffff06}
+.ro-membership-details summary{cursor:pointer;padding:10px;font-weight:800;color:#e5c9a2;font-size:15px}
+.ro-membership-matrix-wrap{overflow-x:auto;margin:12px 0 6px}
+.ro-membership-matrix{border-collapse:collapse;width:100%;min-width:550px;font-size:13px;text-align:center}
+.ro-membership-matrix th,.ro-membership-matrix td{padding:12px 10px;border-bottom:1px solid #ffffff1a}
+.ro-membership-matrix th:first-child,.ro-membership-matrix td:first-child{text-align:left;font-weight:700}
+.ro-membership-matrix th{color:#eed8b7}
 @media(max-width:720px){.ro-membership-grid{grid-template-columns:1fr}.ro-membership-card ul{min-height:0}}
 @media(prefers-reduced-motion:reduce){.ro-membership-card{transition:none}.ro-membership-card:hover{transform:none}}
 `;
@@ -191,6 +218,10 @@ function openMemberships(reason){
  <p class="ro-membership-muted">${annual&&p.annual?'₹'+p.annual*12+' billed annually':'Monthly membership'}</p>
  <p><strong>${p.songs} ${i===0?'free':'planned'} songs</strong> / month<br><span class="ro-membership-muted">${i===0?'Free monthly allowance':'Planned allowance after verified paid launch'} · ${p.credits.toLocaleString('en-IN')} planned credits</span></p>
  <ul>${p.perks.map(x=>'<li>'+escapeHTML(x)+'</li>').join('')}</ul><button type="button" disabled>${i===0?'✓ Current free plan':'🔒 Checkout unavailable'}</button></article>`).join('')}</div>
+ <details class="ro-membership-details"><summary>Compare all 18 creator features ↓</summary>
+ <div class="ro-membership-matrix-wrap"><table class="ro-membership-matrix"><thead><tr><th scope="col">Feature</th><th scope="col">Free</th><th scope="col">Premium</th><th scope="col">Pro</th></tr></thead>
+ <tbody>${featureMatrix.map(row=>`<tr>${row.map((value,index)=>`<${index===0?'th scope="row"':'td'}>${escapeHTML(value)}</${index===0?'th':'td'}>`).join('')}</tr>`).join('')}</tbody></table></div>
+ <p class="ro-membership-muted">✓ means the tool is available where supported; provider and account limits still apply. “Planned” means not yet unlocked. “Not active” means not available on any plan. Stereo split and pitch assist are basic browser tools, not neural studio mastering.</p></details>
  <p class="ro-membership-muted" style="text-align:center;margin-top:20px">Free includes 3 songs/month when generation is available. Paid plans are previews, not currently purchasable. Higher quotas and quality downloads activate only with verified server-side memberships after the provider, commercial-rights and billing checks. Annual pricing shown is planned, not a current offer.</p></section>`;
  document.body.appendChild(overlay);
  overlay.querySelector('.ro-membership-close').onclick=()=>overlay.remove();

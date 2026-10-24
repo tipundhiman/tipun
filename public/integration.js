@@ -33,7 +33,7 @@ async function roGenerateAIText(kind,input){
 }
 window.roGenerateAIText=roGenerateAIText;
 let sessionSync=null,sessionSyncUser=null,sessionGeneration=0;
-async function initBackend(){try{const response=await fetch('/api/config');if(!response.ok)throw Error('Authentication config unavailable');const c=await response.json();if(!c.supabaseUrl||!c.supabaseAnonKey){console.info('Backend configuration missing');return}if(!window.supabase){toast('Authentication library unavailable');return}sb=window.supabase.createClient(c.supabaseUrl,c.supabaseAnonKey);remoteReady=true;const {data:{session}}=await sb.auth.getSession();await syncSession(session);sb.auth.onAuthStateChange((event,s)=>{if(event==='PASSWORD_RECOVERY'){state.authMode='change';setTimeout(renderAuth,0)}if(event==='TOKEN_REFRESHED'||(['SIGNED_IN','INITIAL_SESSION'].includes(event)&&state.user?.id&&s?.user?.id===state.user.id))return;setTimeout(()=>syncSession(s),0)});}catch(e){console.error('Backend initialization:',e)}}
+async function initBackend(){try{const response=await fetch('/api/config');if(!response.ok)throw Error('Authentication config unavailable');const c=await response.json();if(!c.supabaseUrl||!c.supabaseAnonKey){console.info('Backend configuration missing');return}if(!window.supabase){toast('Authentication library unavailable');return}sb=window.supabase.createClient(c.supabaseUrl,c.supabaseAnonKey);remoteReady=true;const {data:{session}}=await sb.auth.getSession();await syncSession(session);sb.auth.onAuthStateChange((event,s)=>{if(event==='PASSWORD_RECOVERY'){state.authMode='change';setTimeout(renderAuth,0)}if(event==='TOKEN_REFRESHED'||(['SIGNED_IN','INITIAL_SESSION'].includes(event)&&state.user?.id&&s?.user?.id===state.user.id))return;setTimeout(()=>syncSession(s),0)});}catch(e){console.error('Backend initialization:',e)}finally{window.roBackendReady=true;const target=location.hash.slice(1);let hasGuideTarget=false;try{hasGuideTarget=Boolean(sessionStorage.getItem('ro_guide_target_20261025'));}catch{}if(!hasGuideTarget&&['studio','projects','downloads','profile','match'].includes(target))go(target);window.dispatchEvent(new Event('ro-backend-ready'));}}
 async function syncSession(session){
  if(!remoteReady)return;
  if(!session){sessionGeneration++;sessionSync=null;sessionSyncUser=null;state.user=null;state.projects=[];window.roCloseMemberships?.();window.roRefreshCreatorKitVisibility?.();render();return}
@@ -72,7 +72,7 @@ function roWelcomeBack(){
  const serial=++roWelcomeSerial;
  try{if(window.roCreativeAudio?.speak){
    const say=()=>{if(serial!==roWelcomeSerial||roWelcomedUser!==user.id)return;
-     window.roCreativeAudio.speak(greeting,{lang:'en-IN',rate:.92,pitch:1.12});
+     window.roCreativeAudio.speak(greeting,{lang:'en-IN',rate:1.08,pitch:1.04});
    };
    // Voices may be reported asynchronously after page load. Still speak only once.
    if(window.speechSynthesis?.getVoices().length)say();else setTimeout(say,350);

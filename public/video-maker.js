@@ -24,14 +24,21 @@
   let analyser = null;
   let spectrum = null;
   let previewStarted = performance.now();
+  let previewAudio = null;
+  let previewContext = null;
+  let previewAmbient = null;
   let activeLoad = 0;
   let lyricsBeforeAI = null;
   let videoAuthClient = null;
   let savedSongs = [];
-  let latestVideoBlob = null;
-  let latestVideoName = '';
   let savedVideoObjectUrl = null;
-  let lastVideoSaveError = '';
+  let karaokeRecorder = null;
+  let karaokeBacking = null;
+  let karaokeMic = null;
+  let karaokeContext = null;
+  let karaokeTimer = null;
+  let karaokeObjectUrl = null;
+  let karaokeRecording = null;
   let selectedSongId = null;
   let lyricDraftVersion = 0;
   let transcribing = false;
@@ -91,6 +98,7 @@
       return;
     }
     const ticket = ++activeLoad;
+    stopPreviewSound();
     audioBlob = null;
     audioDuration = 0;
     if (audioUrl) URL.revokeObjectURL(audioUrl);
@@ -125,6 +133,95 @@
       setLoadedBlob(file, file.name.replace(/\.[^.]*$/, ''), file.name);
       if ($('vmAutoTranscribe').checked) transcribeAudio(file);
     }
+  });
+
+  const karaokeStatus = message => {$('vmKaraokeStatus').textContent = message;};
+  function stopKaraokeRecording() {
+    if (karaokeRecorder?.state === 'recording') karaokeRecorder.stop();
+    $('vmKaraokeStop').disabled = true;
+  }
+  async function cleanupKaraokeMedia() {
+    if (karaokeTimer) clearTimeout(karaokeTimer);
+    karaokeTimer = null;
+    karaokeBacking?.pause();
+    karaokeBacking = null;
+    karaokeMic?.getTracks().forEach(track => track.stop());
+    karaokeMic = null;
+    await karaokeContext?.close().catch(() => {});
+    karaokeContext = null;
+    karaokeRecorder = null;
+    $('vmKaraokeStart').disabled = false;
+    $('vmKaraokeStop').disabled = true;
+  }
+  async function startKaraokeRecording() {
+    if (!audioBlob || !audioUrl) {karaokeStatus('First upload your own song or select a saved RhymeOrbit track.');return;}
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder || !window.AudioContext) {
+      karaokeStatus('Recording requires HTTPS and a recent browser such as Chrome or Edge.');return;
+    }
+    if (karaokeRecorder?.state === 'recording') return;
+    const mime = ['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus']
+      .find(type => MediaRecorder.isTypeSupported(type));
+    if (!mime) {karaokeStatus('Audio recording format unavailable in this browser.');return;}
+    $('vmKaraokeStart').disabled = true;
+    $('vmKaraokeDownload').hidden = true;
+    $('vmKaraokeUseVideo').hidden = true;
+    karaokeStatus('Requesting microphone access… please allow it to record your voice.');
+    try {
+      stopPreviewSound();
+      karaokeMic = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
+      karaokeContext = new AudioContext();
+      await karaokeContext.resume();
+      const mix = karaokeContext.createMediaStreamDestination();
+      const backing = new Audio(audioUrl);
+      karaokeBacking = backing;
+      await waitForMetadata(backing);
+      const song = karaokeContext.createMediaElementSource(backing);
+      const musicGain = karaokeContext.createGain();
+      musicGain.gain.value = .72;
+      song.connect(musicGain);musicGain.connect(mix);musicGain.connect(karaokeContext.destination);
+      const mic = karaokeContext.createMediaStreamSource(karaokeMic);
+      const vocalGain = karaokeContext.createGain();
+      vocalGain.gain.value = 1;
+      mic.connect(vocalGain);vocalGain.connect(mix);
+      const chunks = [];
+      const recorder = new MediaRecorder(mix.stream,{mimeType:mime,audioBitsPerSecond:128000});
+      karaokeRecorder = recorder;
+      recorder.ondataavailable = event => {if(event.data.size)chunks.push(event.data);};
+      recorder.onerror = () => karaokeStatus('Microphone recording failed. Please try again.');
+      recorder.onstop = async () => {
+        await cleanupKaraokeMedia();
+        if (!chunks.length) {karaokeStatus('No audio was recorded. Check microphone permissions and try again.');return;}
+        karaokeRecording = new Blob(chunks,{type:mime});
+        if (karaokeObjectUrl) URL.revokeObjectURL(karaokeObjectUrl);
+        karaokeObjectUrl = URL.createObjectURL(karaokeRecording);
+        const ext = mime.includes('mp4') ? 'm4a' : mime.includes('ogg') ? 'ogg' : 'webm';
+        const download = $('vmKaraokeDownload');
+        download.href = karaokeObjectUrl;
+        download.download = 'rhymeorbit-karaoke-' + secureName(audioTitle) + '.' + ext;
+        download.hidden = false;
+        $('vmKaraokeUseVideo').hidden = false;
+        karaokeStatus('🎙 Your duet recording is ready. Download it or turn it into an animated video. Not uploaded to R2.');
+      };
+      backing.addEventListener('ended',stopKaraokeRecording,{once:true});
+      recorder.start(1000);
+      await backing.play();
+      karaokeTimer = setTimeout(stopKaraokeRecording,MAX_VIDEO_SECONDS*1000);
+      $('vmKaraokeStop').disabled = false;
+      karaokeStatus('🔴 Recording your voice + song. Use headphones to prevent echo. Finish within 5 minutes.');
+    } catch (error) {
+      if (karaokeRecorder) karaokeRecorder.onstop = null;
+      await cleanupKaraokeMedia();
+      karaokeStatus('Karaoke could not start: ' + (error.message || 'microphone blocked'));
+    }
+  }
+  $('vmKaraokeStart').addEventListener('click',startKaraokeRecording);
+  $('vmKaraokeStop').addEventListener('click',stopKaraokeRecording);
+  $('vmKaraokeUseVideo').addEventListener('click',()=>{
+    if (!karaokeRecording) return;
+    setLoadedBlob(karaokeRecording,'My Karaoke Performance','my-karaoke-performance');
+    $('vmAudioMode').value = 'auto';
+    setTab('lyrics');
+    status('🎬 Your recorded performance is selected! Add lyrics, pick a character and export your video.');
   });
 
   async function loadSavedSong(selected = null) {
@@ -279,13 +376,21 @@
       savedSongs = (data.items || []).filter(song => song.cloudSaved && song.proxyUrl);
       select.replaceChildren(new Option('Select one of your saved songs', ''));
       for (const song of savedSongs) select.add(new Option(song.title || song.id, song.id));
-      $('vmSongsStatus').textContent = savedSongs.length ? savedSongs.length + ' saved songs ready.' : 'No archived songs found. You can upload your own MP3/WAV instead.';
+      $('vmSongsStatus').textContent = savedSongs.length > 1
+        ? savedSongs.length + ' songs found. Choose a song from the dropdown; we will load lyrics automatically.'
+        : savedSongs.length === 1 ? 'One song found. Loading it and checking lyrics now…'
+          : 'No archived songs found. You can upload your own MP3/WAV instead.';
+      if (savedSongs.length === 1) {select.value = savedSongs[0].id;await loadSavedSong(savedSongs[0]);}
     } catch (error) {
       select.replaceChildren(new Option('Sign in to browse songs', ''));
       $('vmSongsStatus').textContent = error.message;
     }
   }
   $('vmLoadSongs').addEventListener('click', refreshSongs);
+  $('vmMySongs').addEventListener('change',()=>{
+    const selected = savedSongs.find(item => item.id === $('vmMySongs').value);
+    if (selected) loadSavedSong(selected);
+  });
   $('vmSelectSong').addEventListener('click', () => {
     const song = savedSongs.find(item => item.id === $('vmMySongs').value);
     if (!song) { status('Choose a saved song first.'); return; }
@@ -296,39 +401,6 @@
     return (input || 'RhymeOrbit').replace(/[^a-z0-9_-]+/gi, '-').slice(0, 60) || 'RhymeOrbit';
   }
 
-  async function saveVideoToCloud() {
-    if (!latestVideoBlob) { status('Create a video first.'); return; }
-    if (latestVideoBlob.size > 50 * 1024 * 1024) {
-      status('Video is over 50 MB. Download it to your device; private cloud saving has a 50 MB limit.');
-      return;
-    }
-    const saveButton = $('vmSaveAgain');
-    saveButton.disabled = true;
-    status('☁ Saving your finished video privately in Cloudflare R2…');
-    try {
-      const response = await apiRequest('/api/videos/upload', {
-        method: 'POST',
-        headers: {
-          'Content-Type': latestVideoBlob.type.split(';')[0],
-          'x-video-title': secureName(audioTitle).replace(/-/g, ' '),
-          'x-video-duration': String(Math.round(exportTarget))
-        },
-        body: latestVideoBlob
-      });
-      const saved = await response.json();
-      if (!saved.saved) throw Error('Cloud save could not be confirmed.');
-      lastVideoSaveError = '';
-      $('vmFormatNote').textContent += ' · ✓ Saved privately in Cloudflare R2';
-      saveButton.hidden = true;
-      status('✓ Video ready and saved to My Videos in Cloudflare R2. You can download it anytime.');
-      refreshVideos();
-    } catch (error) {
-      lastVideoSaveError = error.message;
-      status('Video ready on this device, but cloud save failed: ' + error.message + ' Use Download now or retry Save.');
-    } finally { saveButton.disabled = false; }
-  }
-  $('vmSaveAgain').addEventListener('click', saveVideoToCloud);
-
   async function refreshVideos() {
     const library = $('vmVideoLibrary');
     library.textContent = 'Loading private cloud videos…';
@@ -336,9 +408,7 @@
       const data = await (await apiRequest('/api/videos')).json();
       library.replaceChildren();
       if (!data.items?.length) {
-        library.textContent = lastVideoSaveError
-          ? 'No videos saved yet. Your most recent cloud upload failed: ' + lastVideoSaveError + '. Return to Export and retry Save.'
-          : 'No videos in R2 yet. Create one and confirm that “Save to My Videos” completed successfully.';
+        library.textContent = 'No earlier saved videos in R2. New videos are downloaded directly to your device and are not stored here.';
         return;
       }
       for (const video of data.items) {
@@ -394,6 +464,7 @@
   $('vmRefreshVideos').addEventListener('click', refreshVideos);
   $('vmTabVideos').addEventListener('click', refreshVideos);
   if (location.hash === '#videos') { setTab('videos'); refreshVideos(); }
+  if (location.hash === '#karaoke') { setTab('music'); $('vmKaraoke').open = true; }
   async function generateLyrics() {
     const idea = $('vmIdea').value.trim();
     if (idea.length < 5) { setTab('lyrics'); status('Describe your idea in at least five characters first.'); $('vmIdea').focus(); return; }
@@ -622,12 +693,48 @@
       .reduce((sum, n) => sum + n, 0);
     return clamp(total / (Math.max(1, Math.floor(spectrum.length / 3)) * 165), .1, 1);
   }
+  function stopPreviewSound() {
+    previewAudio?.pause();
+    previewAudio = null;
+    previewAmbient?.stop();
+    previewAmbient = null;
+    previewContext?.close().catch(() => {});
+    previewContext = null;
+    $('vmPreviewSound').textContent = '♫ Hear preview with sound';
+    $('vmPreviewSoundStatus').textContent = 'Tap to hear your song or free instrumental';
+  }
+  async function togglePreviewSound() {
+    if (previewAudio || previewAmbient) {stopPreviewSound();return;}
+    if ($('vmAudioMode').value === 'silent') {
+      $('vmPreviewSoundStatus').textContent = 'Silent mode is selected. Choose song or instrumental to hear audio.';
+      return;
+    }
+    try {
+      if (useSelectedSong()) {
+        const player = new Audio(audioUrl);
+        player.loop = true;
+        await player.play();
+        previewAudio = player;
+      } else {
+        if (!window.roCreativeAudio?.createAmbientMusic) throw Error('Free music synthesizer unavailable. Refresh the page.');
+        previewContext = new AudioContext();
+        await previewContext.resume();
+        previewAmbient = window.roCreativeAudio.createAmbientMusic(previewContext,previewContext.destination,{mood:$('vmMusicMood').value});
+      }
+      previewStarted = performance.now();
+      $('vmPreviewSound').textContent = '🔇 Mute preview';
+      $('vmPreviewSoundStatus').textContent = previewAudio ? 'Playing your selected song' : 'Playing free original instrumental';
+    } catch (error) {stopPreviewSound();$('vmPreviewSoundStatus').textContent = 'Sound could not start: ' + (error.message || 'browser blocked audio');}
+  }
+  $('vmPreviewSound').addEventListener('click',togglePreviewSound);
+  $('vmAudioMode').addEventListener('change',stopPreviewSound);
+  $('vmMusicMood').addEventListener('change',stopPreviewSound);
   function drawLoop() {
     if (exporting) {
       const seconds = exportAudio ? exportAudio.currentTime : (performance.now() - exportStartedAt) / 1000;
       drawVideo(Math.min(exportTarget - .001, seconds), playbackStrength());
     } else if (!document.hidden) {
-      const seconds = ((performance.now() - previewStarted) / 1000) % videoDuration();
+      const seconds = previewAudio ? previewAudio.currentTime : ((performance.now() - previewStarted) / 1000) % videoDuration();
       drawVideo(seconds, .32);
     }
     requestAnimationFrame(drawLoop);
@@ -653,7 +760,9 @@
     if (!window.MediaRecorder) return '';
     // Never label a WebM as MP4: record MP4 only when the browser supports a
     // real MP4 container and compatible codecs, otherwise use a valid WebM.
-    const withAudio = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus'];
+    // Prefer the widely supported WebM + Opus pair to avoid silent MP4 exports
+    // on browsers that claim generic MP4 support without an audio encoder.
+    const withAudio = ['video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9,opus', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2'];
     const silent = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8'];
     return [...(hasAudio ? withAudio : silent), 'video/webm']
       .find(type => MediaRecorder.isTypeSupported(type)) || '';
@@ -676,6 +785,8 @@
   }
   async function exportVideo() {
     if (exporting) return;
+    stopPreviewSound();
+    stopKaraokeRecording();
     const hasSongAudio = useSelectedSong();
     const hasAmbientAudio = !hasSongAudio && $('vmAudioMode').value !== 'silent';
     const hasAudio = hasSongAudio || hasAmbientAudio;
@@ -712,6 +823,8 @@
         const dest = exportContext.createMediaStreamDestination();
         source.connect(analyser);
         analyser.connect(dest);
+        // Also monitor locally while recording so people can hear their song.
+        analyser.connect(exportContext.destination);
         const audioTrack = dest.stream.getAudioTracks()[0];
         if (!audioTrack) throw Error('Browser audio capture is unavailable.');
         exportStream.addTrack(audioTrack);
@@ -720,14 +833,17 @@
         exportContext = new AudioContext();
         await exportContext.resume();
         const dest = exportContext.createMediaStreamDestination();
-        exportAmbient = window.roCreativeAudio.createAmbientMusic(exportContext, dest);
+        const monitor = exportContext.createGain();
+        monitor.gain.value = .75;
+        exportAmbient = window.roCreativeAudio.createAmbientMusic(exportContext, monitor,{mood:$('vmMusicMood').value});
+        monitor.connect(dest);
+        monitor.connect(exportContext.destination);
         const audioTrack = dest.stream.getAudioTracks()[0];
         if (!audioTrack) throw Error('Instrumental audio capture is unavailable.');
         exportStream.addTrack(audioTrack);
       }
       const chunks = [];
-      // Keep longer animated videos small enough for the private 50 MB R2 cap.
-      // Browsers may not honor an exact bit rate, so saving still checks size.
+      // Limit browser memory and the user's eventual download size.
       const targetBitsPerSecond = Math.floor(37 * 1024 * 1024 * 8 / exportTarget);
       const videoBitRate = clamp(targetBitsPerSecond - (hasAudio ? 160000 : 0), 540000, 2600000);
       recorder = new MediaRecorder(exportStream, {
@@ -741,20 +857,18 @@
         if (!chunks.length) { status('No video was captured. Try again in desktop Chrome or Edge.'); return; }
         if (downloadUrl) URL.revokeObjectURL(downloadUrl);
         const blob = new Blob(chunks, { type: actualMime });
-        latestVideoBlob = blob;
         downloadUrl = URL.createObjectURL(blob);
         const ext = actualMime.includes('mp4') ? 'mp4' : 'webm';
         const name = secureName(audioTitle || sourceName || 'RhymeOrbit');
-        latestVideoName = name;
         const link = $('vmDownloadLink');
         link.href = downloadUrl;
         link.download = (name || 'RhymeOrbit') + '-' + Math.round(exportTarget) + 's-video.' + ext;
         link.textContent = '↓ Download ' + ext.toUpperCase() + ' video';
         $('vmFormatNote').textContent = 'Export completed locally · ' + (blob.size / 1048576).toFixed(1) + ' MB. Format: ' + ext.toUpperCase() + (ext === 'webm' ? ' (this browser did not support MP4 recording).' : '.');
         $('vmDownloadResult').hidden = false;
-        $('vmSaveAgain').hidden = false;
-        status('Your animated video is ready. Download it or save it privately in My Videos.');
-        if ($('vmAutoSave').checked) saveVideoToCloud();
+        status('Your animated video is ready. Download it now: this file is not saved on our servers.');
+        const popup = $('vmLocalNotice');
+        if (popup && typeof popup.showModal === 'function' && !popup.open)popup.showModal();
       };
       recorder.onerror = () => { status('Browser video recorder failed.'); };
       exporting = true;
@@ -782,11 +896,18 @@
     }
   }
   $('vmExport').addEventListener('click', exportVideo);
+  $('vmNoticeDownload').addEventListener('click',()=>{$('vmLocalNotice').close();$('vmDownloadLink').click();});
+  $('vmNoticeOk').addEventListener('click',()=>$('vmLocalNotice').close());
   $('vmStop').addEventListener('click', () => {
     if (recorder?.state === 'recording') recorder.stop();
     status('Export stopped. Any captured portion will still be available to download.');
   });
   window.addEventListener('pagehide', () => {
+    stopPreviewSound();
+    if (karaokeRecorder) karaokeRecorder.onstop = null;
+    stopKaraokeRecording();
+    cleanupKaraokeMedia();
+    if (karaokeObjectUrl) URL.revokeObjectURL(karaokeObjectUrl);
     exportAudio?.pause();
     exportStream?.getTracks().forEach(track => track.stop());
     if (audioUrl) URL.revokeObjectURL(audioUrl);

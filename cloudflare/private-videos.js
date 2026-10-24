@@ -140,7 +140,9 @@ export async function handlePrivateVideoRequest(request, env) {
   try {
     const user = await userFor(request, env);
     if (!user) return reply(401, { error: 'Please sign in with a verified account' });
-    if (path === '/api/videos/upload') return upload(request, env, user);
+    // Video exports are now device-only. Keep older videos readable and deletable,
+    // but refuse even authenticated uploads to prevent unexpected R2 storage costs.
+    if (path === '/api/videos/upload') return reply(410, { error: 'Cloud video saving is disabled. Download your finished video to your device.' });
     if (file) return mediaFile(request, env, user, file[1], file[2]);
     if (path === '/api/videos') {
       if (request.method !== 'GET') return reply(405, { error: 'Use GET' });

@@ -43,27 +43,27 @@ test('Non-video routes fall through to the existing backend', async () => {
   assert.equal(await handlePrivateVideoRequest(call('/api/health'), {}), null);
 });
 
-test('Private video uploads require a verified user and reject oversized objects', async t => {
+test('New private video uploads are disabled; older private videos are preserved', async t => {
   const { env, objects } = fixture(t);
   const payload = new Blob(['this is a private video'.repeat(100)], { type: 'video/webm' });
   const headers = { 'content-type': 'video/webm', 'content-length': String(payload.size), 'x-video-title': 'My Song', 'x-video-duration': '50' };
   assert.equal((await handlePrivateVideoRequest(call('/api/videos/upload', 'POST', headers, payload), env)).status, 401);
   assert.equal((await handlePrivateVideoRequest(call('/api/videos/upload', 'POST', { ...headers, authorization: 'Bearer unverified' }, payload), env)).status, 401);
   assert.equal(objects.size, 0);
-  assert.equal((await handlePrivateVideoRequest(call('/api/videos/upload', 'POST', { ...headers, authorization: 'Bearer a', 'content-length': String(51 * 1024 * 1024) }, payload), env)).status, 413);
+  const blocked = await handlePrivateVideoRequest(call('/api/videos/upload', 'POST', { ...headers, authorization: 'Bearer a', 'content-length': String(51 * 1024 * 1024) }, payload), env);
+  assert.equal(blocked.status, 410);
+  assert.match((await blocked.json()).error, /Download/);
   assert.equal(objects.size, 0);
 });
 
-test('Video is stored privately in R2, listed only by owner, supports ranges and deletion', async t => {
+test('Earlier R2 videos remain owner-only, readable by range, and deletable', async t => {
   const { env, objects } = fixture(t);
-  const payload = new Blob(['y'.repeat(2400)], { type: 'video/mp4' });
-  const uploaded = await handlePrivateVideoRequest(call('/api/videos/upload', 'POST', {
-    authorization: 'Bearer a', 'content-type': 'video/mp4', 'content-length': String(payload.size),
-    'x-video-title': 'My Finished Video', 'x-video-duration': '120'
-  }, payload), env);
-  assert.equal(uploaded.status, 201);
-  const info = await uploaded.json();
-  assert.match(info.url, /^\/api\/videos\/file\/[a-f0-9-]+\.mp4$/);
+  const id = '3e859cad-871d-45d7-8483-c9ac0e868634';
+  const url = '/api/videos/file/' + id + '.mp4';
+  objects.set('videos/' + firstUser + '/' + id + '.mp4', {
+    bytes: new Uint8Array(2400).fill(121), metadata: { title: 'My Finished Video', duration: '120' },
+    type: 'video/mp4', uploaded: new Date()
+  });
   assert.equal(objects.size, 1);
   assert.ok([...objects.keys()][0].startsWith('videos/' + firstUser + '/'));
   const myList = await (await handlePrivateVideoRequest(call('/api/videos', 'GET', { authorization: 'Bearer a' }), env)).json();
@@ -72,24 +72,24 @@ test('Video is stored privately in R2, listed only by owner, supports ranges and
   assert.equal(myList.items[0].title, 'My Finished Video');
   const strangers = await (await handlePrivateVideoRequest(call('/api/videos', 'GET', { authorization: 'Bearer b' }), env)).json();
   assert.equal(strangers.items.length, 0);
-  const blocked = await handlePrivateVideoRequest(call(info.url, 'GET', { authorization: 'Bearer b' }), env);
+  const blocked = await handlePrivateVideoRequest(call(url, 'GET', { authorization: 'Bearer b' }), env);
   assert.equal(blocked.status, 404);
-  const range = await handlePrivateVideoRequest(call(info.url, 'GET', { authorization: 'Bearer a', range: 'bytes=10-20' }), env);
+  const range = await handlePrivateVideoRequest(call(url, 'GET', { authorization: 'Bearer a', range: 'bytes=10-20' }), env);
   assert.equal(range.status, 206);
   assert.equal(range.headers.get('content-range'), 'bytes 10-20/2400');
   assert.equal((await range.arrayBuffer()).byteLength, 11);
-  const removal = await handlePrivateVideoRequest(call('/api/videos/delete', 'POST', { authorization: 'Bearer a', 'content-type': 'application/json' }, JSON.stringify({ id: info.id, format: 'mp4' })), env);
+  const removal = await handlePrivateVideoRequest(call('/api/videos/delete', 'POST', { authorization: 'Bearer a', 'content-type': 'application/json' }, JSON.stringify({ id, format: 'mp4' })), env);
   assert.equal(removal.status, 200);
   assert.equal(objects.size, 0);
 });
 
-test('Browser video uploads work when Content-Length is absent', async t => {
+test('No-content-length browser uploads are also disabled', async t => {
   const { env, objects } = fixture(t);
   const payload = new Blob(['z'.repeat(3200)], { type: 'video/webm' });
   const upload = await handlePrivateVideoRequest(call('/api/videos/upload', 'POST', {
     authorization: 'Bearer a', 'content-type': 'video/webm',
     'x-video-title': 'Chrome export', 'x-video-duration': '30'
   }, payload), env);
-  assert.equal(upload.status, 201);
-  assert.equal(objects.size, 1);
+  assert.equal(upload.status, 410);
+  assert.equal(objects.size, 0);
 });

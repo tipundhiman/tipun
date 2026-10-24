@@ -11,9 +11,13 @@ test('Video maker can export with original instrumental or muted sound without a
   assert.match(html, /id="vmAudioMode"/);
   assert.match(html, /value="ambient"/);
   assert.match(html, /value="silent"/);
-  assert.match(video, /createAmbientMusic\(exportContext, dest\)/);
+  assert.match(video, /createAmbientMusic\(exportContext, monitor,\{mood:/);
   assert.match(video, /exportStream\.addTrack\(audioTrack\)/);
   assert.match(video, /exportAmbient\?\.stop\(\)/);
+  assert.match(video, /monitor\.connect\(dest\)/);
+  assert.match(video, /monitor\.connect\(exportContext\.destination\)/);
+  assert.match(html, /id="vmMusicMood"/);
+  for (const mood of ['romantic','dreamy','happy','calm']) assert.match(html,new RegExp('value="'+mood+'"'));
   assert.doesNotMatch(music, /\/api\/music\/generate|TREBLO_API_KEY|NVIDIA_API_KEY/);
 });
 

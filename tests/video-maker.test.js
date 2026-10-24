@@ -25,7 +25,7 @@ test('Full-song output uses repeating ten-second animated lyric scenes up to fiv
 
 test('Video export runs locally, accepts private songs safely and never calls a GPU trial API', () => {
   assert.match(page, /not AI-generated cinematic footage/);
-  assert.match(page, /Audio is sent to Gemini only when transcription is enabled or requested/);
+  assert.match(page, /Audio is sent to Gemini only if you request transcription/);
   assert.match(page, /id="vmAutoTranscribe"/);
   assert.match(script, /apiRequest\('\/api\/lyrics\/transcribe'/);
   assert.match(script, /apiRequest\('\/api\/music\/lyrics'/);
@@ -62,15 +62,27 @@ test('Without a song users can export a silent lyric video and select cartoon pr
   assert.match(script, /const seconds = exportAudio \? exportAudio\.currentTime : \(performance\.now\(\) - exportStartedAt\) \/ 1000/);
 });
 
-test('MP4 is preferred and private videos require authentication before R2 saving', () => {
-  assert.match(page, /id="vmAutoSave"/);
+test('New video exports stay on the device while earlier R2 files remain readable', () => {
+  assert.doesNotMatch(page, /id="vmAutoSave"/);
   assert.match(page, /id="vmMySongs"/);
   assert.match(page, /id="vmVideoLibrary"/);
-  assert.match(script, /const withAudio = \['video\/mp4;codecs=/);
+  assert.match(script, /const withAudio = \['video\/webm;codecs=vp8,opus'/);
   assert.match(script, /apiRequest\('\/api\/music\/library'/);
-  assert.match(script, /apiRequest\('\/api\/videos\/upload'/);
+  assert.doesNotMatch(script, /apiRequest\('\/api\/videos\/upload'/);
   assert.match(script, /apiRequest\('\/api\/videos'/);
-  assert.match(script, /latestVideoBlob\.type\.split\(';'\)/);
+  assert.match(page, /id="vmLocalNotice"/);
+  assert.match(page, /not uploaded or saved/);
+  assert.match(script, /popup\.showModal\(\)/);
+});
+
+test('Free sing-along records microphone and owned music into a local audio download', () => {
+  assert.match(page, /id="vmKaraoke"/);
+  assert.match(page, /id="vmKaraokeDownload"/);
+  assert.match(script, /navigator\.mediaDevices\.getUserMedia/);
+  assert.match(script, /mic\.connect\(vocalGain\);vocalGain\.connect\(mix\)/);
+  assert.match(script, /song\.connect\(musicGain\);musicGain\.connect\(mix\)/);
+  assert.match(script, /karaokeRecording = new Blob\(chunks/);
+  assert.match(script, /setLoadedBlob\(karaokeRecording/);
 });
 
 test('Video-maker discovery URLs are indexable and included in the existing sitemap', () => {
