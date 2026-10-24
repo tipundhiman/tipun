@@ -252,7 +252,7 @@ export async function handleApi(req, res) {
       const found=await cloudSongs(user.id);
       if(!found.ok)return send(res,503,{error:'Cloud song library not set up. Run the Supabase migration SQL first.'});
       const items=await Promise.all(found.data.map(async row=>({
-        id:row.task_id,title:row.title,voice:row.voice,status:row.status,
+        id:row.task_id,title:row.title,voice:row.voice,status:row.status,createdAt:row.created_at,
         url:await signedAudio(row.storage_path),cloudSaved:!!row.storage_path
       })));
       return send(res,200,{items});
