@@ -352,10 +352,13 @@ export async function handleApi(req, res) {
       const s = subscription.data?.[0];
       const u = usage.data?.[0];
       const active = !s || (s.status === 'active' && (!s.expires_at || Date.parse(s.expires_at) > Date.now()));
+      // Only the server-verified, active subscription grants premium downloads.
+      // Never trust user-editable profile metadata or a client-supplied plan.
+      const downloadHighQuality = Boolean(s && active && ['premium', 'pro'].includes(s.plan));
       const limit = !active ? 0 : 3;
       const used = u?.songs_used || 0;
       const reserved = u?.songs_reserved || 0;
-      return send(res, 200, { plan: s?.plan || 'free', monthlyLimit: limit, used, reserved, remaining: Math.max(0, limit - used - reserved), monthStart: month });
+      return send(res, 200, { plan: s?.plan || 'free', downloadHighQuality, monthlyLimit: limit, used, reserved, remaining: Math.max(0, limit - used - reserved), monthStart: month });
     }
 
     if (req.method === 'GET' && path === '/api/music/library') {

@@ -52,6 +52,7 @@ test('Public song API enforces 3 credits, ownership, vocal payload and no provid
   assert.equal(credits.status,200);
   assert.equal(credits.body.monthlyLimit,3);
   assert.equal(credits.body.remaining,3);
+  assert.equal(credits.body.downloadHighQuality,true,'An active Premium subscription unlocks high quality');
   const unconfirmed=await request('POST','/api/music/generate',{lyrics:'A sweet Hindi love song about the rain'});
   assert.equal(unconfirmed.status,400,'Copyright declaration is required');
   assert.equal(reservations,0,'No credits charged without rights confirmation');
@@ -93,5 +94,34 @@ test('Public song API enforces 3 credits, ownership, vocal payload and no provid
  }finally{
   globalThis.fetch=originalFetch;
   for(const k of keys){if(old[k]===undefined)delete process.env[k];else process.env[k]=old[k]}
+ }
+});
+
+test('High-quality download entitlement is only granted for active, unexpired Premium/Pro subscriptions',async()=>{
+ const originalFetch=globalThis.fetch,old={};
+ const keys=['SUPABASE_URL','SUPABASE_ANON_KEY','SUPABASE_SERVICE_ROLE_KEY'];
+ for(const k of keys)old[k]=process.env[k];
+ Object.assign(process.env,{SUPABASE_URL:'https://database.test',SUPABASE_ANON_KEY:'mock-anon',SUPABASE_SERVICE_ROLE_KEY:'mock-service'});
+ let record={plan:'free',status:'active',expires_at:null};
+ globalThis.fetch=async url=>{
+   const u=String(url);
+   if(u.includes('/auth/v1/user'))return response({id:'user-a'});
+   if(u.includes('/rest/v1/subscriptions'))return response([record]);
+   if(u.includes('/rest/v1/music_usage'))return response([{songs_used:0,songs_reserved:0}]);
+   throw Error('Unexpected request: '+u);
+ };
+ try{
+   assert.equal((await request('GET','/api/music/credits')).body.downloadHighQuality,false);
+   record={plan:'premium',status:'active',expires_at:null};
+   assert.equal((await request('GET','/api/music/credits')).body.downloadHighQuality,true);
+   record={plan:'pro',status:'active',expires_at:new Date(Date.now()+86400000).toISOString()};
+   assert.equal((await request('GET','/api/music/credits')).body.downloadHighQuality,true);
+   record={plan:'premium',status:'canceled',expires_at:null};
+   assert.equal((await request('GET','/api/music/credits')).body.downloadHighQuality,false);
+   record={plan:'pro',status:'active',expires_at:'2020-01-01T00:00:00Z'};
+   assert.equal((await request('GET','/api/music/credits')).body.downloadHighQuality,false);
+ }finally{
+   globalThis.fetch=originalFetch;
+   for(const k of keys){if(old[k]===undefined)delete process.env[k];else process.env[k]=old[k]}
  }
 });
