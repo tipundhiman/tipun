@@ -176,7 +176,7 @@
     }
     const { data, error } = await videoAuthClient.auth.getSession();
     if (error) throw Error('Could not verify your session. Sign in again on RhymeOrbit.');
-    if (!data?.session?.access_token) throw Error('Sign in to RhymeOrbit first, then return here to generate AI lyrics.');
+    if (!data?.session?.access_token) throw Error('Sign in to RhymeOrbit first to use AI, browse songs, or open your private My Videos library.');
     return data.session.access_token;
   }
 
@@ -629,8 +629,12 @@
         exportStream.addTrack(audioTrack);
       }
       const chunks = [];
+      // Keep longer animated videos small enough for the private 50 MB R2 cap.
+      // Browsers may not honor an exact bit rate, so saving still checks size.
+      const targetBitsPerSecond = Math.floor(37 * 1024 * 1024 * 8 / exportTarget);
+      const videoBitRate = clamp(targetBitsPerSecond - (hasAudio ? 160000 : 0), 540000, 2600000);
       recorder = new MediaRecorder(exportStream, {
-        mimeType: mime, videoBitsPerSecond: 2600000, audioBitsPerSecond: 160000
+        mimeType: mime, videoBitsPerSecond: videoBitRate, audioBitsPerSecond: 160000
       });
       recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
       recorder.onstop = () => {
