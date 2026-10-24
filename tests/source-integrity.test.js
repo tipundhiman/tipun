@@ -118,6 +118,24 @@ test('Public landing animations remain accessible and video search has a working
  assert.match(fallback,/https:\/\/www\.youtube\.com\/results\?search_query=/);
  assert.match(fallback,/rel='noopener noreferrer'/);
 });
+test('Dedicated search landing pages provide accurate, indexable creator flows',()=>{
+ const sitemap=read('public/sitemap.xml');
+ const styles=read('public/landing.css');
+ assert.match(styles,/prefers-reduced-motion:reduce/);
+ for(const name of ['ai-song-generator','ai-lyrics-generator','shayari-generator']){
+  const page=read('public/'+name+'.html');
+  const canonical='https://rhymeorbit.in/'+name;
+  assert.ok(sitemap.includes('<loc>'+canonical+'</loc>'),name+' missing from sitemap');
+  assert.ok(page.includes('rel="canonical" href="'+canonical+'"'),name+' missing clean canonical');
+  assert.match(page,/<title>[^<]+RhymeOrbit<\/title>/);
+  assert.match(page,/<meta name="description" content="[^"]+">/);
+  assert.match(page,/href="\/#studio"/);
+  assert.match(page,/href="\/landing.css"/);
+  assert.ok(html.includes('/'+name),'Homepage must link to '+name);
+ }
+ assert.match(read('public/ai-song-generator.html'),/Commercial rights are not automatically granted/);
+ assert.match(read('public/ai-lyrics-generator.html'),/provider capacity and usage controls/);
+});
 test('No fictional demo catalog or old assistant name is visible in main UI',()=>{
  assert.doesNotMatch(html,/YOUR CREATIVE SPACE/);
  assert.doesNotMatch(html,/FEATURED DEMO CREATOR/);
