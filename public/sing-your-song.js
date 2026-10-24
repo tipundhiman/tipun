@@ -58,14 +58,17 @@ const search=$('ssSearch');
 const language=$('ssLanguage');
 function filterSongs(){
   const query=search.value.trim().toLocaleLowerCase();
-  let count=0;
+  let count=0,firstMatch=null,selectionVisible=false;
   for(const button of list.children){
     const song=SONGS.find(entry=>entry.id===button.dataset.id);
     const matches=(!query||[song.title,song.subtitle,...song.lyrics].join(' ').toLocaleLowerCase().includes(query)) &&
       (language.value==='all'||song.subtitle.toLocaleLowerCase().startsWith(language.value));
     button.hidden=!matches;
-    if(matches)count++;
+    if(matches){count++;firstMatch ||= song;if(song===selected)selectionVisible=true;}
   }
+  // Avoid a hidden previous selection playing a different song from the search.
+  if(firstMatch&&!selectionVisible&&!running)chooseSong(firstMatch);
+  if(!running){$('ssListen').disabled=!count;$('ssStart').disabled=!count;}
   safeStatus('ssSearchInfo',count?count+' of '+SONGS.length+' original songs shown.':'No licensed song found in our current 4-track library. Try Hindi, English, or another title.');
 }
 search.addEventListener('input',filterSongs);
@@ -132,6 +135,9 @@ function listen() {startSong(false);}
 async function sing() {await startSong(true);}
 async function startSong(record) {
   if(running)stopSession();
+  if(!Array.from(list.children).some(button=>!button.hidden)){
+    safeStatus('ssStatus','No matching practice song. Clear the search or choose a listed track.');return;
+  }
   if(!window.AudioContext){safeStatus('ssStatus','This browser does not support Web Audio. Try updated Chrome, Edge or Safari.');return;}
   if(record && (!navigator.mediaDevices?.getUserMedia||!mimeType())){
     safeStatus('ssStatus','Microphone/recording unavailable. Use HTTPS and a recent browser.');return;
@@ -208,7 +214,8 @@ function stopSession() {
   session.mic?.getTracks().forEach(track=>track.stop());
   if(session.recorder?.state==='recording')session.recorder.stop();
   session.ctx.close().catch(()=>{});
-  $('ssStart').disabled=false;$('ssListen').disabled=false;$('ssStop').disabled=true;
+  const hasSongs=Array.from(list.children).some(button=>!button.hidden);
+  $('ssStart').disabled=!hasSongs;$('ssListen').disabled=!hasSongs;$('ssStop').disabled=true;
   $('ssCoachStart').disabled=false;$('ssCoachStop').disabled=true;
   if(session.type==='song'){$('ssSongMicLevel').style.width='0%';}
   else {$('ssCoachMicLevel').style.width='0%';}

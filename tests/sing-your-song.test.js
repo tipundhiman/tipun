@@ -72,6 +72,8 @@ test('Karaoke search labels reflect the licensed four-track library',()=>{
   assert.match(page,/id="ssSearch"/);
   assert.match(page,/id="ssLanguage"/);
   assert.match(script,/filterSongs/);
+  assert.match(script,/if\(firstMatch&&!selectionVisible&&!running\)chooseSong\(firstMatch\)/);
+  assert.match(script,/if\(!running\)\{\$\('ssListen'\)\.disabled=!count/);
   assert.match(page,/only 4 original|current 4 original/);
 });
 
