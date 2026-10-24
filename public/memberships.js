@@ -2,9 +2,9 @@
 (function(){
 'use strict';
 const plans=[
- {name:'Free',monthly:0,annual:0,credits:300,songs:3,tag:'Start your orbit',perks:['Unlimited AI lyrics & Shayari (provider limits apply)','Community & Vibe Match','3 AI songs per calendar month']},
- {name:'Premium',monthly:599,annual:549,credits:3500,songs:35,tag:'Most popular',perks:['35 standard AI songs per month','Paid creator tools are not active','Paid analytics are not active']},
- {name:'Pro',monthly:1299,annual:1199,credits:7500,songs:75,tag:'For serious creators',perks:['75 standard AI songs per month','Paid portfolio tools are not active','Paid collaboration tools are not active']}
+ {name:'Free',monthly:0,annual:0,credits:300,songs:3,tag:'Start your orbit',perks:['Unlimited AI lyrics & Shayari (provider limits apply)','Community & Vibe Match','3 AI songs per calendar month','MP3 downloads · 128/192 kbps']},
+ {name:'Premium',monthly:599,annual:549,credits:3500,songs:35,tag:'Most popular',perks:['35 standard AI songs per month (after paid launch)','High-quality MP3 · 256/320 kbps, WAV & original files','Paid creator tools and analytics are not active']},
+ {name:'Pro',monthly:1299,annual:1199,credits:7500,songs:75,tag:'For serious creators',perks:['75 standard AI songs per month (after paid launch)','High-quality MP3 · 256/320 kbps, WAV & original files','Paid portfolio and collaboration tools are not active']}
 ];
 let annual=false;
 const css=document.createElement('style');
