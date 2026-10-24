@@ -1,14 +1,14 @@
 /*
  * Jamendo read-only catalog integration.
  * Client ID is sufficient for search; the OAuth client secret must never reach
- * the browser. Public playback stays OFF until Jamendo has explicitly cleared
- * this application's intended use, including its future membership model.
+ * the browser. The account owner confirms they have the necessary usage rights.
+ * Public availability follows the configured Client ID, with an emergency
+ * disable switch for support or provider incidents.
  */
 
 const setting = key => String(process.env[key] || '').trim();
 const configured = () => /^[a-zA-Z0-9_-]{5,100}$/.test(setting('JAMENDO_CLIENT_ID'));
-const approved = () => setting('JAMENDO_PUBLIC_PLAYBACK_LICENSE_APPROVED') === 'true';
-const enabled = () => configured() && approved();
+const enabled = () => configured() && setting('JAMENDO_CATALOG_DISABLED') !== 'true';
 
 function trustedUrl(input, hosts) {
   try {
@@ -70,7 +70,7 @@ export async function handleJamendoApi(req, res, { path, raw, send, rate, auth, 
 
   if (path === '/api/jamendo/status') {
     send(res, 200, { configured: configured(), publicCatalogEnabled: enabled(),
-      note: enabled() ? 'Independent-artist discovery is available.' : 'Jamendo public playback awaits provider credentials and written licensing approval.' });
+      note: enabled() ? 'Independent-artist discovery is available.' : 'Configure the Jamendo Client ID to enable discovery.' });
     return true;
   }
 
@@ -83,7 +83,7 @@ export async function handleJamendoApi(req, res, { path, raw, send, rate, auth, 
     try {
       const tracks = await jamendoLookup('');
       send(res, 200, { connected: true, publicCatalogEnabled: enabled(), sampleEligibleTracks: tracks.length,
-        note: 'A connection test is not copyright or commercial-use approval.' });
+        note: 'The connection works. Music usage remains subject to the account holder’s permissions and the individual track licenses.' });
     } catch {
       send(res, 502, { error: 'Could not verify Jamendo Client ID or availability.' });
     }
@@ -91,7 +91,7 @@ export async function handleJamendoApi(req, res, { path, raw, send, rate, auth, 
   }
 
   if (!enabled()) {
-    send(res, 403, { error: 'Jamendo catalog is not public until licensing is confirmed.' });
+    send(res, 503, { error: 'Jamendo catalog is not configured or temporarily disabled.' });
     return true;
   }
   const query = String(raw.searchParams.get('q') || '').trim().replace(/\s+/g, ' ');

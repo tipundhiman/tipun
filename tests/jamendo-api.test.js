@@ -25,13 +25,13 @@ const track = (extras = {}) => ({
   ...extras
 });
 
-test('Jamendo public catalog is locked even when an account has a Client ID', async () => {
-  const old = Object.fromEntries(['JAMENDO_CLIENT_ID', 'JAMENDO_CLIENT_SECRET', 'JAMENDO_PUBLIC_PLAYBACK_LICENSE_APPROVED'].map(key => [key, process.env[key]]));
+test('Jamendo catalog is available with Client ID, and supports emergency disabling', async () => {
+  const old = Object.fromEntries(['JAMENDO_CLIENT_ID', 'JAMENDO_CLIENT_SECRET', 'JAMENDO_CATALOG_DISABLED'].map(key => [key, process.env[key]]));
   const originalFetch = globalThis.fetch;
   process.env.JAMENDO_CLIENT_ID = 'test-client-123';
   process.env.JAMENDO_CLIENT_SECRET = 'never-expose-this';
-  delete process.env.JAMENDO_PUBLIC_PLAYBACK_LICENSE_APPROVED;
-  globalThis.fetch = async () => { throw Error('No provider request allowed before license approval'); };
+  process.env.JAMENDO_CATALOG_DISABLED = 'true';
+  globalThis.fetch = async () => { throw Error('No provider request allowed when the catalog is disabled'); };
   try {
     const status = await request('/api/jamendo/status');
     assert.equal(status.status, 200);
@@ -39,8 +39,10 @@ test('Jamendo public catalog is locked even when an account has a Client ID', as
     assert.equal(status.data.publicCatalogEnabled, false);
     assert.doesNotMatch(JSON.stringify(status.data), /test-client-123|never-expose-this/);
     const search = await request('/api/jamendo/search?q=love');
-    assert.equal(search.status, 403);
-    assert.match(search.data.error, /licens/i);
+    assert.equal(search.status, 503);
+    assert.match(search.data.error, /disabled/i);
+    delete process.env.JAMENDO_CATALOG_DISABLED;
+    assert.equal((await request('/api/jamendo/status')).data.publicCatalogEnabled, true);
   } finally {
     globalThis.fetch = originalFetch;
     for (const [key, value] of Object.entries(old)) value === undefined ? delete process.env[key] : process.env[key] = value;
@@ -48,13 +50,13 @@ test('Jamendo public catalog is locked even when an account has a Client ID', as
 });
 
 test('Jamendo licensed lookup uses Client ID only and returns safe, credited results', async () => {
-  const keys = ['JAMENDO_CLIENT_ID', 'JAMENDO_CLIENT_SECRET', 'JAMENDO_PUBLIC_PLAYBACK_LICENSE_APPROVED'];
+  const keys = ['JAMENDO_CLIENT_ID', 'JAMENDO_CLIENT_SECRET', 'JAMENDO_CATALOG_DISABLED'];
   const old = Object.fromEntries(keys.map(key => [key, process.env[key]]));
   const originalFetch = globalThis.fetch;
   Object.assign(process.env, {
     JAMENDO_CLIENT_ID: 'client-abc-123',
     JAMENDO_CLIENT_SECRET: 'never-send-secret',
-    JAMENDO_PUBLIC_PLAYBACK_LICENSE_APPROVED: 'true'
+    JAMENDO_CATALOG_DISABLED: 'false'
   });
   let upstreamCalls = 0;
   globalThis.fetch = async url => {
@@ -94,9 +96,9 @@ test('Jamendo validates query, licensing metadata and does not enable karaoke re
   assert.equal(normalizeJamendoTrack(track({ audio: 'http://prod-1.storage.jamendo.com/track.mp3' })), null);
   assert.equal(normalizeJamendoTrack(track({ license_ccurl: 'https://creativecommons.org/licenses/by-nc/4.0/' })), null);
   assert.equal(normalizeJamendoTrack(track({ id: '<script>alert(1)</script>' })), null);
-  const old = { id: process.env.JAMENDO_CLIENT_ID, approved: process.env.JAMENDO_PUBLIC_PLAYBACK_LICENSE_APPROVED };
+  const old = { id: process.env.JAMENDO_CLIENT_ID, disabled: process.env.JAMENDO_CATALOG_DISABLED };
   process.env.JAMENDO_CLIENT_ID = 'client-abc-123';
-  process.env.JAMENDO_PUBLIC_PLAYBACK_LICENSE_APPROVED = 'true';
+  process.env.JAMENDO_CATALOG_DISABLED = 'false';
   try {
     const invalid = await request('/api/jamendo/search?q=a');
     assert.equal(invalid.status, 400);
@@ -106,6 +108,6 @@ test('Jamendo validates query, licensing metadata and does not enable karaoke re
     assert.doesNotMatch(frontend, /client_secret|JAMENDO_CLIENT_SECRET|karaoke\.start\(/);
   } finally {
     old.id === undefined ? delete process.env.JAMENDO_CLIENT_ID : process.env.JAMENDO_CLIENT_ID = old.id;
-    old.approved === undefined ? delete process.env.JAMENDO_PUBLIC_PLAYBACK_LICENSE_APPROVED : process.env.JAMENDO_PUBLIC_PLAYBACK_LICENSE_APPROVED = old.approved;
+    old.disabled === undefined ? delete process.env.JAMENDO_CATALOG_DISABLED : process.env.JAMENDO_CATALOG_DISABLED = old.disabled;
   }
 });
