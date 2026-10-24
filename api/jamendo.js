@@ -7,6 +7,7 @@
  */
 
 const setting = key => String(process.env[key] || '').trim();
+const PAGE_SIZE = 30;
 const configured = () => /^[a-zA-Z0-9_-]{5,100}$/.test(setting('JAMENDO_CLIENT_ID'));
 const enabled = () => configured() && setting('JAMENDO_CATALOG_DISABLED') !== 'true';
 
@@ -47,11 +48,12 @@ export function normalizeJamendoTrack(track) {
   };
 }
 
-async function jamendoLookup(query) {
+async function jamendoLookup(query, offset = 0) {
   const url = new URL('https://api.jamendo.com/v3.0/tracks/');
   url.searchParams.set('client_id', setting('JAMENDO_CLIENT_ID'));
   url.searchParams.set('format', 'json');
-  url.searchParams.set('limit', query ? '12' : '1');
+  url.searchParams.set('limit', query ? String(PAGE_SIZE) : '1');
+  if (query) url.searchParams.set('offset', String(offset));
   url.searchParams.set('include', 'licenses');
   url.searchParams.set('audioformat', 'mp31');
   url.searchParams.set('ccnc', 'false');
@@ -61,7 +63,11 @@ async function jamendoLookup(query) {
   if (!response.ok) throw Error('Jamendo HTTP ' + response.status);
   const data = await response.json();
   if (data?.headers?.status !== 'success' || !Array.isArray(data.results)) throw Error('Jamendo returned an invalid response');
-  return data.results.map(normalizeJamendoTrack).filter(Boolean);
+  return {
+    items: data.results.map(normalizeJamendoTrack).filter(Boolean),
+    hasMore: !!query && data.results.length === PAGE_SIZE,
+    nextOffset: offset + PAGE_SIZE
+  };
 }
 
 export async function handleJamendoApi(req, res, { path, raw, send, rate, auth, isAdmin }) {
@@ -82,7 +88,7 @@ export async function handleJamendoApi(req, res, { path, raw, send, rate, auth, 
     if (!configured()) { send(res, 503, { error: 'Add JAMENDO_CLIENT_ID to Vercel environment variables.' }); return true; }
     try {
       const tracks = await jamendoLookup('');
-      send(res, 200, { connected: true, publicCatalogEnabled: enabled(), sampleEligibleTracks: tracks.length,
+      send(res, 200, { connected: true, publicCatalogEnabled: enabled(), sampleEligibleTracks: tracks.items.length,
         note: 'The connection works. Music usage remains subject to the account holder’s permissions and the individual track licenses.' });
     } catch {
       send(res, 502, { error: 'Could not verify Jamendo Client ID or availability.' });
@@ -99,9 +105,14 @@ export async function handleJamendoApi(req, res, { path, raw, send, rate, auth, 
     send(res, 400, { error: 'Enter a music search between 2 and 80 characters.' });
     return true;
   }
+  const rawOffset = raw.searchParams.get('offset') || '0';
+  if (!/^\d{1,5}$/.test(rawOffset) || Number(rawOffset) > 30000 || Number(rawOffset) % PAGE_SIZE !== 0) {
+    send(res, 400, { error: 'Invalid music search page.' });
+    return true;
+  }
   try {
-    const items = await jamendoLookup(query);
-    send(res, 200, { items, provider: 'Jamendo', note: 'Independent artists only. Karaoke/recording rights are not included.' });
+    const page = await jamendoLookup(query, Number(rawOffset));
+    send(res, 200, { ...page, provider: 'Jamendo', note: 'Independent artists only. Karaoke/recording rights are not included.' });
   } catch {
     send(res, 502, { error: 'Jamendo search is temporarily unavailable. Please retry.' });
   }

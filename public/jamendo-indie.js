@@ -7,6 +7,8 @@
   let available = false;
   let searchCount = 0;
   let searchAbort = null;
+  let moreOffset = 0;
+  let moreQuery = '';
 
   function checkedHttps(url, host) {
     try {
@@ -82,28 +84,37 @@
     return card;
   }
 
-  async function searchJamendo(query) {
+  async function searchJamendo(query, append = false) {
     const result = document.getElementById('roJamendoResults');
     const info = document.getElementById('roJamendoStatus');
+    const more = document.getElementById('roJamendoMore');
     if (!result || !info || query.length < 2) return;
+    if (append && (!moreOffset || moreQuery !== query)) return;
     const current = ++searchCount;
     searchAbort?.abort();
     searchAbort = new AbortController();
-    info.textContent = 'Finding independent artists…';
-    result.replaceChildren();
+    const offset = append ? moreOffset : 0;
+    info.textContent = append ? 'Loading more indie songs…' : 'Finding independent artists…';
+    if (more) more.hidden = true;
+    if (!append) result.replaceChildren();
     try {
-      const response = await fetch('/api/jamendo/search?q=' + encodeURIComponent(query), {
+      const response = await fetch('/api/jamendo/search?q=' + encodeURIComponent(query) + '&offset=' + offset, {
         signal: searchAbort.signal
       });
       const data = await response.json();
       if (current !== searchCount || !document.getElementById('roJamendoResults')) return;
       if (!response.ok) throw Error(data.error || 'Jamendo unavailable');
       const items = Array.isArray(data.items) ? data.items : [];
-      info.textContent = items.length ? items.length + ' independent tracks found.' : 'No independent tracks matched. Try another artist or genre.';
-      result.replaceChildren(...items.map(songCard));
+      result.append(...items.map(songCard));
+      const count = result.children.length;
+      info.textContent = count ? count + ' independent tracks loaded. Explore more below.' : 'No eligible indie tracks matched. Try Rock, Piano or Acoustic.';
+      moreOffset = data.hasMore ? Number(data.nextOffset) : 0;
+      moreQuery = query;
+      if (more) more.hidden = !moreOffset;
     } catch (error) {
       if (error.name === 'AbortError' || current !== searchCount) return;
       info.textContent = 'Independent catalog unavailable for now. You can still use the other music players.';
+      if (more) more.hidden = !append;
     }
   }
 
@@ -120,17 +131,40 @@
       heading.textContent = '🎧 Indie music · Jamendo';
       const explanation = document.createElement('p');
       explanation.className = 'muted small';
-      explanation.textContent = 'Use the search above. Listen to credited independent artists here. Not a karaoke or music-download library.';
+      explanation.textContent = 'Play music instantly, try a genre, or search above. Independent artists only; not a karaoke or download library.';
+      const genres = document.createElement('div');
+      genres.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin:12px 0';
+      [['🎸 Rock', 'rock'], ['🎹 Piano', 'piano'], ['🌿 Acoustic', 'acoustic']].forEach(([label, query]) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn sm';
+        button.textContent = label;
+        button.addEventListener('click', () => {
+          const input = document.getElementById('roYtQuery');
+          if (input) input.value = query;
+          searchJamendo(query);
+        });
+        genres.append(button);
+      });
       const info = document.createElement('p');
       info.id = 'roJamendoStatus';
       info.className = 'muted small';
       info.setAttribute('role', 'status');
-      info.textContent = 'Search to discover independent music.';
+      info.textContent = 'Loading a few songs to try…';
       const results = document.createElement('div');
       results.id = 'roJamendoResults';
       results.className = 'ro-cc-grid';
-      section.append(heading, explanation, info, results);
-      mainResults.parentNode.append(section);
+      const more = document.createElement('button');
+      more.id = 'roJamendoMore';
+      more.className = 'btn sm';
+      more.type = 'button';
+      more.textContent = 'Show more indie songs ↓';
+      more.style.cssText = 'margin:18px auto 8px';
+      more.hidden = true;
+      more.addEventListener('click', () => searchJamendo(moreQuery, true));
+      section.append(heading, explanation, genres, info, results, more);
+      mainResults.parentNode.insertBefore(section, mainResults);
+      searchJamendo('rock');
     }
     if (form.dataset.jamendoConnected !== 'yes') {
       form.dataset.jamendoConnected = 'yes';

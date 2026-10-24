@@ -65,6 +65,8 @@ test('Jamendo licensed lookup uses Client ID only and returns safe, credited res
     assert.equal(parsed.origin, 'https://api.jamendo.com');
     assert.equal(parsed.searchParams.get('client_id'), 'client-abc-123');
     assert.equal(parsed.searchParams.get('search'), 'romantic indie');
+    assert.equal(parsed.searchParams.get('limit'), '30');
+    assert.equal(parsed.searchParams.get('offset'), '30');
     assert.equal(parsed.searchParams.get('ccnc'), 'false');
     assert.equal(parsed.searchParams.get('ccnd'), 'false');
     assert.equal(parsed.href.includes('never-send-secret'), false);
@@ -76,10 +78,12 @@ test('Jamendo licensed lookup uses Client ID only and returns safe, credited res
     ] }; } };
   };
   try {
-    const result = await request('/api/jamendo/search?q=romantic%20indie');
+    const result = await request('/api/jamendo/search?q=romantic%20indie&offset=30');
     assert.equal(result.status, 200);
     assert.equal(upstreamCalls, 1);
     assert.equal(result.data.items.length, 1);
+    assert.equal(result.data.hasMore, false);
+    assert.equal(result.data.nextOffset, 60);
     assert.equal(result.data.items[0].title, 'A safe indie track');
     assert.equal(result.data.items[0].source, 'https://www.jamendo.com/track/45678');
     assert.equal(result.data.items[0].license, 'https://creativecommons.org/licenses/by/4.0/');
@@ -102,9 +106,15 @@ test('Jamendo validates query, licensing metadata and does not enable karaoke re
   try {
     const invalid = await request('/api/jamendo/search?q=a');
     assert.equal(invalid.status, 400);
+    const invalidPage = await request('/api/jamendo/search?q=rock&offset=999999');
+    assert.equal(invalidPage.status, 400);
     const frontend = readFileSync(new URL('../public/jamendo-indie.js', import.meta.url), 'utf8');
     assert.match(frontend, /publicCatalogEnabled/);
     assert.match(frontend, /roYtForm/);
+    assert.match(frontend, /insertBefore\(section, mainResults\)/);
+    assert.match(frontend, /searchJamendo\('rock'\)/);
+    assert.match(frontend, /Acoustic/);
+    assert.match(frontend, /roJamendoMore/);
     assert.doesNotMatch(frontend, /client_secret|JAMENDO_CLIENT_SECRET|karaoke\.start\(/);
   } finally {
     old.id === undefined ? delete process.env.JAMENDO_CLIENT_ID : process.env.JAMENDO_CLIENT_ID = old.id;
