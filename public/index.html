@@ -1500,6 +1500,9 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
 .ro-riya-form textarea{resize:vertical;min-height:44px;max-height:120px;min-width:0;flex:1;padding:11px;border:1px solid #ffffff2a;border-radius:13px;color:#fff;background:#101015;outline-offset:1px}
 .ro-riya-form button{min-height:44px;padding:11px 14px;border:0;border-radius:13px;background:#e5c9a2;color:#15131b;font-weight:800}
 .ro-riya-form button:disabled{opacity:.55;cursor:wait}
+.ro-riya-status{padding:0 13px 6px;background:#1c1a20;text-align:left;color:#e5c9a2;font-size:11px;min-height:8px}
+.ro-riya-signin{margin:0 14px 9px;width:calc(100% - 28px);border-radius:12px;border:1px solid #e5c9a277;padding:10px;background:#e5c9a219;color:#ffe2b5;font-weight:700}
+.ro-riya-signin[hidden]{display:none}
 .ro-riya-note{padding:0 10px 10px;background:#1c1a20;text-align:center;color:#aba3ae;font-size:10px}
 @media(max-width:640px){#roOrbitHelpButton{right:11px;bottom:11px;padding:11px 15px}#roOrbitHelpPanel{right:8px;bottom:66px;width:calc(100vw - 16px);height:min(625px,calc(100dvh - 85px))}}
 @media(prefers-reduced-motion:reduce){#roOrbitHelpButton{transition:none}}
@@ -1510,9 +1513,11 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
 <div id="roRiyaThread" role="log" aria-live="polite" aria-label="Riya conversation"></div>
 <div class="ro-riya-suggest"><button type="button" onclick="roRiyaSuggest('Help me write a Hindi song hook')">✎ Song hook</button><button type="button" onclick="roRiyaSuggest('How does AI Studio work?')">✧ AI Studio</button><button type="button" onclick="roRiyaSuggest('How can I meet other creators on RhymeOrbit?')">◎ Creators</button></div>
 <form class="ro-riya-form" onsubmit="roAskOrbitHelp(event)"><label for="roOrbitHelpQuestion" style="position:absolute;left:-9999px">Message Riya</label><textarea id="roOrbitHelpQuestion" maxlength="4000" rows="2" placeholder="Message Riya..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();roAskOrbitHelp(event)}"></textarea><button id="roRiyaSend" type="submit" aria-label="Send chat message">➤</button></form>
+<div id="roRiyaStatus" class="ro-riya-status" role="status" aria-live="polite"></div>
+<button id="roRiyaSignIn" class="ro-riya-signin" type="button" hidden onclick="openAuth('login')">Log in to chat with Riya ↗</button>
 <div class="ro-riya-note">AI can make mistakes · Don't share sensitive info · <a href="/privacy" style="text-decoration:underline">Privacy</a></div>
 </section>
-<script src="/riya-chat.js?v=20261024-1"></script>
+<script src="/riya-chat.js?v=20261024-2"></script>
 
 <style>
 .ro-yt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin-top:20px}.ro-yt-card{border:1px solid rgba(255,255,255,.14);border-radius:16px;overflow:hidden;background:rgba(255,255,255,.035)}.ro-yt-card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}.ro-yt-card>div{padding:14px}.ro-yt-card h4{font-size:15px;line-height:1.4;margin:0 0 8px}.ro-yt-card p{margin:0 0 12px}.ro-yt-card .row{gap:8px;flex-wrap:wrap}#roYtPlayer iframe{width:100%;max-height:480px;aspect-ratio:16/9;border:0;border-radius:14px}

@@ -249,30 +249,59 @@ async function isAdmin(userId) {
 }
 async function aiGenerate(kind, input) {
   const key = env('GEMINI_API_KEY');
-  if (!key) return { error: 'Writing assistant temporarily unavailable.' };
+  if (!key) return { error: 'RhymeOrbit AI is not configured yet. Please contact support.', status: 503 };
   const prompts = {
     lyrics: 'You are a creative songwriting collaborator. Write original song lyrics based on the user brief. Avoid copying existing songs. Respond in the requested language. Output clear sections.',
     doctor: 'Analyze the supplied lyrics. Give specific, constructive notes on rhyme, meter, hooks, originality and structure. Preserve original lyrics; do not rewrite unless asked.',
     vibe: 'Create an actionable original song concept: theme, story arc, genre, tempo suggestion, instruments, hook idea and structure. Do not claim to create audio.',
-    help: 'You are Riya, the friendly multilingual AI creative guide for RhymeOrbit. Reply in the language and script the user uses (including Hindi, Hinglish, English and other languages). Answer general questions helpfully, and website questions with clear steps. RhymeOrbit combines AI songwriting and shayari, an AI music generation integration that may not yet be publicly enabled, My Studio, creator profiles, Community, Vibe Match, and creator tools. Explain genuine strengths of this combined creator-focused experience when relevant. Be enthusiastic but factual: never claim RhymeOrbit is objectively better than every other AI, never invent features, uptime, pricing, availability, commercial rights, payment support, or completed actions. When comparing with other AI tools, acknowledge their strengths and explain which RhymeOrbit features are distinct or planned. Creator Kit is a beta downloadable artist press kit builder with three visual themes; its files are not automatically published or stored in the cloud. If a question needs live external data you cannot verify, say so. Do not request passwords or private account details. Be concise unless asked for detail.',
+    help: 'You are Riya, the friendly multilingual AI creative guide for RhymeOrbit. Reply in the language and script the user uses (including Hindi, Hinglish, English and other languages). Answer general questions helpfully, and website questions with clear steps. RhymeOrbit combines AI lyrics, Shayari, vocal song generation through a third-party API, My Studio, creator profiles, Community, Vibe Match, and creator tools. Free users can create up to 3 songs monthly when generation is available; Premium/Pro payments and live checkout are not yet active. Explain genuine strengths of this creator-focused experience when relevant. Never invent features, uptime, pricing, availability, commercial rights, payment support, or completed actions. When comparing with other AI tools, acknowledge their strengths. Creator Kit is a beta downloadable artist press kit builder with three visual themes; its files are not automatically published or stored in the cloud. If a question needs live external data you cannot verify, say so. Do not request passwords, API keys or private account details. Be concise unless asked for detail.',
     shayari: 'Write original expressive shayari or poetry based on the user prompt. Respect requested Hindi, Urdu, Punjabi or English language and mood. Avoid copyrighted imitation.'
   };
-  if (!prompts[kind]) return { error: 'Invalid AI mode' };
-  const model = env('GEMINI_MODEL') || 'gemini-2.5-flash-lite';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: prompts[kind] }] },
-      contents: [{ parts: [{ text: input.slice(0, 12000) }] }],
-      generationConfig: { maxOutputTokens: 1100, temperature: .75 }
-    }),
-    signal: AbortSignal.timeout(30000)
+  if (!prompts[kind]) return { error: 'Invalid AI mode', status: 400 };
+  // Google's newer project tiers no longer provide general access to the legacy 2.5 models.
+  // Keep the configured model when present, but recover from a legacy-model 404 automatically.
+  const defaultModel = 'gemini-3.5-flash-lite';
+  const model = String(env('GEMINI_MODEL') || defaultModel).trim();
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: prompts[kind] }] },
+    contents: [{ parts: [{ text: input.slice(0, 12000) }] }],
+    generationConfig: { maxOutputTokens: 1500, temperature: .75 }
   });
-  const result = await response.json();
-  if (!response.ok) return { error: 'Writing assistant temporarily unavailable. Please try again later.' };
-  return { text: result.candidates?.[0]?.content?.parts?.map(x => x.text || '').join('') || 'No text returned' };
+  const models = /^gemini-2\.5-/.test(model) ? [model, defaultModel] : [model];
+  for (const currentModel of models) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(currentModel)}:generateContent`;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+          body,
+          signal: AbortSignal.timeout(18000)
+        });
+      } catch (error) {
+        console.warn('[RhymeOrbit AI] provider request failed', currentModel, error?.name || 'NetworkError');
+        if (attempt === 0) { await new Promise(resolve => setTimeout(resolve, 650)); continue; }
+        return { error: 'AI connection timed out. Please try again shortly.', status: 503 };
+      }
+      const result = await response.json().catch(() => ({}));
+      if (response.ok) {
+        const text = result.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('').trim();
+        return text ? { text } : { error: 'AI could not produce a reply. Try a different question.', status: 502 };
+      }
+      console.warn('[RhymeOrbit AI] provider rejected request', currentModel, response.status, result?.error?.status || 'unknown');
+      if ([403, 404].includes(response.status) && currentModel !== defaultModel && models.includes(defaultModel)) break;
+      if ([429, 500, 502, 503, 504].includes(response.status) && attempt === 0) {
+        await new Promise(resolve => setTimeout(resolve, 650));
+        continue;
+      }
+      if (response.status === 429) return { error: 'AI request limit reached. Please wait and try again.', status: 429 };
+      if ([401, 403].includes(response.status)) return { error: 'AI provider access is not authorized. Please contact RhymeOrbit support.', status: 503 };
+      if (response.status === 404) return { error: 'Configured AI model is unavailable. Please contact RhymeOrbit support.', status: 503 };
+      return { error: 'AI service is temporarily unavailable. Please try again later.', status: 503 };
+    }
+  }
+  return { error: 'AI service is temporarily unavailable. Please try again later.', status: 503 };
 }
 function pathOf(req) {
   const original = req.headers['x-vercel-original-url'];
@@ -628,10 +657,10 @@ export async function handleApi(req, res) {
       const user = await auth(req, res);
       if (!user) return;
       const kind = String(data.kind || '');
-      const input = String(data.input || '');
-      if (!['lyrics', 'doctor', 'vibe', 'help', 'shayari'].includes(kind) || input.length < 5 || input.length > 12000) return send(res, 400, { error: 'Invalid AI request' });
+      const input = String(data.input || '').trim();
+      if (!['lyrics', 'doctor', 'vibe', 'help', 'shayari'].includes(kind) || input.length < (kind === 'help' ? 1 : 5) || input.length > 12000) return send(res, 400, { error: 'Invalid AI request' });
       const result = await aiGenerate(kind, input);
-      return send(res, result.error ? 503 : 200, result);
+      return send(res, result.error ? (result.status || 503) : 200, result.error ? { error: result.error } : result);
     }
     if (path === '/api/admin/subscription') {
       const user = await auth(req, res);
