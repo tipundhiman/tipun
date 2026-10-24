@@ -18,13 +18,17 @@ css.textContent=`
 .ro-membership-cycle button{border:1px solid #ffffff30;border-radius:30px;background:#ffffff0c;color:white;padding:10px 17px;cursor:pointer}
 .ro-membership-cycle button[aria-pressed="true"]{background:#e5c9a2;color:#171118;font-weight:800}
 .ro-membership-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-.ro-membership-card{background:#ffffff08;border:1px solid #ffffff2a;border-radius:18px;padding:22px}
+.ro-membership-card{background:#ffffff08;border:1px solid #ffffff2a;border-radius:18px;padding:22px;position:relative;overflow:hidden;transition:transform .28s ease,box-shadow .28s ease,border-color .28s ease}
+.ro-membership-card:hover{transform:translateY(-5px);box-shadow:0 22px 50px #0007}
+.ro-membership-card:before{content:"";position:absolute;top:-65px;right:-55px;width:170px;height:170px;border-radius:50%;background:radial-gradient(circle,#b18be933,transparent 70%);pointer-events:none}
+.ro-plan-state{font-size:10px;letter-spacing:.5px;color:#e8ccaa;border:1px solid #e5c9a244;border-radius:999px;padding:5px 9px;display:inline-block;margin-top:10px}
 .ro-membership-card:nth-child(2){border:2px solid #b18be9}.ro-membership-card:nth-child(3){border-color:#e5c9a2}
 .ro-membership-card h3{font-size:22px;margin:10px 0}.ro-membership-amount{font-size:32px;font-weight:800}
 .ro-membership-card ul{padding-left:18px;line-height:1.85;font-size:12px;color:#e0dbe7;min-height:110px}
 .ro-membership-card button{width:100%;padding:12px;border-radius:24px;border:1px solid #b18be9;background:#b18be9;color:#140d1e;font-weight:800}
 .ro-membership-card button:disabled{opacity:.65;cursor:not-allowed}
 @media(max-width:720px){.ro-membership-grid{grid-template-columns:1fr}.ro-membership-card ul{min-height:0}}
+@media(prefers-reduced-motion:reduce){.ro-membership-card{transition:none}.ro-membership-card:hover{transform:none}}
 `;
 document.head.appendChild(css);
 function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));}
@@ -182,12 +186,12 @@ function openMemberships(reason){
  <p class="ro-membership-muted">Create music, connect with creators and grow your orbit.</p>
  <p id="roMembershipBalance" class="ro-membership-muted" aria-live="polite">Checking your song balance…</p></div>
  <div class="ro-membership-cycle"><button type="button" data-cycle="monthly" aria-pressed="${!annual}">Monthly</button><button type="button" data-cycle="annual" aria-pressed="${annual}">Annual · Save up to 8%</button></div>
- <div class="ro-membership-grid">${plans.map((p,i)=>`<article class="ro-membership-card"><div style="color:#e5c9a2;font-size:11px">${escapeHTML(p.tag)}</div><h3>${escapeHTML(p.name)}</h3>
+ <div class="ro-membership-grid">${plans.map((p,i)=>`<article class="ro-membership-card"><div style="color:#e5c9a2;font-size:11px">${escapeHTML(p.tag)}</div><div class="ro-plan-state">${i===0?'✓ Available now':'🔒 Coming soon · Paid tier'}</div><h3>${escapeHTML(p.name)}</h3>
  <div class="ro-membership-amount">₹${annual?p.annual:p.monthly}<small style="font-size:13px;color:#b3aebe">/mo</small></div>
  <p class="ro-membership-muted">${annual&&p.annual?'₹'+p.annual*12+' billed annually':'Monthly membership'}</p>
- <p><strong>${p.credits.toLocaleString('en-IN')} credits</strong> / month<br><span class="ro-membership-muted">≈ ${p.songs} standard songs (100 credits/song)</span></p>
- <ul>${p.perks.map(x=>'<li>'+escapeHTML(x)+'</li>').join('')}</ul><button type="button" disabled>${i===0?'Free plan':'Checkout unavailable'}</button></article>`).join('')}</div>
- <p class="ro-membership-muted" style="text-align:center;margin-top:20px">Free includes 3 songs/month when generation is available. Paid plans are not currently purchasable. Paid credits and benefits require verified provider capacity, billing and server-side entitlements. Annual pricing is billed yearly with monthly credit refresh.</p></section>`;
+ <p><strong>${p.songs} ${i===0?'free':'planned'} songs</strong> / month<br><span class="ro-membership-muted">${i===0?'Free monthly allowance':'Planned allowance after verified paid launch'} · ${p.credits.toLocaleString('en-IN')} planned credits</span></p>
+ <ul>${p.perks.map(x=>'<li>'+escapeHTML(x)+'</li>').join('')}</ul><button type="button" disabled>${i===0?'✓ Current free plan':'🔒 Checkout unavailable'}</button></article>`).join('')}</div>
+ <p class="ro-membership-muted" style="text-align:center;margin-top:20px">Free includes 3 songs/month when generation is available. Paid plans are previews, not currently purchasable. Higher quotas and quality downloads activate only with verified server-side memberships after the provider, commercial-rights and billing checks. Annual pricing shown is planned, not a current offer.</p></section>`;
  document.body.appendChild(overlay);
  overlay.querySelector('.ro-membership-close').onclick=()=>overlay.remove();
  overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};

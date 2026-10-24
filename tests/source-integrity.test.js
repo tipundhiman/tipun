@@ -96,6 +96,28 @@ test('SEO structured data and public legal links exist',()=>{
  assert.match(read('public/robots.txt'),/sitemap\.xml/);
  assert.match(read('public/sitemap.xml'),/<urlset/);
 });
+test('Public SEO URLs agree across sitemap, canonical tags and internal navigation',()=>{
+ const sitemap=read('public/sitemap.xml');
+ for(const name of ['features','privacy','terms','copyright']){
+  const canonical='https://rhymeorbit.in/'+name;
+  const content=read('public/'+name+'.html');
+  assert.ok(sitemap.includes('<loc>'+canonical+'</loc>'), name+' missing from sitemap');
+  assert.ok(content.includes('rel="canonical" href="'+canonical+'"'), name+' canonical points at a redirect');
+  assert.ok(!content.includes('href="/'+name+'.html"'), name+' links to redirected URL');
+  assert.ok(!html.includes('href="/'+name+'.html"'), 'home links to redirected '+name+' URL');
+  assert.doesNotMatch(html,new RegExp('/'+name+'\\.html'),'home has a legacy '+name+' link');
+ }
+ assert.match(read('public/features.html'),/Full songs with vocals — available for eligible users/);
+ assert.doesNotMatch(read('public/features.html'),/planned vocal music generation|integration in progress/i);
+});
+test('Public landing animations remain accessible and video search has a working fallback',()=>{
+ assert.match(html,/roObserveLandingMotion/);
+ assert.match(html,/prefers-reduced-motion:reduce/);
+ assert.match(html,/youtube-fallback\.js/);
+ const fallback=read('public/youtube-fallback.js');
+ assert.match(fallback,/https:\/\/www\.youtube\.com\/results\?search_query=/);
+ assert.match(fallback,/rel='noopener noreferrer'/);
+});
 test('No fictional demo catalog or old assistant name is visible in main UI',()=>{
  assert.doesNotMatch(html,/YOUR CREATIVE SPACE/);
  assert.doesNotMatch(html,/FEATURED DEMO CREATOR/);

@@ -94,7 +94,8 @@ test('Sandbox never gives live subscriptions or song credits',async()=>{
  const {readFileSync}=await import('node:fs');
  const api=readFileSync(new URL('../api/index.js',import.meta.url),'utf8');
  const mod=readFileSync(new URL('../api/razorpay-test.js',import.meta.url),'utf8');
- assert.match(api,/const limit = !active \? 0 : 3;/);
+ assert.match(api,/const limit = !active \? 0 : !s \|\| s\.plan === 'free' \? 3 : paidLimit;/);
+ assert.match(api,/const paidCap = s\?\.plan === 'pro' \? 75 : s\?\.plan === 'premium' \? 35 : 0;/);
  assert.doesNotMatch(mod,/public\.subscriptions/);
 });
 

@@ -36,6 +36,7 @@ test('User must affirm copyright permission before public generation',()=>{
  const api=read('api/index.js');
  assert.match(html,/id="roSongRightsConfirmed"/);
  assert.match(html,/rightsConfirmed:true/);
- assert.match(html,/copyright\.html/);
+ assert.match(html,/Content & Copyright/);
+ assert.match(html,/href=\\?"\/copyright\\?"/);
  assert.match(api,/data\.rightsConfirmed!==true/);
 });

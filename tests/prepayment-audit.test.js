@@ -17,6 +17,11 @@ test('Paid checkout is disabled until entitlement and provider limits match pric
  const memberships=read('public/memberships.js'),api=read('api/index.js');
  assert.match(memberships,/Checkout unavailable/);
  assert.match(memberships,/disabled>/);
- assert.match(api,/const limit = !active \? 0 : 3;/);
+ assert.match(api,/const limit = !active \? 0 : !s \|\| s\.plan === 'free' \? 3 : paidLimit;/);
+ assert.match(api,/const paidCap = s\?\.plan === 'pro' \? 75 : s\?\.plan === 'premium' \? 35 : 0;/);
+ const sql=read('supabase/commercial_entitlements.sql');
+ assert.match(sql,/WHEN 'premium' THEN LEAST\(35/);
+ assert.match(sql,/WHEN 'pro' THEN LEAST\(75/);
+ assert.match(sql,/REVOKE ALL ON FUNCTION public\.ro_reserve_song/);
  assert.doesNotMatch(api,/\/api\/billing\/create-subscription/);
 });

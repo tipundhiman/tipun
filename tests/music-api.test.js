@@ -50,8 +50,8 @@ test('Public song API enforces 3 credits, ownership, vocal payload and no provid
   assert.equal(status.body.freeMonthlySongs,3);
   const credits=await request('GET','/api/music/credits');
   assert.equal(credits.status,200);
-  assert.equal(credits.body.monthlyLimit,3);
-  assert.equal(credits.body.remaining,3);
+  assert.equal(credits.body.monthlyLimit,35,'Paid limits are capped at the actual Premium allowance');
+  assert.equal(credits.body.remaining,35);
   assert.equal(credits.body.downloadHighQuality,true,'An active Premium subscription unlocks high quality');
   const unconfirmed=await request('POST','/api/music/generate',{lyrics:'A sweet Hindi love song about the rain'});
   assert.equal(unconfirmed.status,400,'Copyright declaration is required');
@@ -112,14 +112,17 @@ test('High-quality download entitlement is only granted for active, unexpired Pr
  };
  try{
    assert.equal((await request('GET','/api/music/credits')).body.downloadHighQuality,false);
-   record={plan:'premium',status:'active',expires_at:null};
+   record={plan:'premium',status:'active',monthly_song_limit:35,expires_at:null};
    assert.equal((await request('GET','/api/music/credits')).body.downloadHighQuality,true);
-   record={plan:'pro',status:'active',expires_at:new Date(Date.now()+86400000).toISOString()};
+   record={plan:'pro',status:'active',monthly_song_limit:75,expires_at:new Date(Date.now()+86400000).toISOString()};
    assert.equal((await request('GET','/api/music/credits')).body.downloadHighQuality,true);
-   record={plan:'premium',status:'canceled',expires_at:null};
+   assert.equal((await request('GET','/api/music/credits')).body.monthlyLimit,75);
+   record={plan:'premium',status:'canceled',monthly_song_limit:35,expires_at:null};
    assert.equal((await request('GET','/api/music/credits')).body.downloadHighQuality,false);
-   record={plan:'pro',status:'active',expires_at:'2020-01-01T00:00:00Z'};
+   record={plan:'pro',status:'active',monthly_song_limit:75,expires_at:'2020-01-01T00:00:00Z'};
    assert.equal((await request('GET','/api/music/credits')).body.downloadHighQuality,false);
+   record={plan:'pro',status:'active',monthly_song_limit:0,expires_at:null};
+   assert.equal((await request('GET','/api/music/credits')).body.downloadHighQuality,false,'A paid label without a quota grants nothing');
  }finally{
    globalThis.fetch=originalFetch;
    for(const k of keys){if(old[k]===undefined)delete process.env[k];else process.env[k]=old[k]}

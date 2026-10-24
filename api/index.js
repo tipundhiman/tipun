@@ -354,8 +354,13 @@ export async function handleApi(req, res) {
       const active = !s || (s.status === 'active' && (!s.expires_at || Date.parse(s.expires_at) > Date.now()));
       // Only the server-verified, active subscription grants premium downloads.
       // Never trust user-editable profile metadata or a client-supplied plan.
-      const downloadHighQuality = Boolean(s && active && ['premium', 'pro'].includes(s.plan));
-      const limit = !active ? 0 : 3;
+      const paidCap = s?.plan === 'pro' ? 75 : s?.plan === 'premium' ? 35 : 0;
+      const configuredLimit = Number(s?.monthly_song_limit);
+      const paidLimit = Number.isFinite(configuredLimit) ? Math.max(0, Math.min(paidCap, Math.floor(configuredLimit))) : 0;
+      const downloadHighQuality = Boolean(s && active && paidCap > 0 && paidLimit > 0);
+      // A paid entitlement only exists in the protected subscriptions table.
+      // Test-checkout records never appear there, so they cannot grant access.
+      const limit = !active ? 0 : !s || s.plan === 'free' ? 3 : paidLimit;
       const used = u?.songs_used || 0;
       const reserved = u?.songs_reserved || 0;
       return send(res, 200, { plan: s?.plan || 'free', downloadHighQuality, monthlyLimit: limit, used, reserved, remaining: Math.max(0, limit - used - reserved), monthStart: month });
