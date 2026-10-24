@@ -75,14 +75,20 @@ test('New video exports stay on the device while earlier R2 files remain readabl
   assert.match(script, /popup\.showModal\(\)/);
 });
 
-test('Free sing-along records microphone and owned music into a local audio download', () => {
-  assert.match(page, /id="vmKaraoke"/);
-  assert.match(page, /id="vmKaraokeDownload"/);
-  assert.match(script, /navigator\.mediaDevices\.getUserMedia/);
-  assert.match(script, /mic\.connect\(vocalGain\);vocalGain\.connect\(mix\)/);
-  assert.match(script, /song\.connect\(musicGain\);musicGain\.connect\(mix\)/);
-  assert.match(script, /karaokeRecording = new Blob\(chunks/);
-  assert.match(script, /setLoadedBlob\(karaokeRecording/);
+test('Karaoke lives in its own dedicated Sing Your Song page', () => {
+  assert.match(page, /href="\/sing-your-song"/);
+  assert.doesNotMatch(page, /id="vmKaraoke"/);
+  assert.match(read('sing-your-song.html'), /id="ssStart"/);
+  assert.match(read('sing-your-song.js'), /navigator\.mediaDevices\.getUserMedia/);
+});
+
+test('Downloaded video captions use time-coded LRC lyrics when available', () => {
+  assert.match(page, /id="vmAutoSync"/);
+  assert.match(page, /id="vmMarkLyric"/);
+  assert.match(page, /lyric-sync\.js\?v=/);
+  assert.match(script, /window\.roLyricSync\.at\(/);
+  assert.match(script, /\?timed=1/);
+  assert.match(script, /Auto-spaced lyrics may NOT match/);
 });
 
 test('Video-maker discovery URLs are indexable and included in the existing sitemap', () => {

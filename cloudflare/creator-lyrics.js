@@ -55,6 +55,28 @@ async function limitedBytes(request, max) {
 
 const audioTypes = new Set(['audio/mpeg','audio/mp3','audio/wav','audio/x-wav','audio/ogg','audio/mp4','audio/x-m4a','audio/m4a','audio/aac','audio/flac','audio/x-flac','audio/webm']);
 
+export function parseTimedLyrics(text) {
+  let parsed;
+  try {
+    const body=String(text||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
+    const match=body.match(/\[[\s\S]*\]/);
+    parsed=JSON.parse(match?.[0]||'[]');
+  }catch{return null;}
+  if(!Array.isArray(parsed)||parsed.length<2||parsed.length>200)return null;
+  const lines=[];
+  let previous=-1;
+  for(const item of parsed){
+    const start=Number(item?.start),line=String(item?.text||'').replace(/[\r\n]+/g,' ').trim();
+    if(!Number.isFinite(start)||start<0||start>300||start<previous||!line||line.length>300)return null;
+    previous=start;
+    const hundredths=Math.round(start*100);
+    const prefix='['+String(Math.floor(hundredths/6000)).padStart(2,'0')+':'+String(Math.floor(hundredths/100)%60).padStart(2,'0')+'.'+String(hundredths%100).padStart(2,'0')+']';
+    lines.push(prefix+' '+line);
+  }
+  const lyrics=lines.join('\n');
+  return lyrics.length<=MAX_LYRICS?lyrics:null;
+}
+
 async function transcribe(request, env, user) {
   if (request.method !== 'POST') return json(405, { error: 'Use POST' });
   const mime = (request.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
@@ -71,9 +93,10 @@ async function transcribe(request, env, user) {
   for (let i = 0; i < bytes.byteLength; i += 32768)
     binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
   const model = String(env.GEMINI_MODEL || 'gemini-3.5-flash-lite').trim();
+  const timed=new URL(request.url).searchParams.get('timed')==='1';
   const query = {
     contents: [{ parts: [
-      { text: 'Transcribe the sung or spoken words of this audio into song lyrics in their original language and script. Preserve line breaks. Do not invent words: if a line is unintelligible, mark [unclear]. Output ONLY the transcript, no explanations or markdown.' },
+      { text: timed ? 'Listen to this audio and transcribe only genuinely audible sung words in their original language/script. Return ONLY a valid JSON array of objects [{"start":12.34,"text":"lyric line"}] where start is the approximate SECOND at which that precise line begins IN THE AUDIO. Each sung phrase should be a separate entry, chronological. Use actual audio time, NOT evenly-spaced guesses. Include pauses; do not invent lyrics; if words cannot be heard, omit them. No markdown or prose. Return [] for instrumental only.' : 'Transcribe the sung or spoken words of this audio into song lyrics in their original language and script. Preserve line breaks. Do not invent words: if a line is unintelligible, mark [unclear]. Output ONLY the transcript, no explanations or markdown.' },
       { inline_data: { mime_type: ['audio/x-m4a','audio/m4a'].includes(mime) ? 'audio/mp4' : mime === 'audio/mp3' ? 'audio/mpeg' : mime === 'audio/x-flac' ? 'audio/flac' : mime, data: btoa(binary) } }
     ] }],
     generationConfig: { maxOutputTokens: 4800, temperature: 0 }
@@ -87,9 +110,10 @@ async function transcribe(request, env, user) {
     return json(result.status === 429 ? 429 : 502, { error: result.status === 429 ? 'AI transcription quota is busy. Try later.' : 'AI could not transcribe this audio. Try a clear, shorter vocal recording.' });
   }
   const payload = await result.json();
-  const lyrics = String((payload.candidates?.[0]?.content?.parts || []).map(part => part.text || '').join('\n')).trim().slice(0, MAX_LYRICS);
+  const output=String((payload.candidates?.[0]?.content?.parts || []).map(part => part.text || '').join('\n')).trim();
+  const lyrics=timed?parseTimedLyrics(output):output.slice(0,MAX_LYRICS);
   if (!lyrics) return json(422, { error: 'No clear words found. You can type or generate lyrics instead.' });
-  return json(200, { lyrics, provider: 'Gemini', reviewRequired: true });
+  return json(200, { lyrics, timed, provider: 'Gemini', reviewRequired: true });
 }
 
 export async function handleCreatorLyricsRequest(request, env) {

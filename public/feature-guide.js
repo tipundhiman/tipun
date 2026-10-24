@@ -10,7 +10,7 @@
     ['🎬', 'Animate my lyrics', 'Make cartoon lyric videos with original background music.', '/video-maker', 'Video', 'animation,movie,reel,shorts'],
     ['📽️', 'Earlier saved videos', 'Access your older private video archive. New videos download to your device.', '/video-maker#videos', 'Video', 'r2,video,storage'],
     ['🎚️', 'Vocal Lab', 'Clean background noise and try basic vocal tools.', '/vocal-lab', 'Audio', 'noise,autotune,remove,vocal,clean'],
-    ['🎙️', 'Sing Along / Karaoke', 'Sing over your track, record a duet and download it locally.', '/video-maker#karaoke', 'Audio', 'microphone,record,karaoke,sing,duet'],
+    ['🎙️', 'Sing Your Song', 'Choose a ready-made original karaoke, record your voice or practise singing notes.', '/sing-your-song', 'Audio', 'microphone,record,karaoke,sing,coach,lesson'],
     ['⬇️', 'Download my songs', 'Play and download your own generated tracks.', '/#downloads', 'Audio', 'mp3,wav,download,songs'],
     ['🎧', 'Listen & Chill', 'Listen to music videos in the RhymeOrbit player.', '/#listen', 'Explore', 'youtube,player,music,listen'],
     ['💾', 'My Studio', 'See your lyrics and saved projects.', '/#projects', 'Library', 'drafts,saved,projects'],
@@ -170,7 +170,14 @@
     }
     hero.after(bar);
   }
-  if (root && 'MutationObserver' in window) {const observer = new MutationObserver(shortcutBar);observer.observe(root,{childList:true});shortcutBar();}
+  function addSingNavigation() {
+    const nav=root?.querySelector('.desktop-nav');
+    if (nav && !nav.querySelector('[data-sing-link]')) {
+      const link=document.createElement('a');link.href='/sing-your-song';link.textContent='🎙 Sing Your Song';
+      link.className='navlink';link.dataset.singLink='true';nav.append(link);
+    }
+  }
+  if (root && 'MutationObserver' in window) {const update=()=>{shortcutBar();addSingNavigation();};const observer = new MutationObserver(update);observer.observe(root,{childList:true});update();}
   function restoreGuideDestination() {
     if (typeof window.go !== 'function') return;
     let destination = null;

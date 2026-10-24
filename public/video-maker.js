@@ -32,13 +32,6 @@
   let videoAuthClient = null;
   let savedSongs = [];
   let savedVideoObjectUrl = null;
-  let karaokeRecorder = null;
-  let karaokeBacking = null;
-  let karaokeMic = null;
-  let karaokeContext = null;
-  let karaokeTimer = null;
-  let karaokeObjectUrl = null;
-  let karaokeRecording = null;
   let selectedSongId = null;
   let lyricDraftVersion = 0;
   let transcribing = false;
@@ -56,8 +49,9 @@
   const sceneNames = ['Dream', 'Float', 'Glow', 'Pulse', 'Forever'];
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const status = text => { $('vmStatus').textContent = text; };
-  const lyricRows = () => $('vmLyrics').value.split(/\r?\n/).map(line => line.trim())
+  const sourceLyricRows = () => $('vmLyrics').value.split(/\r?\n/).map(line => line.trim())
     .filter(line => line && !/^\[(verse|chorus|intro|bridge|outro|hook|pre-chorus)[^\]]*\]$/i.test(line)).slice(0, 250);
+  const lyricRows = () => window.roLyricSync.rows(sourceLyricRows().join('\n')).map(line => line.text);
   const useSelectedSong = () => $('vmAudioMode')?.value === 'auto' && !!(audioBlob && audioUrl);
   function videoDuration() {
     if (useSelectedSong()) return Math.min(MAX_VIDEO_SECONDS, Math.max(1, audioDuration));
@@ -133,95 +127,6 @@
       setLoadedBlob(file, file.name.replace(/\.[^.]*$/, ''), file.name);
       if ($('vmAutoTranscribe').checked) transcribeAudio(file);
     }
-  });
-
-  const karaokeStatus = message => {$('vmKaraokeStatus').textContent = message;};
-  function stopKaraokeRecording() {
-    if (karaokeRecorder?.state === 'recording') karaokeRecorder.stop();
-    $('vmKaraokeStop').disabled = true;
-  }
-  async function cleanupKaraokeMedia() {
-    if (karaokeTimer) clearTimeout(karaokeTimer);
-    karaokeTimer = null;
-    karaokeBacking?.pause();
-    karaokeBacking = null;
-    karaokeMic?.getTracks().forEach(track => track.stop());
-    karaokeMic = null;
-    await karaokeContext?.close().catch(() => {});
-    karaokeContext = null;
-    karaokeRecorder = null;
-    $('vmKaraokeStart').disabled = false;
-    $('vmKaraokeStop').disabled = true;
-  }
-  async function startKaraokeRecording() {
-    if (!audioBlob || !audioUrl) {karaokeStatus('First upload your own song or select a saved RhymeOrbit track.');return;}
-    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder || !window.AudioContext) {
-      karaokeStatus('Recording requires HTTPS and a recent browser such as Chrome or Edge.');return;
-    }
-    if (karaokeRecorder?.state === 'recording') return;
-    const mime = ['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus']
-      .find(type => MediaRecorder.isTypeSupported(type));
-    if (!mime) {karaokeStatus('Audio recording format unavailable in this browser.');return;}
-    $('vmKaraokeStart').disabled = true;
-    $('vmKaraokeDownload').hidden = true;
-    $('vmKaraokeUseVideo').hidden = true;
-    karaokeStatus('Requesting microphone access… please allow it to record your voice.');
-    try {
-      stopPreviewSound();
-      karaokeMic = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
-      karaokeContext = new AudioContext();
-      await karaokeContext.resume();
-      const mix = karaokeContext.createMediaStreamDestination();
-      const backing = new Audio(audioUrl);
-      karaokeBacking = backing;
-      await waitForMetadata(backing);
-      const song = karaokeContext.createMediaElementSource(backing);
-      const musicGain = karaokeContext.createGain();
-      musicGain.gain.value = .72;
-      song.connect(musicGain);musicGain.connect(mix);musicGain.connect(karaokeContext.destination);
-      const mic = karaokeContext.createMediaStreamSource(karaokeMic);
-      const vocalGain = karaokeContext.createGain();
-      vocalGain.gain.value = 1;
-      mic.connect(vocalGain);vocalGain.connect(mix);
-      const chunks = [];
-      const recorder = new MediaRecorder(mix.stream,{mimeType:mime,audioBitsPerSecond:128000});
-      karaokeRecorder = recorder;
-      recorder.ondataavailable = event => {if(event.data.size)chunks.push(event.data);};
-      recorder.onerror = () => karaokeStatus('Microphone recording failed. Please try again.');
-      recorder.onstop = async () => {
-        await cleanupKaraokeMedia();
-        if (!chunks.length) {karaokeStatus('No audio was recorded. Check microphone permissions and try again.');return;}
-        karaokeRecording = new Blob(chunks,{type:mime});
-        if (karaokeObjectUrl) URL.revokeObjectURL(karaokeObjectUrl);
-        karaokeObjectUrl = URL.createObjectURL(karaokeRecording);
-        const ext = mime.includes('mp4') ? 'm4a' : mime.includes('ogg') ? 'ogg' : 'webm';
-        const download = $('vmKaraokeDownload');
-        download.href = karaokeObjectUrl;
-        download.download = 'rhymeorbit-karaoke-' + secureName(audioTitle) + '.' + ext;
-        download.hidden = false;
-        $('vmKaraokeUseVideo').hidden = false;
-        karaokeStatus('🎙 Your duet recording is ready. Download it or turn it into an animated video. Not uploaded to R2.');
-      };
-      backing.addEventListener('ended',stopKaraokeRecording,{once:true});
-      recorder.start(1000);
-      await backing.play();
-      karaokeTimer = setTimeout(stopKaraokeRecording,MAX_VIDEO_SECONDS*1000);
-      $('vmKaraokeStop').disabled = false;
-      karaokeStatus('🔴 Recording your voice + song. Use headphones to prevent echo. Finish within 5 minutes.');
-    } catch (error) {
-      if (karaokeRecorder) karaokeRecorder.onstop = null;
-      await cleanupKaraokeMedia();
-      karaokeStatus('Karaoke could not start: ' + (error.message || 'microphone blocked'));
-    }
-  }
-  $('vmKaraokeStart').addEventListener('click',startKaraokeRecording);
-  $('vmKaraokeStop').addEventListener('click',stopKaraokeRecording);
-  $('vmKaraokeUseVideo').addEventListener('click',()=>{
-    if (!karaokeRecording) return;
-    setLoadedBlob(karaokeRecording,'My Karaoke Performance','my-karaoke-performance');
-    $('vmAudioMode').value = 'auto';
-    setTab('lyrics');
-    status('🎬 Your recorded performance is selected! Add lyrics, pick a character and export your video.');
   });
 
   async function loadSavedSong(selected = null) {
@@ -325,7 +230,7 @@
     return response;
   }
 
-  async function transcribeAudio(blob) {
+  async function transcribeAudio(blob, { timed = false } = {}) {
     if (transcribing) { lyricsInfo('Already transcribing audio. Please wait.'); return; }
     if (!blob) { lyricsInfo('Choose a song first.'); return; }
     if (blob.size > TRANSCRIBE_LIMIT) {
@@ -336,9 +241,9 @@
     const startedWith = lyricDraftVersion;
     transcribing = true;
     $('vmTranscribe').disabled = true;
-    lyricsInfo('🎙 Gemini is listening for words in your recording. This can take a minute…');
+    lyricsInfo(timed ? '🎯 Gemini is estimating the start time of every sung line… Please wait.' : '🎙 Gemini is listening for words in your recording. This can take a minute…');
     try {
-      const response = await apiRequest('/api/lyrics/transcribe', {
+      const response = await apiRequest('/api/lyrics/transcribe' + (timed ? '?timed=1' : ''), {
         method: 'POST', headers: { 'Content-Type': /\.m4a$/i.test(blob.name || sourceName) ? 'audio/mp4' : (blob.type || 'audio/mpeg').split(';')[0] }, body: blob
       });
       const result = await response.json();
@@ -349,11 +254,36 @@
       if (!result.lyrics) throw Error('No audible lyrics were found.');
       $('vmLyrics').value = result.lyrics.slice(0, 8000);
       lyricDraftVersion++;
-      lyricsInfo('✓ Audio lyrics detected. Review mistakes and' + (selectedSongId ? ' select “Save lyrics to this song” for your R2 library.' : ' edit the text before exporting.'));
-    } catch (error) { lyricsInfo('Audio transcription unavailable: ' + error.message + ' You can type or generate lyrics instead.'); }
+      lyricsInfo(timed ? '✓ Line timestamps estimated. Play the song and review each timecode; AI timing may need manual corrections.' : '✓ Audio lyrics detected. Review mistakes and' + (selectedSongId ? ' select “Save lyrics to this song” for your R2 library.' : ' edit the text before exporting.'));
+      if (timed) $('vmSyncStatus').textContent = '✓ AI-timed lyrics ready. Each [mm:ss.xx] timecode controls both preview and exported video. Adjust any line manually before export.';
+    } catch (error) { lyricsInfo('Audio transcription unavailable: ' + error.message + ' You can type or generate lyrics instead.'); if (timed) $('vmSyncStatus').textContent = 'Could not time lyrics: ' + error.message + '. Try marking each line manually while playing your song.'; }
     finally { transcribing = false; $('vmTranscribe').disabled = false; }
   }
   $('vmTranscribe').addEventListener('click', () => transcribeAudio(audioBlob || $('vmAudioFile').files?.[0]));
+  $('vmAutoSync').addEventListener('click', () => transcribeAudio(audioBlob || $('vmAudioFile').files?.[0], {timed:true}));
+  $('vmMarkLyric').addEventListener('click', () => {
+    const player = $('vmAudioPreview');
+    if (!audioBlob || !Number.isFinite(player.currentTime)) {
+      $('vmSyncStatus').textContent = 'Choose or upload your song, then play it before marking lyrics.';return;
+    }
+    const rows = window.roLyricSync.rows(sourceLyricRows().join('\n'));
+    if(!rows.length){$('vmSyncStatus').textContent='Add lyrics first, one line per row.';return;}
+    const next = rows.findIndex(line => !Number.isFinite(line.start));
+    if (next < 0){$('vmSyncStatus').textContent='✓ Every line has a timestamp! Edit any [mm:ss.xx] value for fine-tuning, or clear and begin again.';return;}
+    const when = player.currentTime;
+    if (next && rows[next-1].start > when) {
+      $('vmSyncStatus').textContent='Please play/seek forward beyond the previous line (' + rows[next-1].start.toFixed(1) + ' sec).';return;
+    }
+    rows[next].start=when;
+    $('vmLyrics').value=rows.map(line=>Number.isFinite(line.start)?window.roLyricSync.format(line.start)+' '+line.text:line.text).join('\n');
+    lyricDraftVersion++;
+    $('vmSyncStatus').textContent='Marked ' + (next+1) + '/' + rows.length + ' lines at ' + when.toFixed(1) + ' sec.' + (next+1===rows.length?' Ready to export!':' Now tap again when the next line starts.');
+  });
+  $('vmResetLyricMarks').addEventListener('click', () => {
+    $('vmLyrics').value=window.roLyricSync.rows(sourceLyricRows().join('\n')).map(row=>row.text).join('\n');
+    lyricDraftVersion++;
+    $('vmSyncStatus').textContent='Caption timings cleared. Play the song and mark line 1 when singing begins.';
+  });
   $('vmSaveSongLyrics').addEventListener('click', async () => {
     if (!selectedSongId) { lyricsInfo('Choose a saved RhymeOrbit song first.'); return; }
     const button = $('vmSaveSongLyrics');
@@ -621,12 +551,8 @@
   }
 
   function lyricLine(seconds, duration) {
-    const lines = lyricRows();
-    if (!lines.length) return audioTitle;
     const delay = Number($('vmLyricDelay').value) || 0;
-    if (seconds < delay) return audioTitle;
-    const adjusted = clamp((seconds - delay) / Math.max(1, duration - delay), 0, .999999);
-    return lines[Math.floor(adjusted * lines.length)];
+    return window.roLyricSync.at(sourceLyricRows().join('\n'),seconds,duration,delay,audioTitle);
   }
   function drawVideo(second, strength = .2) {
     if (!ctx) return;
@@ -655,18 +581,20 @@
     ctx.font = '700 ' + Math.round(w * (portrait ? .067 : .041)) + 'px system-ui,sans-serif';
     const lyric = lyricLine(time, duration);
     const maxWidth = w * .86;
-    const words = lyric.split(/\s+/);
+    const words = lyric.split(/\s+/).filter(Boolean);
     const lines = [];
     let current = '';
     for (const word of words) {
       const candidate = current ? current + ' ' + word : word;
-      if (current && ctx.measureText(candidate).width > maxWidth && lines.length < 2) {
+      if (current && ctx.measureText(candidate).width > maxWidth) {
         lines.push(current);
         current = word;
       } else current = candidate;
     }
     if (current) lines.push(current);
+    // Keep captions legible: never squeeze a huge paragraph to one tiny line.
     const shown = lines.slice(0, 3);
+    if (lines.length > 3) shown[2] = shown[2].replace(/\s*$/, '') + '…';
     const rowH = w * (portrait ? .091 : .055);
     shown.forEach((line, i) => ctx.fillText(line, w / 2, h * .48 + (i - (shown.length - 1) / 2) * rowH, maxWidth));
     ctx.shadowBlur = 0;
@@ -786,12 +714,17 @@
   async function exportVideo() {
     if (exporting) return;
     stopPreviewSound();
-    stopKaraokeRecording();
     const hasSongAudio = useSelectedSong();
     const hasAmbientAudio = !hasSongAudio && $('vmAudioMode').value !== 'silent';
     const hasAudio = hasSongAudio || hasAmbientAudio;
     if (!hasSongAudio && !$('vmLyrics').value.trim()) {
       setTab('lyrics'); status('Add or generate some lyrics first, or choose a song.'); return;
+    }
+    const captions=window.roLyricSync.rows(sourceLyricRows().join('\n'));
+    if (hasSongAudio && captions.length > 1 && !window.roLyricSync.isTimed(captions)) {
+      if (!confirm('Your captions have no complete timestamps. Auto-spaced lyrics may NOT match the sung words in your downloaded video. Open Lyrics → Sync first?')) {
+        setTab('lyrics');status('Sync each line with the song in Lyrics before exporting.');return;
+      }
     }
     if (!$('vmRights').checked) { status('Confirm you own or are allowed to use the song and lyrics.'); return; }
     if (!ctx || !canvas.captureStream || !window.MediaRecorder || (hasAudio && !window.AudioContext)) {
@@ -904,10 +837,6 @@
   });
   window.addEventListener('pagehide', () => {
     stopPreviewSound();
-    if (karaokeRecorder) karaokeRecorder.onstop = null;
-    stopKaraokeRecording();
-    cleanupKaraokeMedia();
-    if (karaokeObjectUrl) URL.revokeObjectURL(karaokeObjectUrl);
     exportAudio?.pause();
     exportStream?.getTracks().forEach(track => track.stop());
     if (audioUrl) URL.revokeObjectURL(audioUrl);

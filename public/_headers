@@ -12,3 +12,9 @@
 
 /vocal-lab*
   Permissions-Policy: camera=(), microphone=(self), geolocation=()
+
+/sing-your-song*
+  ! Permissions-Policy
+
+/sing-your-song*
+  Permissions-Policy: camera=(), microphone=(self), geolocation=()
