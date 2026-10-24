@@ -5,11 +5,14 @@
  */
 import { handleApi } from '../api/index.js';
 import { forwardApiRequest } from './api-adapter.js';
+import { handleMediaStorageRequest } from './media-storage.js';
 
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
     if (path.startsWith('/api/')) {
+      const mediaResponse = await handleMediaStorageRequest(request, env);
+      if (mediaResponse) return mediaResponse;
       return forwardApiRequest(request, handleApi, undefined, env);
     }
     return env.ASSETS.fetch(request);
