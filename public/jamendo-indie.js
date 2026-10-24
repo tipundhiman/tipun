@@ -131,7 +131,7 @@
       heading.textContent = '🎧 Indie music · Jamendo';
       const explanation = document.createElement('p');
       explanation.className = 'muted small';
-      explanation.textContent = 'Play music instantly, try a genre, or search above. Independent artists only; not a karaoke or download library.';
+      explanation.textContent = 'These songs are playable right here. Try a genre or search above. This independent catalog does not include every Bollywood hit and is not a karaoke or download library.';
       const genres = document.createElement('div');
       genres.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin:12px 0';
       [['🎸 Rock', 'rock'], ['🎹 Piano', 'piano'], ['🌿 Acoustic', 'acoustic']].forEach(([label, query]) => {

@@ -25,12 +25,16 @@ async function searchCatalog(query, limit) {
     country: 'IN', page: '0', secType: 'track', type: 'search', keyword: query
   })) endpoint.searchParams.set(key, value);
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
+  // GaanaPy used POST for this endpoint. If a provider explicitly returns
+  // "Method Not Allowed", retry the standard read-only GET method once.
+  const request = method => fetch(endpoint, {
+    method,
     headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(5000),
     redirect: 'error'
   });
+  let response = await request('POST');
+  if (response.status === 405) response = await request('GET');
   if (!response.ok || !(response.headers.get('content-type') || '').includes('json'))
     return { ok: false, status: 503, code: 'CATALOG_UNAVAILABLE' };
 

@@ -47,3 +47,21 @@ test('HTML upstream errors fail closed instead of showing broken tracks', async 
     assert.equal(r.response.body.playable, false);
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test('405 on POST retries standard GET before giving up', async () => {
+  const originalFetch = globalThis.fetch;
+  const methods = [];
+  globalThis.fetch = async (_url, options) => {
+    methods.push(options.method);
+    return options.method === 'POST'
+      ? new Response('Method Not Allowed', { status: 405 })
+      : new Response(JSON.stringify({ gr: [{ gd: [{ seo: 'indie-song', track_title: 'Indie Song' }] }] }), {
+          headers: { 'content-type': 'application/json' }
+        });
+  };
+  try {
+    const r = await call('/api/catalog/gaana/search', '?q=indie');
+    assert.equal(r.response.code, 200);
+    assert.deepEqual(methods, ['POST', 'GET']);
+  } finally { globalThis.fetch = originalFetch; }
+});
