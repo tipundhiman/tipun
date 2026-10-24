@@ -35,6 +35,30 @@ test('Video export runs locally, accepts private songs safely and never calls a 
   assert.doesNotMatch(script, /api\.nvidia\.com|build\.nvidia\.com|\.gpu\(|api\.runpod\.io/);
 });
 
+test('AI lyrics securely reuse existing RhymeOrbit Gemini API and authenticated Supabase session', () => {
+  assert.match(page, /id="vmGenerateLyrics"/);
+  assert.match(page, /id="vmIdea"/);
+  assert.match(page, /id="vmLanguage"/);
+  assert.match(page, /id="vmLyricMood"/);
+  assert.match(page, /@supabase\/supabase-js@2\/dist\/umd\/supabase\.min\.js/);
+  assert.match(script, /videoAuthClient\.auth\.getSession\(\)/);
+  assert.match(script, /fetch\('\/api\/ai'/);
+  assert.match(script, /Authorization: 'Bearer ' \+ token/);
+  assert.match(script, /kind: 'lyrics', input: brief/);
+  assert.doesNotMatch(script, /GEMINI_API_KEY|SUPABASE_SERVICE_ROLE_KEY|AIza[A-Za-z0-9_-]{20,}/);
+});
+
+test('Without a song users can export a silent lyric video and select cartoon presets', () => {
+  assert.match(page, /id="vmCharacter"/);
+  for (const character of ['none','singer','cat','robot'])
+    assert.match(page, new RegExp('value="' + character + '"'));
+  assert.match(script, /function drawCharacter\(seconds, strength\)/);
+  assert.match(script, /drawCharacter\(time, strength\)/);
+  assert.match(script, /exportTarget = hasAudio \? Math\.min\(MAX_VIDEO_SECONDS, audioDuration\) : MAX_VIDEO_SECONDS/);
+  assert.match(script, /const silent = \['video\/webm;codecs=vp9'/);
+  assert.match(script, /const seconds = exportAudio \? exportAudio\.currentTime : \(performance\.now\(\) - exportStartedAt\) \/ 1000/);
+});
+
 test('Video-maker discovery URLs are indexable and included in the existing sitemap', () => {
   assert.match(page, /rel="canonical" href="https:\/\/rhymeorbit\.in\/video-maker"/);
   assert.match(read('sitemap.xml'), /<loc>https:\/\/rhymeorbit\.in\/video-maker<\/loc>/);

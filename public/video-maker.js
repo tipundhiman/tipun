@@ -19,10 +19,13 @@
   let exportContext = null;
   let exportStream = null;
   let exportTarget = MAX_VIDEO_SECONDS;
+  let exportStartedAt = 0;
   let analyser = null;
   let spectrum = null;
   let previewStarted = performance.now();
   let activeLoad = 0;
+  let lyricsBeforeAI = null;
+  let videoAuthClient = null;
 
   const themes = {
     romantic: [['#3d254d','#c27690'],['#332648','#8c78b6'],['#502b52','#dca18d'],['#253d55','#7893c4'],['#3d2248','#d17f9e']],
@@ -141,6 +144,67 @@
   }
   loadSavedSong();
 
+  // Reuse the same signed-in session and authenticated Gemini route as AI Studio.
+  // Never expose the Gemini API key or Supabase service-role key in this page.
+  async function aiSessionToken() {
+    if (!window.supabase?.createClient) throw Error('Sign-in service is unavailable. Refresh the page and try again.');
+    if (!videoAuthClient) {
+      const response = await fetch('/api/config', { cache: 'no-store' });
+      if (!response.ok) throw Error('RhymeOrbit authentication is temporarily unavailable.');
+      const config = await response.json();
+      if (!/^https:\/\/[a-z0-9.-]+\.supabase\.co\/?$/i.test(config.supabaseUrl || '') ||
+          typeof config.supabaseAnonKey !== 'string' || config.supabaseAnonKey.length < 20) {
+        throw Error('RhymeOrbit authentication is not configured.');
+      }
+      videoAuthClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+    }
+    const { data, error } = await videoAuthClient.auth.getSession();
+    if (error) throw Error('Could not verify your session. Sign in again on RhymeOrbit.');
+    if (!data?.session?.access_token) throw Error('Sign in to RhymeOrbit first, then return here to generate AI lyrics.');
+    return data.session.access_token;
+  }
+  async function generateLyrics() {
+    const idea = $('vmIdea').value.trim();
+    if (idea.length < 5) { setTab('lyrics'); status('Describe your idea in at least five characters first.'); $('vmIdea').focus(); return; }
+    const button = $('vmGenerateLyrics');
+    button.disabled = true;
+    status('✦ Writing original lyrics with RhymeOrbit AI…');
+    try {
+      const token = await aiSessionToken();
+      const brief = [
+        'Write ORIGINAL short song lyrics for a 50-second animated lyric video.',
+        'Language: ' + $('vmLanguage').value,
+        'Mood: ' + $('vmLyricMood').value,
+        'Story idea: ' + idea.slice(0, 1200),
+        'Give 8 to 12 concise singable lines; section labels [Verse] and [Chorus] are optional.',
+        'Return only the lyrics, without a title or explanation. No imitation of copyrighted songs.'
+      ].join('\n');
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ kind: 'lyrics', input: brief }),
+        cache: 'no-store'
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || typeof result.text !== 'string' || !result.text.trim())
+        throw Error(result.error || 'Could not generate lyrics. Please try again.');
+      const original = result.text.trim().replace(/^```[^\n]*\n?|```$/g, '').trim();
+      lyricsBeforeAI = $('vmLyrics').value;
+      $('vmLyrics').value = original.slice(0, 8000);
+      $('vmUndoLyrics').hidden = false;
+      status('✦ AI lyrics are ready! Edit any line, choose a character, and export with or without audio.');
+    } catch (error) { status(error.message || 'AI lyrics unavailable right now.'); }
+    finally { button.disabled = false; }
+  }
+  $('vmGenerateLyrics').addEventListener('click', generateLyrics);
+  $('vmUndoLyrics').addEventListener('click', () => {
+    if (lyricsBeforeAI === null) return;
+    $('vmLyrics').value = lyricsBeforeAI;
+    lyricsBeforeAI = null;
+    $('vmUndoLyrics').hidden = true;
+    status('Previous lyrics restored.');
+  });
+
   function drawGlow(x, y, radius, color, opacity) {
     const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
     gradient.addColorStop(0, color + Math.round(opacity * 255).toString(16).padStart(2, '0'));
@@ -192,6 +256,68 @@
     ctx.restore();
   }
 
+  // Lightweight original cartoon mascots, drawn as vectors at export resolution.
+  // These are not prompt-to-video AI characters; no GPU provider or licensing cost.
+  function drawCharacter(seconds, strength) {
+    const choice = $('vmCharacter').value;
+    if (choice === 'none') return;
+    const w = canvas.width, h = canvas.height;
+    const portrait = h > w;
+    const size = w * (portrait ? .16 : .085);
+    const centerX = w * (portrait ? .5 : .18);
+    const centerY = h * (portrait ? .305 : .46);
+    const bounce = Math.sin(seconds * 5) * size * (.025 + strength * .065);
+    ctx.save();
+    ctx.translate(centerX, centerY + bounce);
+    ctx.rotate(Math.sin(seconds * 1.7) * .035);
+    ctx.shadowColor = '#090713';
+    ctx.shadowBlur = size * .2;
+    const circle = (x, y, r, color) => {
+      ctx.beginPath();ctx.arc(x, y, r, 0, Math.PI * 2);ctx.fillStyle = color;ctx.fill();
+    };
+    // Each character has a simple dancing body, face and music-reactive eyes.
+    ctx.fillStyle = choice === 'robot' ? '#839df2' : choice === 'cat' ? '#d9a7cc' : '#eac5af';
+    ctx.beginPath();ctx.ellipse(0, size * .66, size * .56, size * .62, 0, 0, Math.PI * 2);ctx.fill();
+    if (choice === 'cat') {
+      ctx.fillStyle = '#e8b7de';
+      ctx.beginPath();ctx.moveTo(-size * .75,-size * .35);ctx.lineTo(-size * .62,-size * 1.1);ctx.lineTo(-size * .08,-size * .65);ctx.closePath();ctx.fill();
+      ctx.beginPath();ctx.moveTo(size * .75,-size * .35);ctx.lineTo(size * .62,-size * 1.1);ctx.lineTo(size * .08,-size * .65);ctx.closePath();ctx.fill();
+      ctx.beginPath();ctx.ellipse(0,0,size * .78,size * .68,0,0,Math.PI * 2);ctx.fill();
+      circle(-size * .28,-size * .05,size * .072,'#30233f');circle(size * .28,-size * .05,size * .072,'#30233f');
+      circle(0,size * .14,size * .065,'#ba6a91');
+      ctx.strokeStyle = '#795572';ctx.lineWidth = size * .026;
+      for (const side of [-1,1])for(let i=-1;i<=1;i++){
+        ctx.beginPath();ctx.moveTo(side * size * .35,size * (.19+i*.07));ctx.lineTo(side * size * .88,size * (.13+i*.13));ctx.stroke();
+      }
+    } else if (choice === 'robot') {
+      ctx.fillStyle = '#91b3f5';ctx.beginPath();ctx.roundRect(-size * .72,-size * .65,size * 1.44,size * 1.27,size * .21);ctx.fill();
+      ctx.fillStyle = '#21224e';ctx.beginPath();ctx.roundRect(-size * .55,-size * .43,size * 1.1,size * .64,size * .13);ctx.fill();
+      const eyePower = .9 + strength * .35;
+      circle(-size * .28,-size * .12,size * .12 * eyePower,'#89fff5');circle(size * .28,-size * .12,size * .12 * eyePower,'#89fff5');
+      ctx.strokeStyle = '#e6faff';ctx.lineWidth = size * .045;
+      ctx.beginPath();ctx.moveTo(-size * .2,size * .37);ctx.lineTo(size * .2,size * .37);ctx.stroke();
+      ctx.strokeStyle = '#a0bbf9';ctx.lineWidth = size * .07;
+      ctx.beginPath();ctx.moveTo(0,-size * .65);ctx.lineTo(0,-size * .97);ctx.stroke();circle(0,-size * 1.02,size * .105,'#f9b8db');
+    } else {
+      circle(0,-size * .06,size * .73,'#ebc7ad');
+      ctx.fillStyle = '#51395a';ctx.beginPath();ctx.arc(0,-size * .18,size * .74,Math.PI * .98,Math.PI * 1.98);ctx.lineTo(size * .57,-size * .26);ctx.closePath();ctx.fill();
+      circle(-size * .25,0,size * .055,'#3d2941');circle(size * .25,0,size * .055,'#3d2941');
+      ctx.strokeStyle = '#a15b70';ctx.lineWidth = size * .045;
+      ctx.beginPath();ctx.arc(0,size * .14,size * .21,0,Math.PI);ctx.stroke();
+      // Small microphone moves with the beat.
+      ctx.save();ctx.translate(size * .64,size * .53);ctx.rotate(-.2 + Math.sin(seconds * 4) * .07);
+      ctx.strokeStyle='#e9dfef';ctx.lineWidth=size*.085;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-size*.7);ctx.stroke();
+      ctx.fillStyle='#6f577e';ctx.beginPath();ctx.ellipse(0,-size*.77,size*.16,size*.23,0,0,Math.PI*2);ctx.fill();ctx.restore();
+    }
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#f9e3b8';
+    ctx.font = '700 ' + Math.round(size * .29) + 'px system-ui,sans-serif';
+    ctx.textAlign = 'center';
+    const notes = ['♪','♫','✦'];
+    ctx.fillText(notes[Math.floor(seconds / 2) % notes.length],size * 1.05,-size * .65 + Math.sin(seconds * 2) * size * .1);
+    ctx.restore();
+  }
+
   function lyricLine(seconds, duration) {
     const lines = $('vmLyrics').value.split(/\r?\n/).map(line => line.trim())
       .filter(line => line && !/^\[(verse|chorus|intro|bridge|outro|hook|pre-chorus)[^\]]*\]$/i.test(line)).slice(0, 90);
@@ -212,6 +338,7 @@
       drawScene(scene - 1, time, 1);
       drawScene(scene, time, sceneTime / 1.1);
     } else drawScene(scene, time, 1);
+    drawCharacter(time, strength);
     const w = canvas.width;
     const h = canvas.height;
     const portrait = h > w;
@@ -266,11 +393,12 @@
     return clamp(total / (Math.max(1, Math.floor(spectrum.length / 3)) * 165), .1, 1);
   }
   function drawLoop() {
-    if (!document.hidden && !exporting) {
+    if (exporting) {
+      const seconds = exportAudio ? exportAudio.currentTime : (performance.now() - exportStartedAt) / 1000;
+      drawVideo(Math.min(exportTarget - .001, seconds), playbackStrength());
+    } else if (!document.hidden) {
       const seconds = ((performance.now() - previewStarted) / 1000) % MAX_VIDEO_SECONDS;
       drawVideo(seconds, .32);
-    } else if (exporting && exportAudio) {
-      drawVideo(exportAudio.currentTime, playbackStrength());
     }
     requestAnimationFrame(drawLoop);
   }
@@ -291,9 +419,11 @@
       audio.addEventListener('error', onError, { once: true });
     });
   }
-  function supportedMime() {
+  function supportedMime(hasAudio) {
     if (!window.MediaRecorder) return '';
-    return ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm', 'video/mp4']
+    const withAudio = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2'];
+    const silent = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/mp4;codecs=avc1.42E01E'];
+    return [...(hasAudio ? withAudio : silent), 'video/webm', 'video/mp4']
       .find(type => MediaRecorder.isTypeSupported(type)) || '';
   }
   function cleanupExport() {
@@ -312,38 +442,44 @@
   }
   async function exportVideo() {
     if (exporting) return;
-    if (!audioBlob || !audioUrl) { setTab('music'); status('Choose a playable song first.'); return; }
+    const hasAudio = !!(audioBlob && audioUrl);
+    if (!hasAudio && !$('vmLyrics').value.trim()) {
+      setTab('lyrics'); status('Add or generate some lyrics first, or choose a song.'); return;
+    }
     if (!$('vmRights').checked) { status('Confirm you own or are allowed to use the song and lyrics.'); return; }
-    if (!ctx || !canvas.captureStream || !window.MediaRecorder || !window.AudioContext) {
-      status('This browser cannot export video with audio. Try updated desktop Chrome or Edge.');
+    if (!ctx || !canvas.captureStream || !window.MediaRecorder || (hasAudio && !window.AudioContext)) {
+      status('This browser cannot export this video. Try updated desktop Chrome or Edge.');
       return;
     }
-    const mime = supportedMime();
+    const mime = supportedMime(hasAudio);
     if (!mime) { status('Video export is not supported in this browser. Try updated Chrome or Edge.'); return; }
     $('vmExport').disabled = true;
     $('vmStop').disabled = false;
     $('vmDownloadResult').hidden = true;
     $('vmProgress').value = 0;
-    exportTarget = Math.min(MAX_VIDEO_SECONDS, audioDuration);
+    exportTarget = hasAudio ? Math.min(MAX_VIDEO_SECONDS, audioDuration) : MAX_VIDEO_SECONDS;
     $('vmProgress').max = exportTarget;
-    status('Preparing the five-scene video… keep this page visible.');
+    status('Preparing the five-scene ' + (hasAudio ? 'music' : 'silent lyric') + ' video… keep this page visible.');
+    let failed = false;
     try {
-      exportAudio = new Audio(audioUrl);
-      exportAudio.preload = 'auto';
-      await waitForMetadata(exportAudio);
-      exportContext = new AudioContext();
-      await exportContext.resume();
-      const source = exportContext.createMediaElementSource(exportAudio);
-      analyser = exportContext.createAnalyser();
-      analyser.fftSize = 256;
-      spectrum = new Uint8Array(analyser.frequencyBinCount);
-      const dest = exportContext.createMediaStreamDestination();
-      source.connect(analyser);
-      analyser.connect(dest);
       exportStream = canvas.captureStream(24);
-      const audioTrack = dest.stream.getAudioTracks()[0];
-      if (!audioTrack) throw Error('Browser audio capture is unavailable.');
-      exportStream.addTrack(audioTrack);
+      if (hasAudio) {
+        exportAudio = new Audio(audioUrl);
+        exportAudio.preload = 'auto';
+        await waitForMetadata(exportAudio);
+        exportContext = new AudioContext();
+        await exportContext.resume();
+        const source = exportContext.createMediaElementSource(exportAudio);
+        analyser = exportContext.createAnalyser();
+        analyser.fftSize = 256;
+        spectrum = new Uint8Array(analyser.frequencyBinCount);
+        const dest = exportContext.createMediaStreamDestination();
+        source.connect(analyser);
+        analyser.connect(dest);
+        const audioTrack = dest.stream.getAudioTracks()[0];
+        if (!audioTrack) throw Error('Browser audio capture is unavailable.');
+        exportStream.addTrack(audioTrack);
+      }
       const chunks = [];
       recorder = new MediaRecorder(exportStream, {
         mimeType: mime, videoBitsPerSecond: 2600000, audioBitsPerSecond: 160000
@@ -352,6 +488,7 @@
       recorder.onstop = () => {
         const actualMime = recorder?.mimeType || mime;
         cleanupExport();
+        if (failed) return;
         if (!chunks.length) { status('No video was captured. Try again in desktop Chrome or Edge.'); return; }
         if (downloadUrl) URL.revokeObjectURL(downloadUrl);
         const blob = new Blob(chunks, { type: actualMime });
@@ -360,7 +497,7 @@
         const name = (audioTitle || sourceName || 'RhymeOrbit').replace(/[^a-z0-9_-]+/gi, '-').slice(0, 60);
         const link = $('vmDownloadLink');
         link.href = downloadUrl;
-        link.download = (name || 'RhymeOrbit') + '-50s-video.' + ext;
+        link.download = (name || 'RhymeOrbit') + '-' + Math.round(exportTarget) + 's-video.' + ext;
         link.textContent = '↓ Download ' + ext.toUpperCase() + ' video';
         $('vmFormatNote').textContent = 'Export completed locally · ' + (blob.size / 1048576).toFixed(1) + ' MB. Format: ' + ext.toUpperCase() + '.';
         $('vmDownloadResult').hidden = false;
@@ -368,20 +505,24 @@
       };
       recorder.onerror = () => { status('Browser video recorder failed.'); };
       exporting = true;
+      exportStartedAt = performance.now();
+      drawVideo(0, .3);
       recorder.start(750);
-      await exportAudio.play();
-      status('Recording five 10-second scenes with your music…');
+      if (hasAudio) await exportAudio.play();
+      else exportStartedAt = performance.now();
+      status('Recording five scenes ' + (hasAudio ? 'with your music' : 'without audio') + '…');
       const progressTimer = setInterval(() => {
-        if (!exporting || !exportAudio) { clearInterval(progressTimer); return; }
-        const value = Math.min(exportTarget, exportAudio.currentTime);
+        if (!exporting) { clearInterval(progressTimer); return; }
+        const value = Math.min(exportTarget, exportAudio ? exportAudio.currentTime : (performance.now() - exportStartedAt) / 1000);
         $('vmProgress').value = value;
         $('vmProgressLabel').textContent = value.toFixed(0) + ' / ' + exportTarget.toFixed(0) + ' seconds encoded';
-        if (value >= exportTarget - .08 || exportAudio.ended) {
+        if (value >= exportTarget - .08 || exportAudio?.ended) {
           clearInterval(progressTimer);
           if (recorder?.state === 'recording') recorder.stop();
         }
       }, 120);
     } catch (error) {
+      failed = true;
       if (recorder?.state === 'recording') recorder.stop();
       else cleanupExport();
       status((error?.message || 'Video export could not start.') + ' Try a smaller MP3/WAV or updated desktop Chrome.');
