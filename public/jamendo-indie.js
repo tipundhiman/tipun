@@ -185,4 +185,15 @@
         .catch(() => {});
     }
   };
+
+  // A direct visit to #listen can render before this script loads. Mount the
+  // catalog once the document is ready, even when the visitor never clicks a tab.
+  const mountOnDirectVisit = () => {
+    if (document.getElementById('roYtForm')) window.roCcMount();
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mountOnDirectVisit, { once: true });
+  } else {
+    mountOnDirectVisit();
+  }
 })();

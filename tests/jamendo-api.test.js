@@ -115,6 +115,7 @@ test('Jamendo validates query, licensing metadata and does not enable karaoke re
     assert.match(frontend, /searchJamendo\('rock'\)/);
     assert.match(frontend, /Acoustic/);
     assert.match(frontend, /roJamendoMore/);
+    assert.match(frontend, /DOMContentLoaded/);
     assert.doesNotMatch(frontend, /client_secret|JAMENDO_CLIENT_SECRET|karaoke\.start\(/);
   } finally {
     old.id === undefined ? delete process.env.JAMENDO_CLIENT_ID : process.env.JAMENDO_CLIENT_ID = old.id;

@@ -8,6 +8,7 @@
 
 const setting = key => String(process.env[key] || '').trim();
 const PAGE_SIZE = 30;
+const pageCache = new Map();
 const configured = () => /^[a-zA-Z0-9_-]{5,100}$/.test(setting('JAMENDO_CLIENT_ID'));
 const enabled = () => configured() && setting('JAMENDO_CATALOG_DISABLED') !== 'true';
 
@@ -49,6 +50,9 @@ export function normalizeJamendoTrack(track) {
 }
 
 async function jamendoLookup(query, offset = 0) {
+  const cacheKey = `${query.toLowerCase()}:${offset}`;
+  const cached = query ? pageCache.get(cacheKey) : null;
+  if (cached?.expires > Date.now()) return cached.page;
   const url = new URL('https://api.jamendo.com/v3.0/tracks/');
   url.searchParams.set('client_id', setting('JAMENDO_CLIENT_ID'));
   url.searchParams.set('format', 'json');
@@ -59,15 +63,26 @@ async function jamendoLookup(query, offset = 0) {
   url.searchParams.set('ccnc', 'false');
   url.searchParams.set('ccnd', 'false');
   if (query) url.searchParams.set('search', query);
-  const response = await fetch(url, { signal: AbortSignal.timeout(9000) });
-  if (!response.ok) throw Error('Jamendo HTTP ' + response.status);
-  const data = await response.json();
-  if (data?.headers?.status !== 'success' || !Array.isArray(data.results)) throw Error('Jamendo returned an invalid response');
-  return {
+  let data;
+  for (let attempt = 0; attempt < (query ? 2 : 1); attempt++) {
+    const response = await fetch(url, { signal: AbortSignal.timeout(9000) });
+    if (!response.ok) throw Error('Jamendo HTTP ' + response.status);
+    data = await response.json();
+    if (data?.headers?.status !== 'success' || !Array.isArray(data.results)) throw Error('Jamendo returned an invalid response');
+    // Jamendo occasionally returns an empty page for a normally populated
+    // search. Retry just once before telling the visitor no tracks were found.
+    if (data.results.length || attempt === 1 || !query) break;
+  }
+  const page = {
     items: data.results.map(normalizeJamendoTrack).filter(Boolean),
     hasMore: !!query && data.results.length === PAGE_SIZE,
     nextOffset: offset + PAGE_SIZE
   };
+  if (query && page.items.length) {
+    pageCache.set(cacheKey, { page, expires: Date.now() + 120000 });
+    if (pageCache.size > 70) pageCache.delete(pageCache.keys().next().value);
+  }
+  return page;
 }
 
 export async function handleJamendoApi(req, res, { path, raw, send, rate, auth, isAdmin }) {
