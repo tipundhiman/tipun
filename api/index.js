@@ -1,5 +1,6 @@
 
 import { randomUUID } from 'node:crypto';
+import { r2Enabled, r2ConfigState, r2Put, r2PresignedGet, r2Remove } from './r2.js';
 
 const env = k => process.env[k] || '';
 const limits = new Map();
@@ -96,6 +97,10 @@ async function cloudSongs(userId) {
 }
 async function signedAudio(path) {
   if(!path)return null;
+  if(path.startsWith('r2:')){
+    if(!r2Enabled())return null;
+    try{return r2PresignedGet(path.slice(3))}catch{return null}
+  }
   const c=config();
   const response=await fetch(c.url+'/storage/v1/object/sign/song-audio/'+path.split('/').map(encodeURIComponent).join('/'),{
     method:'POST',headers:{apikey:c.service,Authorization:'Bearer '+c.service,'Content-Type':'application/json'},
@@ -127,6 +132,12 @@ async function archiveAudio(userId,id,url) {
   const path=userId+'/'+id+(isOgg?'.ogg':'.mp3');
   const bytes=await download.arrayBuffer();
   if(bytes.byteLength>20_000_000||bytes.byteLength<1000)throw Error('Invalid audio size');
+  if(r2Enabled()){
+    const key='songs/'+userId+'/'+id+(isOgg?'.ogg':'.mp3');
+    await r2Put(key,bytes,isOgg?'audio/ogg':'audio/mpeg');
+    return 'r2:'+key;
+  }
+  if(r2ConfigState()!=='not-configured')throw new Error('R2 storage configuration incomplete');
   const upload=await fetch(c.url+'/storage/v1/object/song-audio/'+path,{
     method:'POST',headers:{apikey:c.service,Authorization:'Bearer '+c.service,'Content-Type':isOgg?'audio/ogg':'audio/mpeg','x-upsert':'true'},
     body:bytes,signal:AbortSignal.timeout(16000)
@@ -187,6 +198,11 @@ function pathOf(req) {
 export async function handleApi(req, res) {
   const { path, raw } = pathOf(req);
   try {
+    if (req.method === 'GET' && path === '/api/storage/status') {
+      const user=await auth(req,res);if(!user)return;
+      if(!await isAdmin(user.id))return send(res,403,{error:'Admin only'});
+      return send(res,200,{storageConfigured:r2Enabled(),state:r2ConfigState(),bucket:r2Enabled()?env('R2_BUCKET_NAME'):null,note:'A song upload is required to verify real R2 write access.'});
+    }
     if (req.method === 'GET' && path === '/api/health') {
       return send(res, 200, {
         ok: true,
@@ -299,12 +315,17 @@ export async function handleApi(req, res) {
       if(!found.data?.length)return send(res,404,{error:'Song is not stored in your cloud library'});
       const storagePath=found.data[0].storage_path;
       if(storagePath){
+        if(storagePath.startsWith('r2:')){
+          try{await r2Remove(storagePath.slice(3))}
+          catch{return send(res,502,{error:'Audio deletion unavailable. Song record was kept.'})}
+        }else{
         const c=config();
         const removed=await fetch(c.url+'/storage/v1/object/song-audio/'+storagePath.split('/').map(encodeURIComponent).join('/'),{
           method:'DELETE',headers:{apikey:c.service,Authorization:'Bearer '+c.service},
           signal:AbortSignal.timeout(12000)
         }).catch(()=>null);
         if(!removed?.ok)return send(res,502,{error:'Audio could not be deleted from cloud storage. Song record was kept.'});
+        }
       }
       const deleted=await supaFetch('/rest/v1/generated_songs?user_id=eq.'+encodeURIComponent(user.id)+'&task_id=eq.'+encodeURIComponent(id),{method:'DELETE',headers:{Prefer:'return=minimal'}});
       if(!deleted.ok)return send(res,503,{error:'Audio removed, but database record deletion failed. Retry deletion.'});
@@ -344,7 +365,7 @@ export async function handleApi(req, res) {
       const validEstimate=env('MUSIC_ESTIMATED_COST_PER_SONG_USD')!==''&&Number.isFinite(estimate)&&estimate>=0;
       return send(res,200,{
         isAdmin:true,ready:checks.ready,
-        checks,blockers,month,counts,
+        checks:{...checks,r2StorageState:r2ConfigState(),r2StorageConfigured:r2Enabled()},blockers,month,counts,
         estimatedCostUsd:validEstimate?Number((counts.submitted*estimate).toFixed(2)):null,
         estimateDisclaimer:'Optional manual estimate based on up to 100 returned tasks; not actual provider billing. Configure MUSIC_ESTIMATED_COST_PER_SONG_USD to enable.'
       });
