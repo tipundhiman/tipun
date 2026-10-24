@@ -4,11 +4,17 @@
   'use strict';
   const originalMount = window.roCcMount;
   let statusRequest = null;
+  let statusLoaded = false;
   let available = false;
   let searchCount = 0;
   let searchAbort = null;
   let moreOffset = 0;
   let moreQuery = '';
+  const batchSize = 6;
+  let cachedTracks = [];
+  let shownCount = 0;
+  let indianRequest = 0;
+  let indianAbort = null;
 
   function checkedHttps(url, host) {
     try {
@@ -84,19 +90,208 @@
     return card;
   }
 
+  function showNextSongs() {
+    const result = document.getElementById('roJamendoResults');
+    const info = document.getElementById('roJamendoStatus');
+    const more = document.getElementById('roJamendoMore');
+    if (!result || !info) return;
+    const next = cachedTracks.slice(shownCount, shownCount + batchSize);
+    result.append(...next.map(songCard));
+    shownCount += next.length;
+    const remaining = cachedTracks.length - shownCount;
+    info.textContent = shownCount
+      ? `${shownCount} songs ready to play${remaining || moreOffset ? ' · More songs available below' : ''}.`
+      : 'No matching indie music here. Try Rock, Piano or Acoustic, or switch to Music Videos.';
+    if (more) {
+      more.hidden = !remaining && !moreOffset;
+      more.textContent = remaining
+        ? `Show ${Math.min(batchSize, remaining)} more songs ↓`
+        : 'Load more songs ↓';
+    }
+  }
+
+  function selectSource(mode) {
+    const music = mode === 'music';
+    const videos = mode === 'videos';
+    const catalog = document.getElementById('roJamendoSection');
+    const indianCatalog = document.getElementById('roIndianCatalogSection');
+    const videoStatus = document.getElementById('roYtStatus');
+    const videoGrid = document.getElementById('roYtGrid');
+    const videoPlayer = document.getElementById('roYtPlayer');
+    if (catalog) catalog.hidden = !music;
+    if (indianCatalog) indianCatalog.hidden = mode !== 'indian';
+    for (const element of [videoStatus, videoGrid, videoPlayer]) {
+      if (element) element.style.display = videos ? '' : 'none';
+    }
+    if (!videos) videoPlayer?.replaceChildren();
+    if (!music) document.querySelectorAll('#roJamendoResults audio').forEach(audio => audio.pause());
+    document.querySelectorAll('#roListenSourceModes button').forEach(button => {
+      const active = button.dataset.source === mode;
+      button.setAttribute('aria-pressed', String(active));
+      button.classList.toggle('gold', active);
+    });
+    if (mode === 'indian') {
+      const query = document.getElementById('roYtQuery')?.value.trim() || '';
+      const section = document.getElementById('roIndianCatalogSection');
+      if (query.length >= 2 && !section?.dataset.searched) searchIndianCatalog(query);
+    }
+  }
+
+  function installSourceModes() {
+    const status = document.getElementById('roYtStatus');
+    if (!status || document.getElementById('roListenSourceModes')) return;
+    const modes = document.createElement('div');
+    modes.id = 'roListenSourceModes';
+    modes.setAttribute('role', 'group');
+    modes.setAttribute('aria-label', 'Choose what to listen to');
+    modes.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 16px';
+    const options = [
+      ...(available ? [['music', '♫ Listen to Music']] : []),
+      ['indian', '🇮🇳 Indian Songs · Beta'],
+      ['videos', '▶ Watch Music Videos']
+    ];
+    for (const [source, label] of options) {
+      const button = document.createElement('button');
+      button.className = 'btn sm';
+      button.type = 'button';
+      button.dataset.source = source;
+      button.textContent = label;
+      button.addEventListener('click', () => selectSource(source));
+      modes.append(button);
+    }
+    status.parentNode.insertBefore(modes, status);
+    selectSource(available ? 'music' : 'videos');
+  }
+
+  function installIndianCatalog() {
+    const videoGrid = document.getElementById('roYtGrid');
+    if (!videoGrid || document.getElementById('roIndianCatalogSection')) return;
+    const section = document.createElement('section');
+    section.id = 'roIndianCatalogSection';
+    section.hidden = true;
+    section.style.cssText = 'margin-top:16px;padding:18px;border:1px solid #ffffff30;border-radius:18px;background:#ffffff06';
+    const heading = document.createElement('h3');
+    heading.textContent = '🇮🇳 Indian Song Discovery · Beta';
+    const description = document.createElement('p');
+    description.className = 'muted small';
+    description.textContent = 'Test Indian song discovery using the search box above. Catalog results depend on the source. Full audio playback is not enabled until verified; music videos remain available in the next tab.';
+    const sample = document.createElement('button');
+    sample.type = 'button';
+    sample.className = 'btn sm';
+    sample.textContent = 'Try searching Kesariya ↗';
+    sample.addEventListener('click', () => {
+      const input = document.getElementById('roYtQuery');
+      if (input) input.value = 'Kesariya';
+      searchIndianCatalog('Kesariya');
+    });
+    const status = document.createElement('p');
+    status.id = 'roIndianCatalogStatus';
+    status.className = 'muted small';
+    status.setAttribute('role', 'status');
+    status.textContent = 'Type a song or artist above and tap Let’s Jam, or try the example.';
+    const results = document.createElement('div');
+    results.id = 'roIndianCatalogResults';
+    results.className = 'ro-cc-grid';
+    const watch = document.createElement('button');
+    watch.className = 'btn sm';
+    watch.type = 'button';
+    watch.textContent = '▶ Explore Music Videos instead';
+    watch.addEventListener('click', () => selectSource('videos'));
+    section.append(heading, description, sample, status, results, watch);
+    videoGrid.parentNode.insertBefore(section, videoGrid);
+  }
+
+  async function searchIndianCatalog(query) {
+    const status = document.getElementById('roIndianCatalogStatus');
+    const results = document.getElementById('roIndianCatalogResults');
+    const section = document.getElementById('roIndianCatalogSection');
+    if (!status || !results) return;
+    if (query.length < 2 || query.length > 80) {
+      status.textContent = 'Enter a song or artist name between 2 and 80 characters.';
+      return;
+    }
+    const request = ++indianRequest;
+    indianAbort?.abort();
+    indianAbort = new AbortController();
+    section.dataset.searched = 'yes';
+    results.replaceChildren();
+    status.textContent = 'Searching the Indian catalog…';
+    try {
+      const response = await fetch('/api/catalog/gaana/search?q=' + encodeURIComponent(query), {
+        signal: indianAbort.signal,
+        cache: 'no-store'
+      });
+      const data = await response.json();
+      if (request !== indianRequest || !document.getElementById('roIndianCatalogResults')) return;
+      if (!response.ok) {
+        status.textContent = 'Indian catalog is temporarily unavailable. The Music Videos tab still lets you search and watch supported videos here.';
+        return;
+      }
+      const tracks = Array.isArray(data.tracks) ? data.tracks.slice(0, 8) : [];
+      status.textContent = tracks.length ? `${tracks.length} matching song titles found. Select a title to explore its music video.` : 'No Indian catalog matches yet. Try a different title or Music Videos.';
+      for (const track of tracks) {
+        const tile = document.createElement('article');
+        tile.className = 'ro-cc-tile';
+        const body = document.createElement('div');
+        body.className = 'ro-cc-tile-body';
+        const title = document.createElement('h4');
+        title.textContent = String(track.title || 'Song');
+        const artist = document.createElement('p');
+        artist.className = 'muted small';
+        artist.textContent = String(track.artist || 'Indian catalog');
+        const watch = document.createElement('button');
+        watch.type = 'button';
+        watch.className = 'btn sm';
+        watch.textContent = '▶ Find music video';
+        watch.addEventListener('click', () => {
+          const input = document.getElementById('roYtQuery');
+          if (input) input.value = [track.title, track.artist].filter(Boolean).join(' ');
+          selectSource('videos');
+          window.roYtSearch?.({ preventDefault() {} });
+        });
+        body.append(title, artist, watch);
+        const original = checkedHttps(track.url, 'gaana.com');
+        if (original) {
+          const source = document.createElement('a');
+          source.className = 'muted small';
+          source.href = original;
+          source.target = '_blank';
+          source.rel = 'noopener noreferrer';
+          source.textContent = ' · Original song page ↗';
+          body.append(source);
+        }
+        tile.append(body);
+        results.append(tile);
+      }
+    } catch (error) {
+      if (error.name === 'AbortError' || request !== indianRequest) return;
+      status.textContent = 'Song search is not responding right now. Try Music Videos or the independent music tab.';
+    }
+  }
+
   async function searchJamendo(query, append = false) {
     const result = document.getElementById('roJamendoResults');
     const info = document.getElementById('roJamendoStatus');
     const more = document.getElementById('roJamendoMore');
     if (!result || !info || query.length < 2) return;
-    if (append && (!moreOffset || moreQuery !== query)) return;
+    if (append && moreQuery !== query) return;
+    if (append && shownCount < cachedTracks.length) {
+      showNextSongs();
+      return;
+    }
+    if (append && !moreOffset) return;
     const current = ++searchCount;
     searchAbort?.abort();
     searchAbort = new AbortController();
     const offset = append ? moreOffset : 0;
     info.textContent = append ? 'Loading more indie songs…' : 'Finding independent artists…';
     if (more) more.hidden = true;
-    if (!append) result.replaceChildren();
+    if (!append) {
+      result.replaceChildren();
+      cachedTracks = [];
+      shownCount = 0;
+      moreOffset = 0;
+    }
     try {
       const response = await fetch('/api/jamendo/search?q=' + encodeURIComponent(query) + '&offset=' + offset, {
         signal: searchAbort.signal
@@ -105,12 +300,10 @@
       if (current !== searchCount || !document.getElementById('roJamendoResults')) return;
       if (!response.ok) throw Error(data.error || 'Jamendo unavailable');
       const items = Array.isArray(data.items) ? data.items : [];
-      result.append(...items.map(songCard));
-      const count = result.children.length;
-      info.textContent = count ? count + ' independent tracks loaded. Explore more below.' : 'No eligible indie tracks matched. Try Rock, Piano or Acoustic.';
-      moreOffset = data.hasMore ? Number(data.nextOffset) : 0;
+      cachedTracks.push(...items);
+      moreOffset = items.length && data.hasMore ? Number(data.nextOffset) : 0;
       moreQuery = query;
-      if (more) more.hidden = !moreOffset;
+      showNextSongs();
     } catch (error) {
       if (error.name === 'AbortError' || current !== searchCount) return;
       info.textContent = 'Independent catalog unavailable for now. You can still use the other music players.';
@@ -119,11 +312,10 @@
   }
 
   function showCatalog() {
-    if (!available) return;
     const form = document.getElementById('roYtForm');
     const mainResults = document.getElementById('roYtGrid');
     if (!form || !mainResults) return;
-    if (!document.getElementById('roJamendoSection')) {
+    if (available && !document.getElementById('roJamendoSection')) {
       const section = document.createElement('section');
       section.id = 'roJamendoSection';
       section.style.cssText = 'margin-top:24px;padding-top:20px;border-top:1px solid #ffffff30';
@@ -158,31 +350,39 @@
       more.id = 'roJamendoMore';
       more.className = 'btn sm';
       more.type = 'button';
-      more.textContent = 'Show more indie songs ↓';
+      more.textContent = 'Show more songs ↓';
       more.style.cssText = 'margin:18px auto 8px';
       more.hidden = true;
       more.addEventListener('click', () => searchJamendo(moreQuery, true));
       section.append(heading, explanation, genres, info, results, more);
+      // Keep real, playable songs close to the search instead of hiding them
+      // below the discovery results on a long page.
       mainResults.parentNode.insertBefore(section, mainResults);
       searchJamendo('rock');
     }
+    installIndianCatalog();
+    installSourceModes();
     if (form.dataset.jamendoConnected !== 'yes') {
       form.dataset.jamendoConnected = 'yes';
       form.addEventListener('submit', () => {
         const query = document.getElementById('roYtQuery')?.value.trim();
-        if (query?.length >= 2) searchJamendo(query);
+        if (query?.length < 2) return;
+        const mode = document.querySelector('#roListenSourceModes button[aria-pressed="true"]')?.dataset.source;
+        if (mode === 'music') searchJamendo(query);
+        if (mode === 'indian') searchIndianCatalog(query);
       });
     }
   }
 
   window.roCcMount = function () {
     if (typeof originalMount === 'function') originalMount();
-    if (available) { showCatalog(); return; }
+    if (statusLoaded) { showCatalog(); return; }
     if (!statusRequest) {
       statusRequest = fetch('/api/jamendo/status', { cache: 'no-store' })
         .then(response => response.ok ? response.json() : null)
-        .then(data => { available = data?.publicCatalogEnabled === true; if (available) showCatalog(); })
-        .catch(() => {});
+        .then(data => { available = data?.publicCatalogEnabled === true; })
+        .catch(() => {})
+        .finally(() => { statusLoaded = true; showCatalog(); });
     }
   };
 

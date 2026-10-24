@@ -1,0 +1,110 @@
+/* RhymeOrbit dark-luxe polish — shared styling, no functional dependencies. */
+:root {
+  --bg: #080913;
+  --surface: #111423;
+  --surface2: #191b2b;
+  --line: #b4a9d526;
+  --ink: #f9f8fc;
+  --muted: #b6b1c3;
+  --gold: #f0d2a7;
+  --violet: #b9a1ff;
+  --cyan: #8ce8e6;
+  --radius: 22px;
+}
+
+body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse 64% 31% at 95% 0%, #7c539b1a, transparent 75%),
+    radial-gradient(ellipse 60% 35% at 0% 85%, #325c8914, transparent 80%);
+}
+
+.brand-name { letter-spacing: -.8px; }
+.btn { min-height: 40px; }
+.btn.gold {
+  background: linear-gradient(135deg, #f8dfb9, #e4bd8c);
+  box-shadow: 0 4px 20px #f0cf9d1a, inset 0 1px #fff7;
+}
+.btn.gold:hover { box-shadow: 0 8px 30px #f0cf9d35; }
+.btn:focus-visible, .side-link:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+
+.app-shell .app-main { min-width: 0; }
+.app-shell .panel {
+  border: 1px solid #cbb6ef25;
+  border-radius: 24px;
+  background: linear-gradient(150deg, #1c1b2aee, #11131eee 62%, #11121c);
+  box-shadow: 0 14px 48px #0004, inset 0 1px #ffffff10;
+}
+.app-sidebar .side-link {
+  border-radius: 14px;
+  transition: background-color .2s, border-color .2s, transform .2s;
+}
+.app-sidebar .side-link:hover { transform: translateX(2px); }
+.app-sidebar .side-link.active { box-shadow: inset 2px 0 var(--gold), 0 5px 20px #0003; }
+.app-main .page-head h1 { letter-spacing: -1.6px; }
+
+.app-shell .ro-cc-lounge {
+  overflow: visible;
+  background:
+    radial-gradient(circle at 94% 0%, #8c68c222, transparent 38%),
+    linear-gradient(155deg, #1d1a2c, #11131c 65%);
+}
+.app-shell .ro-cc-grid { gap: 15px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.app-shell .ro-cc-tile {
+  border: 1px solid #cdb5ee25;
+  border-radius: 19px;
+  background: linear-gradient(155deg, #ffffff0d, #ffffff05);
+  box-shadow: 0 7px 23px #0004;
+  transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
+}
+.app-shell .ro-cc-tile:hover {
+  transform: translateY(-3px);
+  border-color: #e8ccaf66;
+  box-shadow: 0 14px 32px #0007, 0 0 18px #a984ff16;
+}
+.ro-cc-tile .ro-cc-art { height: 128px; }
+.ro-cc-tile .ro-cc-tile-body { padding: 15px; }
+.ro-cc-tile .ro-cc-tile-body h4 { line-height: 1.4; }
+.ro-cc-tile audio { width: 100%; border-radius: 12px; }
+
+#roListenSourceModes { display: flex; flex-wrap: wrap; gap: 10px; }
+#roListenSourceModes button {
+  flex: 1 1 150px;
+  min-height: 46px;
+  border: 1px solid #ccb7f055;
+  border-radius: 14px;
+  font-size: 13px;
+  white-space: normal;
+  line-height: 1.35;
+}
+#roListenSourceModes button[aria-pressed="true"] {
+  border-color: #f0d2a7;
+  box-shadow: 0 0 0 2px #f0d2a71b, 0 8px 24px #0004;
+}
+#roJamendoSection, #roIndianCatalogSection {
+  scroll-margin-top: 90px;
+}
+#roJamendoSection .ro-cc-grid, #roIndianCatalogSection .ro-cc-grid { margin-top: 15px; }
+#roJamendoStatus, #roIndianCatalogStatus { min-height: 22px; }
+#roJamendoMore { display: inline-flex; min-height: 44px; }
+#roJamendoMore[hidden] { display: none; }
+
+@media (max-width: 800px) {
+  .app-shell .app-main { min-width: 0; }
+  .app-shell .ro-cc-lounge { padding: 18px; }
+  .app-shell .ro-cc-grid { grid-template-columns: repeat(auto-fill, minmax(225px, 1fr)); }
+  #roListenSourceModes button { flex-basis: 46%; }
+}
+@media (max-width: 520px) {
+  .app-shell .ro-cc-grid { grid-template-columns: minmax(0, 1fr); }
+  .ro-cc-tile .ro-cc-art { height: 140px; }
+  #roListenSourceModes button { flex-basis: 100%; }
+  #roIndianCatalogSection { padding: 15px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .ro-cc-tile, .app-sidebar .side-link, .btn { transition: none !important; }
+  .app-shell .ro-cc-tile:hover, .app-sidebar .side-link:hover { transform: none !important; }
+}
