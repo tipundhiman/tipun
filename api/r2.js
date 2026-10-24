@@ -4,6 +4,7 @@ const env=n=>(process.env[n]||'').trim();
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const mac=(k,s)=>createHmac('sha256',k).update(s).digest();
 const encode=s=>encodeURIComponent(s).replace(/[!'()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase());
+export const validR2Key=key=>typeof key==='string'&&/^(songs|media)\/[a-f0-9-]{36}\/[a-zA-Z0-9_-]{1,128}\.(mp3|ogg|wav|jpg|png|webp|gif|mp4|webm)$/.test(key);
 export function r2ConfigState(){
  const vals=['R2_ACCOUNT_ID','R2_ACCESS_KEY_ID','R2_SECRET_ACCESS_KEY','R2_BUCKET_NAME'].map(env);
  if(vals.every(v=>!v))return 'not-configured';
@@ -18,7 +19,7 @@ function conf(){
   access:env('R2_ACCESS_KEY_ID'),secret:env('R2_SECRET_ACCESS_KEY'),bucket:env('R2_BUCKET_NAME')};
 }
 function objectPath(c,key){
- if(typeof key!=='string'||!/^(songs|media)\/[a-f0-9-]{36}\/[a-zA-Z0-9_-]{1,128}\.(mp3|ogg|wav|jpg|png|webp|gif|mp4|webm)$/.test(key))throw Error('Invalid private object key');
+ if(!validR2Key(key))throw Error('Invalid private object key');
  return '/'+encode(c.bucket)+'/'+key.split('/').map(encode).join('/');
 }
 function dateStamp(d){return d.toISOString().replace(/[-:]|\.\d{3}/g,'').slice(0,15)+'Z'}

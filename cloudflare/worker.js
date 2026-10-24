@@ -10,7 +10,7 @@ export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
     if (path.startsWith('/api/')) {
-      return forwardApiRequest(request, handleApi);
+      return forwardApiRequest(request, handleApi, undefined, env);
     }
     return env.ASSETS.fetch(request);
   }

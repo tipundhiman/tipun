@@ -3,6 +3,9 @@
   "name": "tipun",
   "main": "cloudflare/worker.js",
   "compatibility_date": "2026-10-24",
+  "vars": {
+    "SUPABASE_URL": "https://ixpeheebqofrqedonnyf.supabase.co"
+  },
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",

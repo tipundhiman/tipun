@@ -31,7 +31,7 @@ async function readBoundedBody(request, maxBytes) {
   return Buffer.concat(parts, length);
 }
 
-function makeNodeLikeRequest(request, bytes) {
+function makeNodeLikeRequest(request, bytes, bindings = {}) {
   const headers = Object.fromEntries(request.headers.entries());
   const realIp = request.headers.get('cf-connecting-ip');
   if (realIp) headers['x-forwarded-for'] = realIp;
@@ -42,6 +42,8 @@ function makeNodeLikeRequest(request, bytes) {
     url: url.pathname + url.search,
     headers,
     rawBody: bytes,
+    // Native Cloudflare bucket binding: no S3 credentials are needed in Workers.
+    r2Bucket: bindings.SONGS_BUCKET || null,
     socket: { remoteAddress: realIp || 'unknown' },
     async *[Symbol.asyncIterator]() {
       if (bytes.length) yield bytes;
@@ -102,7 +104,7 @@ function jsonError(status, message) {
   });
 }
 
-export async function forwardApiRequest(request, handler, maxBytes = MAX_API_REQUEST_BYTES) {
+export async function forwardApiRequest(request, handler, maxBytes = MAX_API_REQUEST_BYTES, bindings = {}) {
   const length = Number(request.headers.get('content-length'));
   if (Number.isFinite(length) && length > maxBytes)
     return jsonError(413, 'Request body too large');
@@ -113,7 +115,7 @@ export async function forwardApiRequest(request, handler, maxBytes = MAX_API_REQ
     if (error?.status === 413) return jsonError(413, 'Request body too large');
     return jsonError(400, 'Invalid request body');
   }
-  const req = makeNodeLikeRequest(request, bytes);
+  const req = makeNodeLikeRequest(request, bytes, bindings);
   const res = makeNodeLikeResponse(request);
   try {
     await handler(req, res);

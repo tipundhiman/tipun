@@ -114,6 +114,9 @@ test('A blocked cross-origin player falls back to private same-origin playback a
  assert.doesNotMatch(visible(card),/Switching to secure playback/);
  const download=card.querySelectorAll('button').find(button=>button.textContent.includes('Download song'));
  assert.ok(download,'Private cloud-saved song has a download action');
+ const quality=card.querySelector('select');
+ assert.ok(quality,'Private audio has a download quality selector');
+ assert.deepEqual(quality.children.map(option=>option.value),['original','mp3-128','mp3-192','mp3-256','mp3-320','wav']);
  const open=card.querySelector('a');
  assert.match(open.href,/^\/api\/music\/audio\//);
 });
