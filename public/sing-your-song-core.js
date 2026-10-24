@@ -37,42 +37,51 @@ export const pitchDistance = (heardMidi, wantedMidi) => {
   return Math.min(distance, 12 - distance);
 };
 
-/* Autocorrelation tuner for one voice. Accompaniment must not be fed into it. */
+/* YIN-style pitch estimator for a single voice. Only mic input should reach it.
+ * Cumulative mean-normalized difference is more forgiving of imperfect vocals
+ * than choosing a highly correlated single period from a tiny FFT window. */
 export function detectPitch(samples, sampleRate) {
   if (!samples?.length || !Number.isFinite(sampleRate) || sampleRate <= 0) return null;
+  const step = sampleRate >= 32000 ? 2 : 1;
+  const length = Math.floor(samples.length / step);
+  const rate = sampleRate / step;
+  const minLag = Math.max(2, Math.floor(rate / 1000));
+  const maxLag = Math.min(Math.floor(rate / 70), Math.floor(length / 3));
+  if (maxLag <= minLag + 2) return null;
   let energy = 0;
-  for (let i = 0; i < samples.length; i++) energy += samples[i] * samples[i];
-  if (Math.sqrt(energy / samples.length) < 0.012) return null;
-  const minLag = Math.floor(sampleRate / 850);
-  const maxLag = Math.min(Math.floor(sampleRate / 95), Math.floor(samples.length / 2));
-  const correlations = new Float32Array(maxLag + 1);
+  for (let i = 0; i < length; i++) energy += samples[i * step] ** 2;
+  if (Math.sqrt(energy / length) < 0.0045) return null;
+  const window = Math.min(2048, length - maxLag);
+  const difference = new Float32Array(maxLag + 1);
+  let cumulative = 0;
+  for (let lag = 1; lag <= maxLag; lag++) {
+    let sum = 0;
+    for (let i = 0; i < window; i++) {
+      const delta = samples[i * step] - samples[(i + lag) * step];
+      sum += delta * delta;
+    }
+    cumulative += sum;
+    difference[lag] = cumulative ? sum * lag / cumulative : 1;
+  }
   let bestLag = 0;
-  let best = -1;
-  for (let lag = minLag; lag <= maxLag; lag++) {
-    let diff = 0, power = 0;
-    for (let i = 0; i < samples.length - lag; i += 2) {
-      const a = samples[i], b = samples[i + lag];
-      diff += (a - b) ** 2;
-      power += a * a + b * b;
-    }
-    const correlation = power ? 1 - diff / power : 0;
-    correlations[lag] = correlation;
-    if (correlation > best) {best = correlation;bestLag = lag;}
-  }
-  if (best < 0.74 || bestLag === 0) return null;
-  // Prefer the FIRST strong periodic peak. A global maximum at 2× or 4× the
-  // period would otherwise mistake a sung A4 for A3 or A2.
-  for(let lag=minLag+1;lag<maxLag;lag++){
-    if(correlations[lag]>=Math.max(.83,best*.985) &&
-       correlations[lag]>=correlations[lag-1] && correlations[lag]>=correlations[lag+1]){
-      bestLag=lag;break;
+  let bestScore = Infinity;
+  for (let lag = minLag; lag < maxLag; lag++) {
+    if (difference[lag] < bestScore) {bestScore = difference[lag];bestLag = lag;}
+    if (difference[lag] < 0.18) {
+      while (lag + 1 <= maxLag && difference[lag + 1] < difference[lag]) lag++;
+      bestLag = lag;
+      bestScore = difference[lag];
+      break;
     }
   }
-  const l = correlations[bestLag - 1] || best;
-  const r = correlations[bestLag + 1] || best;
-  const delta = Math.abs(l - 2 * best + r) > 0.00001 ? .5 * (l - r) / (l - 2 * best + r) : 0;
-  const frequency = sampleRate / (bestLag + Math.max(-.5, Math.min(.5, delta)));
-  return frequency >= 95 && frequency <= 850 ? frequency : null;
+  if (!bestLag || bestScore > 0.34) return null;
+  const previous = difference[bestLag - 1];
+  const centre = difference[bestLag];
+  const next = difference[bestLag + 1];
+  const denominator = previous - 2 * centre + next;
+  const fractional = Math.abs(denominator) > 1e-7 ? 0.5 * (previous - next) / denominator : 0;
+  const hz = rate / (bestLag + Math.max(-0.5, Math.min(0.5, fractional)));
+  return hz >= 70 && hz <= 1000 ? hz : null;
 }
 
 export function summarizePerformance(samples) {

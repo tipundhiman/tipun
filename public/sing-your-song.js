@@ -1,10 +1,19 @@
-import {SONGS,durationOf,midiToHz,hzToMidi,targetAt,lineAt,pitchDistance,detectPitch,summarizePerformance} from './sing-your-song-core.js';
+import {SONGS,durationOf,midiToHz,hzToMidi,targetAt,lineAt,pitchDistance,detectPitch,summarizePerformance} from './sing-your-song-core.js?v=20261025-sing-2';
 
 const $ = id => document.getElementById(id);
 const names = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
 const noteName = midi => !Number.isFinite(midi) ? '—' : names[((Math.round(midi)%12)+12)%12] + (Math.floor(Math.round(midi)/12)-1);
 const clock = seconds => Math.floor(seconds/60)+':'+String(Math.floor(seconds%60)).padStart(2,'0');
 const safeStatus = (id,value) => {$(id).textContent=value;};
+const micLevel = buffer => {
+  let power=0;
+  for(let i=0;i<buffer.length;i++)power+=buffer[i]*buffer[i];
+  return Math.sqrt(power/buffer.length);
+};
+const showMic = (scope,level,freq) => {
+  $(scope+'MicLevel').style.width=Math.min(100,Math.round(level*550))+'%';
+  safeStatus(scope+'MicHint',freq?'✓ Your pitch is being detected':level<.0045?'Mic is quiet — sing a little closer, or check microphone permission.':'Mic is receiving sound. Hold an “aa” note steadily for pitch detection.');
+};
 const DB = 'rhymeorbit-sing-performances-v1';
 let selected = SONGS[0];
 let chosenNote = 60;
@@ -45,6 +54,22 @@ function progressSong(seconds) {
   safeStatus('ssTarget',noteName(targetAt(song,elapsed)));
 }
 const list=$('ssSongList');
+const search=$('ssSearch');
+const language=$('ssLanguage');
+function filterSongs(){
+  const query=search.value.trim().toLocaleLowerCase();
+  let count=0;
+  for(const button of list.children){
+    const song=SONGS.find(entry=>entry.id===button.dataset.id);
+    const matches=(!query||[song.title,song.subtitle,...song.lyrics].join(' ').toLocaleLowerCase().includes(query)) &&
+      (language.value==='all'||song.subtitle.toLocaleLowerCase().startsWith(language.value));
+    button.hidden=!matches;
+    if(matches)count++;
+  }
+  safeStatus('ssSearchInfo',count?count+' of '+SONGS.length+' original songs shown.':'No licensed song found in our current 4-track library. Try Hindi, English, or another title.');
+}
+search.addEventListener('input',filterSongs);
+language.addEventListener('change',filterSongs);
 for(const song of SONGS){
   const button=document.createElement('button');button.type='button';button.className='track';button.dataset.id=song.id;
   button.setAttribute('aria-pressed',String(song===selected));
@@ -116,7 +141,7 @@ async function startSong(record) {
   safeStatus('ssStatus',record?'Requesting microphone permission…':'Starting instrumental preview…');
   let ctx,mic;
   try {
-    if(record) mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:false}});
+    if(record) mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false,autoGainControl:false}});
     ctx=new AudioContext();await ctx.resume();
     const master=ctx.createGain();master.gain.value=.66;
     master.connect(ctx.destination);
@@ -127,10 +152,18 @@ async function startSong(record) {
     running=session;
     if(mic){
       const source=ctx.createMediaStreamSource(mic),analyser=ctx.createAnalyser();
-      analyser.fftSize=2048;
+      analyser.fftSize=8192;
+      analyser.smoothingTimeConstant=0;
       source.connect(analyser);
       const micGain=ctx.createGain();micGain.gain.value=.96;
-      source.connect(micGain).connect(sink);
+      if($('ssVoicePolish').checked){
+        // Zero-cost local EQ + gentle compression. Does NOT shift pitch.
+        const highpass=ctx.createBiquadFilter();highpass.type='highpass';highpass.frequency.value=85;
+        const clarity=ctx.createBiquadFilter();clarity.type='peaking';clarity.frequency.value=2900;clarity.Q.value=.75;clarity.gain.value=2;
+        const compressor=ctx.createDynamicsCompressor();compressor.threshold.value=-24;compressor.ratio.value=2.5;
+        compressor.attack.value=.012;compressor.release.value=.19;
+        analyser.connect(highpass).connect(clarity).connect(compressor).connect(micGain).connect(sink);
+      } else analyser.connect(micGain).connect(sink);
       session.analyser=analyser;
       session.buffer=new Float32Array(analyser.fftSize);
       const chunks=[];
@@ -158,6 +191,7 @@ function updateSong(session){
   if(session.analyser){
     session.analyser.getFloatTimeDomainData(session.buffer);
     const freq=detectPitch(session.buffer,session.ctx.sampleRate);
+    showMic('ssSong',micLevel(session.buffer),freq);
     if(freq){
       const heard=hzToMidi(freq);
       safeStatus('ssDetected',noteName(heard));
@@ -176,6 +210,8 @@ function stopSession() {
   session.ctx.close().catch(()=>{});
   $('ssStart').disabled=false;$('ssListen').disabled=false;$('ssStop').disabled=true;
   $('ssCoachStart').disabled=false;$('ssCoachStop').disabled=true;
+  if(session.type==='song'){$('ssSongMicLevel').style.width='0%';}
+  else {$('ssCoachMicLevel').style.width='0%';}
   if(session.type==='song'){
     const report=summarizePerformance(session.samples);
     if(session.record){
@@ -228,10 +264,13 @@ async function startCoach(){
   safeStatus('ssCoachStatus','Requesting microphone permission…');
   let mic,ctx;
   try {
-    mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:false}});
+    mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false,autoGainControl:false}});
     ctx=new AudioContext();await ctx.resume();
-    const analyser=ctx.createAnalyser();analyser.fftSize=2048;
+    const analyser=ctx.createAnalyser();analyser.fftSize=8192;analyser.smoothingTimeConstant=0;
     ctx.createMediaStreamSource(mic).connect(analyser);
+    // Keep the analyser in an active processing graph without playing the mic.
+    const silent=ctx.createGain();silent.gain.value=0;
+    analyser.connect(silent).connect(ctx.destination);
     const session={type:'coach',ctx,mic,selected,started:ctx.currentTime,samples:[],analyser,buffer:new Float32Array(analyser.fftSize),target:chosenNote};
     running=session;
     session.interval=setInterval(()=>{
@@ -239,6 +278,7 @@ async function startCoach(){
       const elapsed=ctx.currentTime-session.started;
       analyser.getFloatTimeDomainData(session.buffer);
       const freq=detectPitch(session.buffer,ctx.sampleRate);
+      showMic('ssCoach',micLevel(session.buffer),freq);
       if(freq){const heard=hzToMidi(freq);const delta=heard-session.target;
         session.samples.push({at:elapsed,error:pitchDistance(heard,session.target)});
         safeStatus('ssCoachDetected',noteName(heard));

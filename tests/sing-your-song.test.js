@@ -26,6 +26,12 @@ test('Microphone access is scoped, permissioned and recordings are local only',(
   assert.match(script,/indexedDB\.open\(DB,1\)/);
   assert.doesNotMatch(script,/fetch\(|cloudflare|r2\.cloudflare|SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(page,/not uploaded/);
+  assert.match(script,/analyser\.connect\(silent\)\.connect\(ctx\.destination\)/,'Coach analyser needs a live audio graph');
+  assert.match(script,/analyser\.connect\(highpass\)/,'Song analyser must feed recording graph');
+  assert.match(page,/id="ssCoachMicLevel"/);
+  assert.match(page,/id="ssSongMicLevel"/);
+  assert.match(page,/id="ssVoicePolish"/);
+  assert.match(page,/no pitch correction/,'Studio polish must not be falsely sold as Auto-Tune');
 });
 
 test('Four original practice songs have reasonable 1–2 minute durations and active lyrics',()=>{
@@ -50,6 +56,23 @@ test('Pitch detector follows a clear sung note but ignores silence',()=>{
   assert.ok(pitchDistance(60,72)<.05,'Comfortable octave singing should not be penalised');
   assert.equal(summarizePerformance([]).score,null);
   assert.ok(summarizePerformance(Array(12).fill({error:0})).score>=95);
+});
+
+test('Pitch detector responds to softly sung male and female tones with harmonics',()=>{
+  for(const freq of [75,110,150,220,440,660]){
+    const samples=Float32Array.from({length:8192},(_,i)=>
+      .025*Math.sin(2*Math.PI*freq*i/48000)+.01*Math.sin(4*Math.PI*freq*i/48000));
+    const measured=detectPitch(samples,48000);
+    assert.ok(measured&&Math.abs(measured-freq)<3,`${freq} Hz yielded ${measured}`);
+  }
+  assert.equal(detectPitch(new Float32Array(8192),48000),null);
+});
+
+test('Karaoke search labels reflect the licensed four-track library',()=>{
+  assert.match(page,/id="ssSearch"/);
+  assert.match(page,/id="ssLanguage"/);
+  assert.match(script,/filterSongs/);
+  assert.match(page,/only 4 original|current 4 original/);
 });
 
 test('AI timestamp parsing rejects invalid content and never invents timing',()=>{

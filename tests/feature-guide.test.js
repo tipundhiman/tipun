@@ -17,6 +17,9 @@ test('Guide has sixteen unique findable destinations and a four-step tour', () =
   assert.match(source, /navigateToFeature/);
   assert.match(source, /ro_guide_target_20261025/);
   assert.match(source, /ro-backend-ready/);
+  assert.match(source, /const essentials = new Set\(\[0,1,2,4,7,8\]\)/);
+  assert.match(source, /See all 16 creator tools/);
+  assert.match(source, /showAll \|\| q \|\| essentials\.has\(index\)/);
 });
 
 test('Guide loads on major public tools and main app with a single shared script', () => {

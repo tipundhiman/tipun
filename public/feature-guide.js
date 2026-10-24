@@ -40,6 +40,7 @@
     #roGuideClose{border:1px solid #ffffff40;border-radius:50%;width:42px;height:42px;background:#ffffff0c;color:white;font-size:25px;flex-shrink:0;cursor:pointer}
     #roGuideInput{width:100%;min-height:49px;margin:15px 0 12px;border:1px solid #ffffff4b;border-radius:14px;background:#0b0b13;color:white;padding:13px 15px;font-size:16px!important}
     #roGuideGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:10px;max-height:47vh;overflow:auto;padding:3px}
+    #roGuideAll{width:100%;margin-top:12px;border:1px solid #e5c9a255;border-radius:14px;background:#e5c9a216;color:#f6debd;font-weight:850;padding:13px;cursor:pointer}
     #roGuideGrid a{display:block;text-decoration:none;color:#fff;padding:16px;border:1px solid #ffffff20;border-radius:16px;background:linear-gradient(130deg,#34263d,#171821);transition:transform .2s,border-color .2s}
     #roGuideGrid a:hover{transform:translateY(-3px);border-color:#e5c9a27e}
     #roGuideGrid strong{font-size:15px;display:block;margin-bottom:3px}
@@ -72,13 +73,14 @@
   trigger.setAttribute('aria-haspopup','dialog');trigger.setAttribute('aria-controls','roGuideDialog');
   const dialog = document.createElement('dialog');dialog.id = 'roGuideDialog';
   dialog.setAttribute('aria-label','RhymeOrbit feature finder and guided tour');
-  dialog.innerHTML = `<div class="roGuideTop"><div><small style="color:#e5c9a2;font-weight:800;letter-spacing:2px">RHYMEORBIT · EASY MODE</small><h2>What would you like to do?</h2><p class="roGuideMuted">Apna kaam select karo. We'll take you straight there. ✨</p></div><button id="roGuideClose" type="button" aria-label="Close feature finder">×</button></div><div id="roGuideFinder"><label for="roGuideInput" style="font-weight:700">Search tools by name or need</label><input id="roGuideInput" type="search" placeholder="e.g. Make a song, clean noise, save videos…" autocomplete="off"><div id="roGuideCategories" role="group" aria-label="Filter by category"></div><div id="roGuideGrid"></div><p id="roGuideEmpty" hidden>No matching feature. Try “music”, “video” or “Shayari”.</p></div><div id="roGuideTour" hidden><span id="roGuideStepName" style="color:#e5c9a2;font-weight:850"></span><h2 id="roGuideStepTitle"></h2><p class="roGuideMuted" id="roGuideStepBody"></p><div id="roGuideSteps" aria-label="Tour steps"></div><div id="roGuideTourLinks" class="roQuickStart"></div></div><div id="roGuideActions"><button class="roGuideAction" id="roGuideTourStart" type="button">✨ Take the 30-second tour</button><button class="roGuideAction" id="roGuideBack" type="button" hidden>← Back</button><button class="roGuideAction primary" id="roGuideNext" type="button" hidden>Next →</button></div>`;
+  dialog.innerHTML = `<div class="roGuideTop"><div><small style="color:#e5c9a2;font-weight:800;letter-spacing:2px">RHYMEORBIT · EASY MODE</small><h2>What would you like to do?</h2><p class="roGuideMuted">Bas apna kaam select karo. Baaki sab tools “See all” mein milenge. ✨</p></div><button id="roGuideClose" type="button" aria-label="Close feature finder">×</button></div><div id="roGuideFinder"><label for="roGuideInput" style="font-weight:700">Search a feature</label><input id="roGuideInput" type="search" placeholder="e.g. Make a song, sing karaoke, download…" autocomplete="off"><div id="roGuideCategories" role="group" aria-label="Filter by category"></div><div id="roGuideGrid"></div><p id="roGuideEmpty" hidden>No matching feature. Try “music”, “video” or “Shayari”.</p><button type="button" id="roGuideAll">See all 16 creator tools ↓</button></div><div id="roGuideTour" hidden><span id="roGuideStepName" style="color:#e5c9a2;font-weight:850"></span><h2 id="roGuideStepTitle"></h2><p class="roGuideMuted" id="roGuideStepBody"></p><div id="roGuideSteps" aria-label="Tour steps"></div><div id="roGuideTourLinks" class="roQuickStart"></div></div><div id="roGuideActions"><button class="roGuideAction" id="roGuideTourStart" type="button">✨ Take the 30-second tour</button><button class="roGuideAction" id="roGuideBack" type="button" hidden>← Back</button><button class="roGuideAction primary" id="roGuideNext" type="button" hidden>Next →</button></div>`;
   document.body.append(trigger, dialog);
   const find = id => dialog.querySelector('#' + id);
   const input = find('roGuideInput');
   const categories = find('roGuideCategories');
   const list = find('roGuideGrid');
-  let category = 'All';let step = 0;let mode = 'finder';
+  let category = 'All';let step = 0;let mode = 'finder';let showAll = false;
+  const essentials = new Set([0,1,2,4,7,8]);
   const route = item => item[3];
   function card(item) {
     const a = document.createElement('a');
@@ -107,17 +109,20 @@
     const button = document.createElement('button');
     button.type = 'button';button.textContent = group;
     button.setAttribute('aria-pressed',group === 'All' ? 'true' : 'false');
-    button.onclick = () => {category = group;categories.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed',String(b === button)));renderFinder();};
+    button.onclick = () => {category = group;showAll = true;categories.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed',String(b === button)));renderFinder();};
     categories.append(button);
   }
   function renderFinder() {
     const q = input.value.trim().toLowerCase();
-    const results = links.filter(item => (category === 'All' || item[4] === category) &&
+    const results = links.filter((item,index) => (category === 'All' || item[4] === category) &&
+      (showAll || q || essentials.has(index)) &&
       (!q || (item[1] + ' ' + item[2] + ' ' + item[5]).toLowerCase().includes(q)));
     list.replaceChildren(...results.map(card));
     find('roGuideEmpty').hidden = results.length > 0;
+    find('roGuideAll').hidden = Boolean(q) || showAll;
   }
   input.addEventListener('input',renderFinder);
+  find('roGuideAll').onclick = () => {showAll = true;renderFinder();};
   function renderTour() {
     const current = journeys[step];
     find('roGuideStepName').textContent = current.name;
@@ -146,7 +151,9 @@
   }
   function markSeen() {try {localStorage.setItem('ro_feature_guide_seen_20261025','1');}catch {} document.getElementById('roGuideNudge')?.remove();}
   function open(tour = false) {
-    markSeen();step = 0;setMode(tour ? 'tour' : 'finder');
+    markSeen();step = 0;showAll = false;category = 'All';input.value = '';
+    categories.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.textContent === 'All')));
+    setMode(tour ? 'tour' : 'finder');
     if (typeof dialog.showModal === 'function')dialog.showModal();else dialog.setAttribute('open','');
     if (!tour)input.focus();
   }
