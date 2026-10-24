@@ -25,7 +25,7 @@ a{color:var(--pink)}button,select,input{font:inherit}button{cursor:pointer}butto
 .track[hidden],#ssIndieMore[hidden],#ssIndieDownload[hidden]{display:none}
 </style>
 <script type="module" src="/sing-your-song.js?v=20261025-sing-3"></script>
-<script type="module" src="/sing-jamendo.js?v=20261025-indie-1"></script>
+<script type="module" src="/sing-jamendo.js?v=20261025-indie-2"></script>
 <script src="/feature-guide.js?v=20261025-sing-1" defer></script>
 </head>
 <body>
@@ -42,7 +42,7 @@ a{color:var(--pink)}button,select,input{font:inherit}button{cursor:pointer}butto
   <div class="grid">
    <section class="card"><div class="eyebrow">NO NEW API · 30-SECOND CHALLENGE</div><h2 class="section-title">Find an indie instrumental 🎸</h2>
     <p class="muted">Search instrumental-tagged independent music using the same Jamendo connection as Listen & Chill. These are not mainstream Bollywood karaoke tracks.</p>
-    <form id="ssIndieForm"><label for="ssIndieQuery" class="muted">Genre, mood or Indian indie keyword</label><div class="row"><input class="select" id="ssIndieQuery" type="search" value="acoustic" placeholder="Acoustic, piano, rock, India..." maxlength="80" required style="flex:1;min-width:150px"><button type="submit" class="btn primary">Find music ↗</button></div></form>
+    <form id="ssIndieForm"><label for="ssIndieQuery" class="muted">Genre, mood or Indian indie keyword</label><div class="row"><input class="select" id="ssIndieQuery" type="search" value="piano" placeholder="Piano, love, rock, India..." maxlength="80" required style="flex:1;min-width:150px"><button type="submit" class="btn primary">Find music ↗</button></div></form>
     <p id="ssIndieSearchStatus" class="mic-hint" role="status" aria-live="polite">Choose this tab to discover instrumentals.</p>
     <div id="ssIndieList" class="track-list" style="max-height:360px;overflow-y:auto;padding-right:5px" aria-label="Independent instrumental selections"></div>
     <button type="button" id="ssIndieMore" class="btn" hidden>Show more instrumentals ↓</button>

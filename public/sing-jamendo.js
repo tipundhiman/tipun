@@ -11,7 +11,7 @@
   let selected = null;
   let running = null;
   let nextOffset = 0;
-  let currentQuery = 'acoustic';
+  let currentQuery = 'piano';
   let requestId = 0;
   let searchAbort = null;
   let recordingUrl = null;
@@ -48,7 +48,7 @@
   }
 
   function selectSong(item) {
-    if (running) stop();
+    stop();
     selected = item;
     for (const tile of $('ssIndieList').children) {
       tile.setAttribute('aria-pressed', String(tile.dataset.id === item.id));
@@ -111,7 +111,7 @@
       $('ssIndieMore').hidden = !nextOffset;
       searchStatus(count
         ? `${count} independent instrumentals loaded. Select one to sing.`
-        : 'No suitable instrumental found here. Try acoustic, piano, love or rock.');
+        : 'No suitable instrumental found here. Try piano, love, rock or India.');
     } catch (error) {
       if (error.name === 'AbortError' || request !== requestId) return;
       searchStatus('Instrumental search temporarily unavailable. Existing original practice songs still work.');
@@ -142,6 +142,7 @@
     $('ssIndieStop').disabled = true;
     $('ssIndieListen').disabled = !selected;
     $('ssIndieRecord').disabled = !selected;
+    $('ssIndieTimer').textContent = '30-second challenge complete';
     if (!session.recorder) status('Preview finished. Ready to sing your 30-second challenge.');
     else status('Recording finished. Preparing your voice-only download…');
   }
