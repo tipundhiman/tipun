@@ -96,9 +96,12 @@ test('AI Studio has a single canonical set of song-generation controls',()=>{
 
 test('Riya chat uses authenticated requests and text-only bubbles',()=>{
  const chat=read('public/riya-chat.js');
+ const auth=read('public/integration.js');
  assert.match(html,/Chat with Riya/);
- assert.match(chat,/kind:'help'/);
- assert.match(chat,/session\?\.access_token/);
+ assert.match(chat,/roGenerateAIText\('help',input\)/);
+ assert.match(auth,/window\.roGenerateAIText=roGenerateAIText/);
+ assert.match(auth,/Bearer '\+data\.session\.access_token/);
+ assert.match(html,/roGenerateAIText\('lyrics',instructions\)/);
  assert.match(chat,/textContent=/);
  assert.doesNotMatch(chat,/innerHTML/);
 });

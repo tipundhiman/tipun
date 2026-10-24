@@ -747,20 +747,8 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
     button.disabled = true;
     result.textContent = '✦ Creating your lyrics…';
     try {
-      const session = (await sb.auth.getSession()).data.session;
-      if (!session?.access_token) throw new Error('Session expired. Log in again.');
-      const response = await fetch('/api/ai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + session.access_token
-        },
-        body: JSON.stringify({kind:'lyrics', input:instructions})
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Lyrics generation failed');
-      if (!data.text || typeof data.text !== 'string') throw new Error('No lyrics returned');
-      const rawText=data.text.trim().replace(/^\`{3}[^\n]*\n?|\`{3}$/g,'').trim();
+      const generatedText=await window.roGenerateAIText('lyrics',instructions);
+      const rawText=generatedText.trim().replace(/^\`{3}[^\n]*\n?|\`{3}$/g,'').trim();
       const titleMatch=rawText.match(/^\s*(?:TITLE|Song Title|शीर्षक)\s*[:：-]\s*(.+)\s*$/im);
       let cleaned=rawText.replace(/^\s*(?:TITLE|Song Title|शीर्षक)\s*[:：-].*(?:\r?\n|$)/im,'').replace(/^\s*LYRICS\s*[:：]\s*(?:\r?\n)?/im,'').trim();
       if(!cleaned)cleaned=rawText;
@@ -1517,7 +1505,7 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
 <button id="roRiyaSignIn" class="ro-riya-signin" type="button" hidden onclick="openAuth('login')">Log in to chat with Riya ↗</button>
 <div class="ro-riya-note">AI can make mistakes · Don't share sensitive info · <a href="/privacy" style="text-decoration:underline">Privacy</a></div>
 </section>
-<script src="/riya-chat.js?v=20261024-2"></script>
+<script src="/riya-chat.js?v=20261024-3"></script>
 
 <style>
 .ro-yt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin-top:20px}.ro-yt-card{border:1px solid rgba(255,255,255,.14);border-radius:16px;overflow:hidden;background:rgba(255,255,255,.035)}.ro-yt-card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}.ro-yt-card>div{padding:14px}.ro-yt-card h4{font-size:15px;line-height:1.4;margin:0 0 8px}.ro-yt-card p{margin:0 0 12px}.ro-yt-card .row{gap:8px;flex-wrap:wrap}#roYtPlayer iframe{width:100%;max-height:480px;aspect-ratio:16/9;border:0;border-radius:14px}

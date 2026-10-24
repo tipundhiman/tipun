@@ -1,5 +1,36 @@
 /* Real authenticated RhymeOrbit account, projects and AI integration. */
 let sb=null,remoteReady=false;
+// Single authenticated Gemini text endpoint for Riya, Lyrics, Shayari and Song Doctor.
+// Keep session lookup, request headers and response parsing identical for every AI feature.
+async function roGenerateAIText(kind,input){
+ if(!sb?.auth)throw new Error('Account connection is loading. Please wait and try again.');
+ const {data,error:sessionError}=await sb.auth.getSession();
+ if(sessionError||!data?.session?.access_token)throw new Error('Please log in again to use AI.');
+ let response;
+ try{
+  response=await fetch('/api/ai',{
+   method:'POST',
+   headers:{'Content-Type':'application/json',Authorization:'Bearer '+data.session.access_token},
+   body:JSON.stringify({kind,input})
+  });
+ }catch{
+  throw new Error('Could not connect to the AI server. Check your connection and retry.');
+ }
+ const payload=await response.json().catch(()=>null);
+ if(!payload||typeof payload!=='object'){
+  throw new Error('This deployment did not return an AI response. Please open https://rhymeorbit.in and try again.');
+ }
+ if(!response.ok){
+  if(response.status===401)throw new Error('Your session has expired. Please log in again.');
+  if(payload.error==='Server request failed'&&typeof location!=='undefined'&&/\.vercel\.app$/i.test(location.hostname||'')){
+   throw new Error('This Vercel preview has an AI server error. Please open https://rhymeorbit.in and retry.');
+  }
+  throw new Error(String(payload.error||'AI request failed. Please try again.'));
+ }
+ if(typeof payload.text!=='string'||!payload.text.trim())throw new Error('AI returned an empty response. Please try again.');
+ return payload.text.trim();
+}
+window.roGenerateAIText=roGenerateAIText;
 async function initBackend(){try{const c=await (await fetch('/api/config')).json();if(!c.supabaseUrl||!c.supabaseAnonKey){console.info('Backend configuration missing');return}if(!window.supabase){toast('Authentication library unavailable');return}sb=window.supabase.createClient(c.supabaseUrl,c.supabaseAnonKey);remoteReady=true;const {data:{session}}=await sb.auth.getSession();await syncSession(session);sb.auth.onAuthStateChange((event,s)=>{if(event==='PASSWORD_RECOVERY'){state.authMode='change';setTimeout(renderAuth,0)}setTimeout(()=>syncSession(s),0)});}catch(e){console.error('Backend initialization:',e)}}
 async function syncSession(session){if(!remoteReady)return;if(!session){state.user=null;state.projects=[];window.roCloseMemberships?.();window.roRefreshCreatorKitVisibility?.();render();return}const {data:profile}=await sb.from('profiles').select('username,display_name,bio').eq('id',session.user.id).maybeSingle();state.user={id:session.user.id,name:profile?.display_name||session.user.user_metadata?.display_name||'Creator',username:profile?.username||'',email:session.user.email,bio:profile?.bio||'',firstName:session.user.user_metadata?.first_name||'',lastName:session.user.user_metadata?.last_name||'',homeState:session.user.user_metadata?.home_state||'',gender:session.user.user_metadata?.gender||'prefer_not_to_say'};window.roRefreshCreatorKitVisibility?.();const {data:projects,error}=await sb.from('projects').select('id,title,lyrics,genre,mood,language,updated_at').order('updated_at',{ascending:false});if(error)console.error(error);state.projects=projects||[];render();roWelcomeBack()}
 let roWelcomedUser=null;
@@ -51,7 +82,7 @@ window.roSaveGreetingPreference=async function(){
 // Disable unsafe local-account deletion: backend account deletion requires a verified server endpoint.
 deleteLocalAccount=function(){toast('Account deletion requires a verified backend workflow. Contact support.')};
 // Replace local demo analysis with real Gemini generation when configured.
-async function runAI(kind,input,target){if(!sb||!state.user)return toast('Log in to use AI');const session=(await sb.auth.getSession()).data.session;if(!session)return toast('Session expired. Log in again.');const el=$(target);if(el)el.innerHTML='<div class="note loading">Generating with AI…</div>';try{const r=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({kind,input})});const d=await r.json();if(!r.ok)throw Error(d.error||'Generation failed');if(el)el.innerHTML=`<div class="note" style="white-space:pre-wrap">${esc(d.text)}</div>`}catch(e){if(el)el.innerHTML=`<div class="note">${esc(e.message)}</div>`}}
+async function runAI(kind,input,target){if(!sb||!state.user)return toast('Log in to use AI');const el=$(target);if(el)el.innerHTML='<div class="note loading">Generating with AI…</div>';try{const aiText=await roGenerateAIText(kind,input);if(el)el.innerHTML=`<div class="note" style="white-space:pre-wrap">${esc(aiText)}</div>`}catch(e){if(el)el.innerHTML=`<div class="note">${esc(e.message)}</div>`}}
 songDoctor=function(){const lyrics=$('songLyrics').value.trim();if(!lyrics)return toast('Write some lyrics first');runAI('doctor',lyrics,'doctorResult')};
 vibeBrief=function(){const brief=$('vibeInput').value.trim();if(!brief)return toast('Describe a vibe');runAI('vibe',brief,'vibeResult')};
 askHelp=function(){const q=$('helpInput').value.trim();if(!q)return toast('Enter your question');if(!state.user)return $('helpAnswer').innerHTML='<div class="note">Sign in to use the AI assistant.</div>';runAI('help',q,'helpAnswer')};
