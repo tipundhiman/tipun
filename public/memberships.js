@@ -46,6 +46,103 @@ async function showBalance(){
   }else unavailable();
  }catch(e){unavailable();console.warn('Membership balance unavailable',e)}
 }
+
+async function sandboxAuthToken(){
+ const client=(typeof sb!=='undefined'&&sb?.auth)?sb:window.sb;
+ const session=await client?.auth?.getSession();
+ return session?.data?.session?.access_token||null;
+}
+async function sandboxRequest(endpoint,payload){
+ const token=await sandboxAuthToken();
+ if(!token)throw Error('Please log in again to test Razorpay.');
+ const response=await fetch('/api/billing/test/'+endpoint,{
+  ...(payload?{method:'POST',body:JSON.stringify(payload)}:{}),
+  headers:{Authorization:'Bearer '+token,...(payload?{'Content-Type':'application/json'}:{})}
+ });
+ const result=await response.json().catch(()=>({}));
+ if(!response.ok)throw Error(result.error||'Sandbox request failed.');
+ return result;
+}
+function razorpaySDK(){
+ if(window.Razorpay)return Promise.resolve(window.Razorpay);
+ if(window.roRazorpaySDKPromise)return window.roRazorpaySDKPromise;
+ window.roRazorpaySDKPromise=new Promise((resolve,reject)=>{
+  const script=document.createElement('script');
+  script.src='https://checkout.razorpay.com/v1/checkout.js';
+  script.async=true;
+  script.onload=()=>window.Razorpay?resolve(window.Razorpay):reject(Error('Razorpay sandbox could not load.'));
+  script.onerror=()=>reject(Error('Razorpay checkout script is unavailable.'));
+  document.head.append(script);
+ });
+ return window.roRazorpaySDKPromise;
+}
+async function launchRazorpaySandbox(plan,cycle,button,status){
+ if(button.disabled)return;
+ button.disabled=true;
+ status.textContent='Creating a Razorpay TEST subscription…';
+ try{
+  const data=await sandboxRequest('create-subscription',{plan,cycle});
+  if(!data.testMode)throw Error('Test mode verification failed. Checkout refused.');
+  const Razorpay=await razorpaySDK();
+  status.textContent='Sandbox checkout is ready. No real payment will be collected.';
+  const checkout=new Razorpay({
+   key:data.keyId,
+   subscription_id:data.subscriptionId,
+   name:'RhymeOrbit · TEST MODE',
+   description:plan.toUpperCase()+' '+cycle+' sandbox subscription. No real charges.',
+   theme:{color:'#dcb890'},
+   handler:async response=>{
+    status.textContent='Verifying test authorization…';
+    try{
+     const verified=await sandboxRequest('verify',response);
+     status.textContent=verified.verified?
+      '✓ Test authorization verified. No paid credits were granted. Check test webhooks.':
+      'Sandbox verification incomplete. No paid credits were granted.';
+    }catch(err){status.textContent=err.message||'Test authorization verification failed.'}
+   },
+   modal:{ondismiss:()=>{status.textContent='Sandbox checkout closed. No paid credits were granted.'}}
+  });
+  checkout.open();
+ }catch(err){status.textContent=err.message||'Sandbox checkout unavailable.'}
+ finally{button.disabled=false}
+}
+async function loadSandboxControls(overlay){
+ try{
+  const status=await sandboxRequest('status');
+  if(!status.testMode||!status.databaseReady)return;
+  if(!document.body.contains(overlay))return;
+  const panel=document.createElement('section');
+  panel.className='ro-membership-test-panel';
+  panel.style.cssText='margin-top:20px;padding:16px;border:1px dashed #e5c9a27a;border-radius:15px;';
+  const heading=document.createElement('strong');
+  heading.textContent='🧪 Admin-only Razorpay Sandbox';
+  const note=document.createElement('p');note.className='ro-membership-muted';
+  note.textContent='Test transactions only. Live checkout remains disabled for everyone and test payments never grant paid credits.';
+  panel.append(heading,note);
+  const result=document.createElement('p');result.className='ro-membership-muted';
+  result.setAttribute('role','status');result.setAttribute('aria-live','polite');
+  if(!status.configured){
+   result.textContent='Set your Razorpay TEST keys, webhook secret and plan IDs in the server environment to enable sandbox checkout.';
+  }else{
+   for(const plan of ['premium','pro']){
+    const cycle=annual?'annual':'monthly';
+    if(!status.availablePlans?.[plan]?.[cycle])continue;
+    const btn=document.createElement('button');btn.type='button';
+    btn.className='ro-membership-test-button';
+    btn.textContent='Test '+plan.charAt(0).toUpperCase()+plan.slice(1)+' '+cycle+' checkout';
+    btn.style.cssText='margin:5px 10px 5px 0;padding:10px 15px;border-radius:24px;border:1px solid #e5c9a2;background:#251f2c;color:#f7e6c6;cursor:pointer;';
+    btn.onclick=()=>launchRazorpaySandbox(plan,cycle,btn,result);
+    panel.append(btn);
+   }
+   result.textContent='Choose a sandbox subscription. No real money moves.';
+  }
+  panel.append(result);
+  overlay.querySelector('.ro-membership-dialog')?.append(panel);
+ }catch(err){
+  // Non-admin users get no sandbox controls and no exposed billing configuration.
+ }
+}
+
 function openMemberships(reason){
  if(typeof state==='undefined'||!state.user)return;
  document.getElementById('roMembershipOverlay')?.remove();
@@ -70,6 +167,7 @@ function openMemberships(reason){
  overlay.querySelectorAll('[data-cycle]').forEach(b=>b.onclick=()=>{annual=b.dataset.cycle==='annual';openMemberships(reason)});
  overlay.querySelector('.ro-membership-close').focus();
  showBalance();
+ loadSandboxControls(overlay);
 }
 window.roOpenPricing=openMemberships;
 window.roCloseMemberships=()=>document.getElementById('roMembershipOverlay')?.remove();

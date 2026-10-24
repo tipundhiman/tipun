@@ -1,6 +1,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { r2Enabled, r2ConfigState, r2Put, r2PresignedGet, r2Remove } from './r2.js';
+import {handleTestBilling,handleTestWebhook} from './razorpay-test.js';
 
 const env = k => process.env[k] || '';
 const limits = new Map();
@@ -198,6 +199,11 @@ function pathOf(req) {
 export async function handleApi(req, res) {
   const { path, raw } = pathOf(req);
   try {
+    if(path==='/api/billing/test/webhook')return handleTestWebhook(req,res);
+    if(path.startsWith('/api/billing/test/')){
+      const handled=await handleTestBilling(req,res,{path,send,auth,isAdmin,supaFetch,body,rate});
+      if(handled)return;
+    }
     if (req.method === 'GET' && path === '/api/storage/status') {
       const user=await auth(req,res);if(!user)return;
       if(!await isAdmin(user.id))return send(res,403,{error:'Admin only'});
