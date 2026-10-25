@@ -16,6 +16,15 @@ const showMic = (scope,level,freq) => {
 };
 const DB = 'rhymeorbit-sing-performances-v1';
 let selected = SONGS[0];
+const practiceLyricsKey = song => 'rhymeorbit-practice-lyrics-' + song.id;
+function savedPracticeLyrics(song) {
+  try {
+    const saved = localStorage.getItem(practiceLyricsKey(song));
+    if (saved !== null) return saved.slice(0, 8000).split(/\r?\n/).map(line => line.trim()).filter(Boolean).slice(0, 80);
+  } catch {}
+  return [...song.lyrics];
+}
+let practiceLyrics = savedPracticeLyrics(selected);
 let chosenNote = 60;
 let running = null;
 let downloadUrl = null;
@@ -23,17 +32,19 @@ let historyUrls = [];
 
 function view(name) {
   for (const button of document.querySelectorAll('[data-view]')) button.setAttribute('aria-selected',String(button.dataset.view===name));
-  for (const tab of ['songs','indie','coach','history']) $('ss'+tab[0].toUpperCase()+tab.slice(1)).hidden=tab!==name;
+  for (const tab of ['songs','audius','indie','coach','history']) $('ss'+tab[0].toUpperCase()+tab.slice(1)).hidden=tab!==name;
   if (name==='history') renderHistory();
   document.dispatchEvent(new CustomEvent('ro:sing-view', {detail:name}));
   try {history.replaceState(null,'','#'+name);} catch {}
 }
 document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{if(running)stopSession();view(button.dataset.view);}));
-if (['#songs','#indie','#coach','#history'].includes(location.hash)) view(location.hash.slice(1));
+if (['#songs','#audius','#indie','#coach','#history'].includes(location.hash)) view(location.hash.slice(1));
 
 function chooseSong(song) {
   if (running) stopSession();
   selected=song;
+  practiceLyrics=savedPracticeLyrics(song);
+  $('ssOriginalLyrics').value=practiceLyrics.join('\n');
   document.querySelectorAll('.track').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.id===song.id)));
   safeStatus('ssSongTitle',song.title+' · '+song.subtitle);
   safeStatus('ssDuration',clock(durationOf(song)));
@@ -44,10 +55,10 @@ function chooseSong(song) {
 function progressSong(seconds) {
   const song=selected;
   const elapsed=Math.min(durationOf(song),Math.max(0,seconds));
-  const line=lineAt(song,elapsed);
-  safeStatus('ssLineLabel',seconds<=0?'READY WHEN YOU ARE':`LINE ${line+1} / ${song.lyrics.length}`);
-  safeStatus('ssCurrentLine',song.lyrics[line]);
-  safeStatus('ssNextLine',song.lyrics[line+1]||'🎶 Sing it from your heart');
+  const line=practiceLyrics.length ? Math.min(practiceLyrics.length-1,Math.floor(elapsed/durationOf(song)*practiceLyrics.length)) : -1;
+  safeStatus('ssLineLabel',!practiceLyrics.length?'WRITE YOUR NEW LYRICS':seconds<=0?'READY WHEN YOU ARE':`LINE ${line+1} / ${practiceLyrics.length}`);
+  safeStatus('ssCurrentLine',line<0?'Add your own lyrics using the editor below.':practiceLyrics[line]);
+  safeStatus('ssNextLine',practiceLyrics[line+1]||'🎶 Sing it from your heart');
   safeStatus('ssTime',clock(elapsed));
   const percentage=Math.round(elapsed/durationOf(song)*100);
   $('ssProgressFill').style.width=percentage+'%';
@@ -82,6 +93,29 @@ for(const song of SONGS){
   const label=document.createElement('span');label.textContent=song.subtitle+' · '+clock(durationOf(song));
   button.append(emoji,strong,label);button.addEventListener('click',()=>chooseSong(song));list.append(button);
 }
+// Custom practice lyrics remain private in this browser. Never overwrite the original library.
+const lyricsEditor=document.createElement('section');lyricsEditor.className='card';lyricsEditor.style.marginTop='18px';
+const editorHeading=document.createElement('h2');editorHeading.className='section-title';editorHeading.textContent='✍️ Edit or write your own lyrics';
+const editorHelp=document.createElement('p');editorHelp.className='muted';editorHelp.textContent='Change any line, clear everything and write new lyrics, or restore the original song. Your edits are saved only in this browser. The backing tune stays the same; new line timing is approximate.';
+const editorLabel=document.createElement('label');editorLabel.htmlFor='ssOriginalLyrics';editorLabel.textContent='Your practice lyrics';
+const editorInput=document.createElement('textarea');editorInput.id='ssOriginalLyrics';editorInput.className='sing-audius-lyrics';editorInput.rows=7;editorInput.maxLength=8000;editorInput.setAttribute('aria-label','Edit original practice song lyrics');editorInput.value=practiceLyrics.join('\n');
+const editorActions=document.createElement('div');editorActions.className='row';editorActions.style.marginTop='12px';
+const addEditorButton=(id,label,primary=false)=>{const button=document.createElement('button');button.id=id;button.type='button';button.className='btn'+(primary?' primary':'');button.textContent=label;editorActions.append(button);return button;};
+const saveLyrics=addEditorButton('ssOriginalLyricsSave','✓ Save & show lyrics',true);
+const clearLyrics=addEditorButton('ssOriginalLyricsClear','✕ Clear / Write new');
+const resetLyrics=addEditorButton('ssOriginalLyricsReset','↶ Reset original');
+const editorStatus=document.createElement('p');editorStatus.id='ssOriginalLyricsStatus';editorStatus.className='muted';editorStatus.setAttribute('role','status');editorStatus.textContent='Edit freely, then save to update the on-screen lyrics.';
+lyricsEditor.append(editorHeading,editorHelp,editorLabel,editorInput,editorActions,editorStatus);
+$('ssSongs').append(lyricsEditor);
+function applyPracticeEditor() {
+  practiceLyrics=editorInput.value.slice(0,8000).split(/\r?\n/).map(line=>line.trim()).filter(Boolean).slice(0,80);
+  try {localStorage.setItem(practiceLyricsKey(selected),practiceLyrics.join('\n'));editorStatus.textContent='✓ Lyrics saved on this device for '+selected.title+'.';}
+  catch {editorStatus.textContent='Lyrics updated on screen, but browser storage is unavailable.';}
+  progressSong(0);
+}
+saveLyrics.addEventListener('click',applyPracticeEditor);
+clearLyrics.addEventListener('click',()=>{editorInput.value='';applyPracticeEditor();editorInput.focus();editorStatus.textContent='Cleared. Write new lyrics above and tap Save & show lyrics.';});
+resetLyrics.addEventListener('click',()=>{try{localStorage.removeItem(practiceLyricsKey(selected));}catch{}practiceLyrics=[...selected.lyrics];editorInput.value=practiceLyrics.join('\n');progressSong(0);editorStatus.textContent='Original lyrics restored for '+selected.title+'.';});
 progressSong(0);
 
 /* Warm, original instrumental accompaniment. Generated in the browser; no API credits. */
@@ -332,6 +366,15 @@ window.roSaveIndieSinging = async (blob, ext, title) => {
   await saveToBrowser({
     id:Date.now()+'-'+Math.random().toString(36).slice(2,8),
     song:'30s Indie Challenge · '+String(title||'Practice').slice(0,100),
+    createdAt:Date.now(),blob,ext,score:null
+  });
+};
+// Audius Sing Along stores the microphone-only take, never the copyrighted backing stream.
+window.roSaveAudiusSinging = async (blob, ext, title) => {
+  if (!(blob instanceof Blob) || !['webm','ogg','m4a'].includes(ext)) throw Error('Invalid recording');
+  await saveToBrowser({
+    id:Date.now()+'-'+Math.random().toString(36).slice(2,8),
+    song:'Audius Sing Along · '+String(title||'Practice').slice(0,100),
     createdAt:Date.now(),blob,ext,score:null
   });
 };

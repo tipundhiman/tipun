@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {SONGS,durationOf,midiToHz,hzToMidi,targetAt,lineAt,pitchDistance,detectPitch,summarizePerformance} from '../public/sing-your-song-core.js';
 import {parseTimedLyrics} from '../cloudflare/creator-lyrics.js';
+import {parseSingAlongLyrics,activeLyricIndex,duckTargetVolume} from '../public/sing-audius-core.js';
 
 const page=readFileSync(new URL('../public/sing-your-song.html',import.meta.url),'utf8');
 const script=readFileSync(new URL('../public/sing-your-song.js',import.meta.url),'utf8');
 const indieScript=readFileSync(new URL('../public/sing-jamendo.js',import.meta.url),'utf8');
+const audiusScript=readFileSync(new URL('../public/sing-audius.js',import.meta.url),'utf8');
 const headers=readFileSync(new URL('../public/_headers',import.meta.url),'utf8');
 const vercel=JSON.parse(readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
 
@@ -47,6 +49,45 @@ test('30-second indie karaoke uses existing Jamendo endpoint, voice-only microph
   assert.match(script,/window\.roSaveIndieSinging\s*=/);
   assert.match(page,/records only your microphone|voice only|your mic input/i);
   assert.doesNotMatch(indieScript,/JAMENDO_CLIENT_ID|JAMENDO_CLIENT_SECRET|fetch\(.+\.mp3|r2\.cloudflare/);
+});
+
+test('Audius Sing Along has independent search, playback, mic ducking, local-only voice recording and editable lyrics',()=>{
+  for(const section of ['ssTabAudius','ssAudius','ssAudiusForm','ssAudiusQuery','ssAudiusList','ssAudiusListen','ssAudiusSing','ssAudiusStop','ssAudiusLyrics','ssAudiusLyricsApply','ssAudiusLyricsClear','ssAudiusLyricsReset','ssAudiusDownload'])
+    assert.match(page,new RegExp('id="'+section+'"'));
+  assert.match(page,/sing-audius\.js/);
+  assert.match(audiusScript,/https:\/\/api\.audius\.co\/v1\/tracks\/search/);
+  assert.match(audiusScript,/audio\.src = selected\.audio/);
+  assert.match(audiusScript,/createMediaElementSource\(audio\)\.connect\(musicGain\)/);
+  assert.match(audiusScript,/navigator\.mediaDevices\.getUserMedia/);
+  assert.match(audiusScript,/new MediaRecorder\(mic/);
+  assert.match(audiusScript,/duckTargetVolume/);
+  assert.match(audiusScript,/localStorage\.setItem\(lyricKey/);
+  assert.match(audiusScript,/localStorage\.removeItem\(lyricKey/);
+  assert.match(audiusScript,/window\.roSaveAudiusSinging/);
+  assert.match(script,/window\.roSaveAudiusSinging\s*=/);
+  assert.doesNotMatch(audiusScript,/cloudflare\.com\/.*upload|SUPABASE_SERVICE_ROLE_KEY/);
+});
+
+test('LRC lyrics sync precisely while untimed custom lyrics use honest estimated positions',()=>{
+  const timed=parseSingAlongLyrics('[00:10.50] पहली लाइन\n[00:20.00] दूसरी लाइन');
+  assert.equal(timed.timed,true);
+  assert.equal(activeLyricIndex(timed,2,40),-1);
+  assert.equal(activeLyricIndex(timed,11,40),0);
+  assert.equal(activeLyricIndex(timed,11,40,10),1);
+  const plain=parseSingAlongLyrics('New lyrics\nAnother line\nFinal line');
+  assert.equal(plain.timed,false);
+  assert.equal(activeLyricIndex(plain,25,60),1);
+  assert.equal(parseSingAlongLyrics('').lines.length,0);
+  assert.equal(duckTargetVolume(0.05,0.018,0.7,30),0.21);
+  assert.equal(duckTargetVolume(0,0.018,0.7,30),0.7);
+});
+
+test('Original practice lyrics support writing new lines, clearing, saving and restoration per song',()=>{
+  for(const id of ['ssOriginalLyricsSave','ssOriginalLyricsClear','ssOriginalLyricsReset'])assert.match(script,new RegExp(id));
+  assert.match(script,/localStorage\.setItem\(practiceLyricsKey\(selected\)/);
+  assert.match(script,/localStorage\.removeItem\(practiceLyricsKey\(selected\)/);
+  assert.match(script,/practiceLyrics=\[\.\.\.selected\.lyrics\]/);
+  assert.match(script,/practiceLyrics\[line\]/);
 });
 
 test('Four original practice songs have reasonable 1–2 minute durations and active lyrics',()=>{
