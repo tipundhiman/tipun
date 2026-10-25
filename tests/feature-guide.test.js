@@ -27,7 +27,7 @@ test('Guide loads on major public tools and main app with a single shared script
     'public/index.html', 'public/features.html', 'public/ai-song-generator.html',
     'public/ai-lyrics-generator.html', 'public/shayari-generator.html',
     'public/video-maker.html', 'public/vocal-lab.html'
-  ]) assert.match(read(file), /src="\/feature-guide\.js\?v=20261025-ux-1"/);
+  ]) assert.match(read(file), /src="\/feature-guide\.js\?v=20261025-[a-z0-9-]+"/);
   assert.match(read('public/integration.js'), /roBackendReady=true/);
 });
 

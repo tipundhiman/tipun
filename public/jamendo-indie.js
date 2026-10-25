@@ -19,10 +19,10 @@
   let indianShown = 0;
   const indianPageSize = 8;
   const indianFolders = [
-    {id:'hindi',label:'🎵 Hindi picks',query:'Hindi'},
+    {id:'hindi',label:'🎵 Hindi picks',query:'Hindi song'},
     {id:'trending',label:'🔥 Trending worldwide',query:''},
-    {id:'played',label:'🏆 Most played',query:'Hindi'},
-    {id:'new',label:'🆕 New uploads',query:'Hindi'},
+    {id:'played',label:'🏆 Most played',query:'Hindi song'},
+    {id:'new',label:'🆕 New uploads',query:'Hindi song'},
     {id:'romantic',label:'💗 Romantic',query:'Hindi romantic'},
     {id:'devotional',label:'🙏 Devotional',query:'Hindi bhajan'},
     {id:'punjabi',label:'⚡ Punjabi',query:'Punjabi song'},
@@ -149,7 +149,7 @@
     });
     if (mode === 'indian') {
       const section = document.getElementById('roIndianCatalogSection');
-      if (!section?.dataset.searched) searchIndianCatalog('Hindi','hindi');
+      if (!section?.dataset.searched) searchIndianCatalog('Hindi song','hindi');
     }
     const search = document.getElementById('roYtQuery');
     if (search) {
@@ -233,12 +233,13 @@
     if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) return null;
     const released = Date.parse(track.release_date || track.created_at || '');
     const artwork = track.artwork?.['480x480'];
+    const permalink = typeof track.permalink === 'string' && /^\/[a-zA-Z0-9_/-]+$/.test(track.permalink) ? track.permalink : '';
     return {
       id,
       title: String(track.title || 'Community song').slice(0, 140),
       artist: String(track.user?.name || track.user?.handle || 'Audius creator').slice(0, 140),
       audio: 'https://api.audius.co/v1/tracks/' + encodeURIComponent(id) + '/stream',
-      source: 'https://audius.co' + (typeof track.permalink === 'string' && /^\/[a-zA-Z0-9_/-]+$/.test(track.permalink) ? track.permalink : ''),
+      source: permalink ? 'https://audius.co' + permalink : '',
       cover: checkedHttps(artwork, 'figment.io') || checkedHttps(artwork, 'audius.co'),
       playCount: Number.isFinite(Number(track.play_count)) ? Math.max(0, Number(track.play_count)) : null,
       releaseAt: Number.isFinite(released) && released > 0 ? released : 0
@@ -278,7 +279,9 @@
       const cover = document.createElement('div');cover.className = 'ro-indian-art';
       if (track.cover) {
         const image=document.createElement('img');image.src=track.cover;image.alt='';image.loading='lazy';
-        image.referrerPolicy='no-referrer';cover.append(image);
+        image.referrerPolicy='no-referrer';
+        image.addEventListener('error',()=>{image.remove();cover.textContent='♫';});
+        cover.append(image);
       } else cover.textContent='♫';
       const body = document.createElement('div');body.className='ro-cc-tile-body';
       const title = document.createElement('h4');title.textContent=track.title;
@@ -301,7 +304,7 @@
         body.append(player);
       }
       const original=checkedHttps(track.source,'audius.co');
-      if(original){const source=document.createElement('a');source.href=original;source.target='_blank';source.rel='noopener noreferrer';source.textContent='On Audius ↗';source.className='ro-indian-source';body.append(source);}
+      if(original && new URL(original).pathname!=='/'){const source=document.createElement('a');source.href=original;source.target='_blank';source.rel='noopener noreferrer';source.textContent='On Audius ↗';source.className='ro-indian-source';body.append(source);}
       tile.append(cover,body);results.append(tile);
     }
     indianShown=Math.min(indianTracks.length,indianShown+indianPageSize);

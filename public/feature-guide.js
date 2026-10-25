@@ -196,7 +196,9 @@
   if (window.roBackendReady) restoreGuideDestination();
   else window.addEventListener('ro-backend-ready',restoreGuideDestination,{once:true});
   let seen = false;try {seen = localStorage.getItem('ro_feature_guide_seen_20261025') === '1';}catch {}
-  if (!seen) setTimeout(() => {
+  // Keep the first-visit invitation on Home; never cover music, recording or editing controls.
+  if (!seen && location.pathname==='/' && (!location.hash || location.hash==='#home')) setTimeout(() => {
+    if (location.pathname!=='/' || (location.hash && location.hash!=='#home')) return;
     if (document.getElementById('roGuideNudge'))return;
     const nudge = document.createElement('aside');nudge.id = 'roGuideNudge';
     nudge.setAttribute('aria-label','First-time RhymeOrbit guide');

@@ -29,3 +29,12 @@ test('Current terms and privacy clearly describe provider-backed streams and loc
   assert.match(features,/Audius/);
   assert.match(features,/YouTube Data API/);
 });
+
+test('Navigation icons and first-visit guide stay tidy on music and editor pages',()=>{
+  const index=read('public/index.html');
+  const guide=read('public/feature-guide.js');
+  assert.match(index,/sing:'🎙'/);
+  assert.match(index,/\['sing','Sing Your Song'\]/);
+  assert.match(guide,/location\.pathname==='\/'/);
+  assert.match(guide,/location\.hash==='\#home'/);
+});

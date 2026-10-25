@@ -28,13 +28,14 @@
     const art = document.createElement('button');
     art.type = 'button';
     art.className = 'ro-cc-art ro-video-cover';
-    art.style.cssText = 'width:100%;padding:0;border:0;cursor:pointer;position:relative;overflow:hidden';
+    art.style.cssText = 'width:100%;padding:0;border:0;cursor:pointer;position:relative;overflow:hidden;background:radial-gradient(circle at 75% 25%,#b18ec550,transparent 60%),linear-gradient(135deg,#422e4d,#202d48)';
     art.setAttribute('aria-label', 'Play ' + item.title + ' here');
     const thumbnail = document.createElement('img');
     thumbnail.src = 'https://i.ytimg.com/vi/' + item.id + '/hqdefault.jpg';
     thumbnail.alt = '';
     thumbnail.loading = 'lazy';
     thumbnail.style.cssText = 'width:100%;height:100%;object-fit:cover;transition:transform .35s';
+    thumbnail.addEventListener('error',()=>{thumbnail.remove();art.dataset.noCover='true';});
     const badge = document.createElement('span');
     badge.textContent = '▶';
     badge.style.cssText = 'position:absolute;inset:0;display:grid;place-items:center;font-size:32px;color:white;text-shadow:0 0 20px #000';
