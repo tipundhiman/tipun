@@ -83,7 +83,7 @@
     ['🪩', 'music'], ['🥁', 'music'], ['📻', 'radio'], ['📚', 'library']
   ]);
   const emojiPattern = new RegExp(Array.from(iconNames.keys()).sort((a, b) => b.length - a.length).map(value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + '|\\p{Extended_Pictographic}\\uFE0F?', 'gu');
-  const uiSelectors = 'button, a, h1, h2, h3, .eyebrow, .sidebar-label, .glyph, .ro-cc-mascot, .ro-cc-stars, #roCcSceneText, .ro-mobile-feature-symbol, .ro-quick-icon, .avatars, [role="status"], .ro-cc-scene, .ro-cc-art, .hero-art, .float-notes, .chip, .pill, .feature, .feature-guide, #roGuideNudge, #roGuideDialog, .ro-cc-tile-actions, .ro-yt-search-note, .ro-yt-search-spark';
+  const uiSelectors = 'button, a, label, h1, h2, h3, .note, .pitch small, .eyebrow, .sidebar-label, .glyph, .ro-cc-mascot, .ro-cc-stars, #roCcSceneText, .ro-mobile-feature-symbol, .ro-quick-icon, .avatars, [role="status"], .ro-cc-scene, .ro-cc-art, .hero-art, .float-notes, .chip, .pill, .feature, .feature-guide, #roGuideNudge, #roGuideDialog, .ro-cc-tile-actions, .ro-yt-search-note, .ro-yt-search-spark';
   const skipSelectors = 'input, textarea, select, [contenteditable], .ro-feed-post, .ro-user-content, #ssCurrentLine, #ssNextLine, .ro-cc-song-name, .ro-song-title, .track-title, .ro-cc-tile h4, .ro-indian-tile h4';
 
   function iconifyText(node) {

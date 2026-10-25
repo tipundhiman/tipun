@@ -121,6 +121,9 @@ html[data-theme='light'] body {
 html[data-theme='light'] body:before { opacity: .15; }
 html[data-theme='light'] :is(.brand, .brand-name, .brand a, .page-head h1, h1, h2, h3, h4, .section-title, .card-title) { color: var(--ro-text); }
 html[data-theme='light'] :is(.muted, .small, .hero p, .hero-copy>p, .page-head p, .section-header p, .card p, .panel p, .lead p, .note, .hint, small) { color: var(--ro-muted); }
+html[data-theme='light'] .micro span { color: var(--ro-muted) !important; font-size: 12px; }
+html[data-theme='light'] .micro strong { color: var(--ro-text) !important; }
+html[data-theme='light'] .hero-bottom span { color: var(--ro-muted) !important; font-size: 11px; }
 html[data-theme='light'] :is(.eyebrow, .sidebar-label, .serif, h1 em, h2 em, .brand span, .brand-name span) { color: var(--ro-accent); }
 html[data-theme='light'] a { color: var(--ro-accent); }
 
@@ -230,6 +233,8 @@ html[data-theme='light'] .ro-quick-nav .ro-quick-active { color: var(--ro-accent
 .ro-quick-links::-webkit-scrollbar { display: none; }
 
 /* First-time guide, feature finder and tours are part of the same design system. */
+/* Keep a single automatic welcome—the theme chooser. The guided tour remains in Find a feature. */
+#roGuideNudge { display: none !important; }
 html[data-theme='light'] :is(#roGuideNudge, #roGuideDialog, #roGuideGrid a) {
   background: #fff !important;
   color: var(--ro-text) !important;

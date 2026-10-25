@@ -40,6 +40,8 @@ test('four curated themes use Pearl as default, persist, and offer a first-visit
   assert.match(css, /color-scheme: light/);
   assert.match(css, /font-size: 15px/);
   assert.match(css, /\.footer, footer\) \{ background: var\(--ro-page\) !important/);
+  assert.match(css, /\.footer-main \{ display: grid;/);
+  assert.match(css, /#roGuideNudge \{ display: none !important;/);
   assert.match(css, /html body #roOrbitHelpButton/);
 });
 
