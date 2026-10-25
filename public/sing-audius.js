@@ -158,7 +158,14 @@ import { parseSingAlongLyrics, activeLyricIndex, duckTargetVolume } from './sing
         button.addEventListener('click', () => selectTrack(item));
         $('ssAudiusList').append(button);
       }
-      searchStatus(items.length ? `${items.length} playable Audius tracks. Select one to listen or sing.` : 'No playable matches. Try a song title, artist or genre.');
+      if (items.length) {
+        // Mobile listeners often search for a song and then scroll straight to
+        // the stage. Preselect the best match without starting playback.
+        selectTrack(items[0]);
+      }
+      searchStatus(items.length
+        ? `${items.length} playable tracks · ${items[0].title} selected. Tap another result to change it.`
+        : 'No playable matches. Try a song title, artist or genre.');
     } catch (error) {
       if (error.name === 'AbortError' || request !== latestSearch) return;
       searchStatus('Audius is not responding. Try again later; original karaoke songs still work.');
@@ -169,9 +176,11 @@ import { parseSingAlongLyrics, activeLyricIndex, duckTargetVolume } from './sing
     const index = activeLyricIndex(parsedLyrics, seconds, duration, Number($('ssAudiusOffset').value));
     const count = parsedLyrics.lines.length;
     if (!count) {
-      $('ssAudiusLyricLabel').textContent = 'ADD LYRICS TO FOLLOW ALONG';
-      $('ssAudiusCurrent').textContent = 'Paste authorized lyrics below.';
-      $('ssAudiusNext').textContent = 'Then tap Show & sync lyrics.';
+      $('ssAudiusLyricLabel').textContent = selected ? 'LYRICS NOT SUPPLIED WITH THIS TRACK' : 'SELECT A SONG ABOVE';
+      $('ssAudiusCurrent').textContent = selected ? selected.title : 'Choose an Audius song to begin.';
+      $('ssAudiusNext').textContent = selected
+        ? 'Add authorized lyrics, or transcribe audio you own below. Audius does not provide exact lyrics for this upload.'
+        : 'Select a track to enable playback and lyric practice.';
       return;
     }
     $('ssAudiusLyricLabel').textContent = `${parsedLyrics.timed ? 'TIMED LYRICS' : 'ESTIMATED LYRICS'} · ${Math.max(0, index + 1)} / ${count}`;
@@ -185,7 +194,7 @@ import { parseSingAlongLyrics, activeLyricIndex, duckTargetVolume } from './sing
       try {localStorage.setItem(lyricKey(selected.id), $('ssAudiusLyrics').value.slice(0, 8000));} catch {}
     }
     lyricsStatus(!parsedLyrics.lines.length
-      ? 'Paste lyrics you own or are authorized to use; Audius does not provide verified synced lyrics.'
+      ? 'This Audius upload does not include verified lyrics. Enter licensed lyrics or generate a transcript from audio you own.'
       : parsedLyrics.timed
         ? `${parsedLyrics.lines.length} timestamped lines loaded. They follow the song clock.`
         : `${parsedLyrics.lines.length} lines loaded. Timing is estimated across the song; use [mm:ss.xx] LRC for accurate sync.`);

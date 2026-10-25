@@ -29,7 +29,7 @@ a{color:var(--pink)}button,select,input{font:inherit}button{cursor:pointer}butto
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
 <script type="module" src="/sing-your-song.js?v=20261025-sing-3"></script>
 <script type="module" src="/sing-jamendo.js?v=20261025-indie-2"></script>
-<script type="module" src="/sing-audius.js?v=20261025-audius-sing-2"></script>
+<script type="module" src="/sing-audius.js?v=20261025-audius-sing-3"></script>
 <script src="/feature-guide.js?v=20261025-sing-1" defer></script>
 </head>
 <body>
@@ -70,9 +70,9 @@ a{color:var(--pink)}button,select,input{font:inherit}button{cursor:pointer}butto
   <div class="grid">
    <section class="card">
     <div class="eyebrow">PUBLIC AUDIUS AUDIO · NO KEY</div><h2 class="section-title">Find a song & sing along 🎤</h2>
-    <p class="muted">Play community-uploaded tracks, covers and independent songs. These are not verified original Bollywood recordings. Use headphones for the best microphone results.</p>
+    <p class="muted">Play community-uploaded tracks, covers and independent songs. The best search match is selected automatically; tap another if needed. Audius does not supply verified lyrics for these recordings. Use headphones for the best microphone results.</p>
     <form id="ssAudiusForm"><label for="ssAudiusQuery" class="muted">Search Hindi or any available song</label><div class="sing-audius-search"><input class="select" id="ssAudiusQuery" type="search" value="Kesariya" maxlength="80" placeholder="Song or artist" required><button type="submit" class="btn primary">Search ↗</button></div></form>
-    <p id="ssAudiusSearchStatus" class="mic-hint" role="status" aria-live="polite">Open this tab to search Audius.</p>
+    <p id="ssAudiusSearchStatus" class="mic-hint" role="status" aria-live="polite">Search to select a track, then play or sing on the stage.</p>
     <div id="ssAudiusList" class="track-list sing-audius-track-list" role="group" aria-label="Audius community songs"></div>
     <p class="note">Music stays on Audius. Recording saves only your microphone, never the artist's backing track. Respect each creator's rights.</p>
    </section>
