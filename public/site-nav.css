@@ -1,0 +1,106 @@
+.ro-quick-nav,
+.ro-quick-nav * {
+  box-sizing: border-box;
+}
+
+.ro-quick-nav {
+  --ro-quick-accent: #eed4af;
+  position: relative;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px max(18px, calc((100% - 1190px) / 2));
+  background: #17141f;
+  border-bottom: 1px solid #e6c8a320;
+  color: #f8f3f6;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.ro-quick-nav a,
+.ro-quick-nav a:visited {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex-shrink: 0;
+  min-height: 38px;
+  padding: 9px 12px;
+  border: 1px solid #ffffff22;
+  border-radius: 999px;
+  background: #ffffff08;
+  color: #e0d8e3;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background .15s ease, border-color .15s ease;
+}
+
+.ro-quick-nav a:hover,
+.ro-quick-nav a:focus-visible {
+  background: #ffffff16;
+  border-color: #e6c8a370;
+  color: #fff;
+}
+
+.ro-quick-nav a:focus-visible {
+  outline: 2px solid var(--ro-quick-accent);
+  outline-offset: 2px;
+}
+
+.ro-quick-nav .ro-quick-back {
+  background: #eed4af;
+  border-color: #eed4af;
+  color: #211921;
+  font-weight: 800;
+}
+
+.ro-quick-nav .ro-quick-back:visited,
+.ro-quick-nav .ro-quick-back:hover,
+.ro-quick-nav .ro-quick-back:focus-visible {
+  color: #211921;
+  background: #fff0d5;
+}
+
+.ro-quick-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 2px 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #ac8eab transparent;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ro-quick-icon {
+  color: #f2cf9f;
+  font-size: 15px;
+}
+
+.ro-quick-nav .ro-quick-active,
+.ro-quick-nav .ro-quick-active:visited {
+  background: #eed4af1d;
+  border-color: #eed4af77;
+  color: #ffeaca;
+}
+
+@media (max-width: 640px) {
+  .ro-quick-nav { gap: 8px; padding: 8px 12px; }
+  .ro-quick-nav a,
+  .ro-quick-nav a:visited { min-height: 40px; padding: 10px 12px; }
+  .ro-quick-links { gap: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ro-quick-nav a { transition: none; }
+}

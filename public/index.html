@@ -216,7 +216,7 @@ function saveProfile(){const n=$('profileName').value.trim();if(!n)return toast(
 function askHelp(){roToggleOrbitHelp(true)}
 function supportEmail(){const m=$('supportInput').value.trim();if(!m)return toast('Describe your request first');location.href='mailto:dtipun@gmail.com?subject='+encodeURIComponent('RhymeOrbit support')+'&body='+encodeURIComponent(m)}
 window.addEventListener('keydown',e=>{if(e.key==='Escape')closeAuth()});
-const initial=location.hash.slice(1);if(['home','discover','studio','projects','listen','community','match','profile','help','about','privacy','terms','media'].includes(initial))state.page=['studio','projects','match','profile','media'].includes(initial)?'home':initial;render();
+const initial=location.hash.slice(1);if(['home','discover','studio','projects','downloads','listen','community','match','profile','help','about','privacy','terms'].includes(initial))state.page=initial;render();
 </script>
   
 <!-- RHYMEORBIT ADMIN DASHBOARD -->
