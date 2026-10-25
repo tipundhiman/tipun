@@ -202,6 +202,40 @@
     videoGrid.parentNode.insertBefore(section, videoGrid);
   }
 
+  function normalizePublicAudiusTrack(track) {
+    if (!track || track.is_available !== true || track.is_streamable !== true) return null;
+    const id = typeof track.id === 'string' ? track.id : '';
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) return null;
+    return {
+      id,
+      title: String(track.title || 'Community song').slice(0, 140),
+      artist: String(track.user?.name || track.user?.handle || 'Audius creator').slice(0, 140),
+      audio: 'https://api.audius.co/v1/tracks/' + encodeURIComponent(id) + '/stream',
+      source: 'https://audius.co' + (typeof track.permalink === 'string' && /^\/[a-zA-Z0-9_/-]+$/.test(track.permalink) ? track.permalink : '')
+    };
+  }
+
+  async function getAudiusTracks(query, signal) {
+    const directUrl = 'https://api.audius.co/v1/tracks/search?query=' + encodeURIComponent(query) + '&limit=12';
+    // Audius explicitly supports public read-only browser access. Its CORS
+    // endpoint is useful when an edge-hosted backend gets blocked upstream.
+    try {
+      const direct = await fetch(directUrl, { signal, cache: 'no-store' });
+      if (!direct.ok) throw Error('Audius direct search unavailable');
+      const data = await direct.json();
+      if (!Array.isArray(data?.data)) throw Error('Unexpected Audius response');
+      return data.data.map(normalizePublicAudiusTrack).filter(Boolean).slice(0, 12);
+    } catch (error) {
+      if (error.name === 'AbortError') throw error;
+      const response = await fetch('/api/catalog/audius/search?q=' + encodeURIComponent(query), {
+        signal, cache: 'no-store'
+      });
+      if (!response.ok) throw Error('Audius search unavailable');
+      const data = await response.json();
+      return Array.isArray(data.tracks) ? data.tracks.slice(0, 12) : [];
+    }
+  }
+
   async function searchIndianCatalog(query) {
     const status = document.getElementById('roIndianCatalogStatus');
     const results = document.getElementById('roIndianCatalogResults');
@@ -218,17 +252,8 @@
     results.replaceChildren();
     status.textContent = 'Searching playable community audio…';
     try {
-      const response = await fetch('/api/catalog/audius/search?q=' + encodeURIComponent(query), {
-        signal: indianAbort.signal,
-        cache: 'no-store'
-      });
-      const data = await response.json();
+      const tracks = await getAudiusTracks(query, indianAbort.signal);
       if (request !== indianRequest || !document.getElementById('roIndianCatalogResults')) return;
-      if (!response.ok) {
-        status.textContent = 'Audius audio is temporarily unavailable. Try again shortly or use Music Videos.';
-        return;
-      }
-      const tracks = Array.isArray(data.tracks) ? data.tracks.slice(0, 12) : [];
       status.textContent = tracks.length ? `${tracks.length} Audius community tracks found. Tap play to listen; these may be covers or independent uploads.` : 'No playable Audius matches. Try a different song, singer or genre.';
       for (const track of tracks) {
         const tile = document.createElement('article');

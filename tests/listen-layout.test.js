@@ -24,6 +24,8 @@ test('indie music renders six songs at a time with accessible show more', () => 
 
 test('Audius player uses verified catalog audio URLs and keeps video discovery available', () => {
   assert.match(ui, /\/api\/catalog\/audius\/search\?q=/);
+  assert.match(ui, /https:\/\/api\.audius\.co\/v1\/tracks\/search\?query=/);
+  assert.match(ui, /normalizePublicAudiusTrack/);
   assert.match(ui, /checkedHttps\(track\.audio, 'api\.audius\.co'\)/);
   assert.match(ui, /event\.stopImmediatePropagation\(\)/);
   assert.match(ui, /window\.roYtSearch\?\./);
