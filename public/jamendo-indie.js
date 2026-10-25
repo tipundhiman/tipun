@@ -13,6 +13,7 @@
   const batchSize = 6;
   let cachedTracks = [];
   let shownCount = 0;
+  let indieLoaded = false;
   let indianRequest = 0;
   let indianAbort = null;
   let indianTracks = [];
@@ -151,6 +152,8 @@
       const section = document.getElementById('roIndianCatalogSection');
       if (!section?.dataset.searched) searchIndianCatalog('Hindi song','hindi');
     }
+    if (mode==='music' && available && !indieLoaded) {indieLoaded=true;searchJamendo('rock');}
+    if (videos && videoGrid && !videoGrid.children.length) window.roYtShowFeatured?.();
     const search = document.getElementById('roYtQuery');
     if (search) {
       search.placeholder = mode==='indian'?'Search a song, artist or language…':mode==='videos'?'Search music videos…':'Search independent tracks…';
@@ -181,7 +184,7 @@
       modes.append(button);
     }
     status.parentNode.insertBefore(modes, status);
-    selectSource(available ? 'music' : 'videos');
+    selectSource('indian');
   }
 
   function installIndianCatalog() {
@@ -400,6 +403,7 @@
     const mainResults = document.getElementById('roYtGrid');
     if (!form || !mainResults) return;
     if (available && !document.getElementById('roJamendoSection')) {
+      indieLoaded=false;
       const section = document.createElement('section');
       section.id = 'roJamendoSection';
       section.style.cssText = 'margin-top:24px;padding-top:20px;border-top:1px solid #ffffff30';
@@ -442,7 +446,6 @@
       // Keep real, playable songs close to the search instead of hiding them
       // below the discovery results on a long page.
       mainResults.parentNode.insertBefore(section, mainResults);
-      searchJamendo('rock');
     }
     installIndianCatalog();
     installSourceModes();

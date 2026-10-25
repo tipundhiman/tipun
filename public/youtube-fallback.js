@@ -118,8 +118,8 @@
     window.roCcMount = function () {
       mountLive();
       installVideoFolders();
-      const grid = document.getElementById('roYtGrid');
-      if (grid && !grid.children.length) showFeatured();
+      // The chosen source decides when to load video cards; do not briefly
+      // flash YouTube thumbnails while the Hindi audio tab is initializing.
     };
   }
 })();

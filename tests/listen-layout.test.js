@@ -14,6 +14,8 @@ test('Listen & Chill keeps music, video and Audius community catalog in distinct
   }
   assert.match(ui, /catalog\.hidden = !music/);
   assert.match(ui, /indianCatalog\.hidden = mode !== 'indian'/);
+  assert.match(ui, /selectSource\('indian'\)/,'Hindi songs should be the first browse mode');
+  assert.match(ui, /mode==='music' && available && !indieLoaded/,'Load indie songs only when requested');
   assert.match(ui, /if \(!music\) document\.querySelectorAll\('#roJamendoResults audio'\)/);
 });
 
