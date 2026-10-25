@@ -1,0 +1,208 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+
+/* RhymeOrbit design system. Light by default; a saved dark choice is opt-in. */
+:root {
+  --ro-page: #f7f8fc;
+  --ro-paper: #ffffff;
+  --ro-subtle: #f0f2f8;
+  --ro-border: #dde2ec;
+  --ro-text: #1d2737;
+  --ro-muted: #606b7d;
+  --ro-accent: #5f4caa;
+  --ro-accent-hover: #493989;
+  --ro-focus: #147d96;
+  --ro-shadow: 0 14px 36px #252d4510;
+  font-synthesis: none;
+}
+:root[data-theme='dark'] {
+  --ro-page: #10111a;
+  --ro-paper: #1a1b28;
+  --ro-subtle: #222334;
+  --ro-border: #3b384b;
+  --ro-text: #f6f4fa;
+  --ro-muted: #b7b4c4;
+  --ro-accent: #dfc3f3;
+  --ro-accent-hover: #f3d7fb;
+  --ro-focus: #8ce5df;
+  --ro-shadow: 0 12px 40px #0005;
+  color-scheme: dark;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: var(--ro-page);
+  --surface: var(--ro-paper);
+  --surface2: var(--ro-subtle);
+  --line: var(--ro-border);
+  --ink: var(--ro-text);
+  --text: var(--ro-text);
+  --muted: var(--ro-muted);
+  --gold: var(--ro-accent);
+  --pink: var(--ro-accent);
+  --violet: var(--ro-accent);
+  --cyan: var(--ro-focus);
+  --teal: var(--ro-focus);
+}
+
+html { -webkit-text-size-adjust: 100%; }
+body, button, input, textarea, select { font-family: 'DM Sans', system-ui, -apple-system, sans-serif; }
+body { font-size: 15px; line-height: 1.6; font-weight: 400; }
+button, .btn, .chip, .pill { font-size: 14px; font-weight: 600; letter-spacing: 0; }
+h1,h2,h3,h4,.section-title,.page-head h1,.brand-name { font-family: Manrope, 'DM Sans', system-ui, sans-serif; }
+h1 { font-weight: 700; }
+h2,h3 { font-weight: 700; }
+.eyebrow, .sidebar-label { font-size: 11px; font-weight: 700; letter-spacing: 1.4px; }
+.muted, .small, small { line-height: 1.6; }
+.small { font-size: 13px; }
+:where(button,a,input,textarea,select,[role="button"]):focus-visible { outline: 2px solid var(--ro-focus); outline-offset: 3px; }
+.ro-lucide-icon { display: inline-block; flex-shrink: 0; vertical-align: -.18em; stroke: currentColor; }
+button .ro-lucide-icon, a .ro-lucide-icon { vertical-align: middle; }
+.ro-cc-mascot .ro-lucide-icon { width: 68px; height: 68px; }
+.hero-art .mic .ro-lucide-icon { width: 80px; height: 80px; }
+.ro-mobile-feature-symbol .ro-lucide-icon { width: 25px; height: 25px; }
+.ro-theme-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 41px;
+  padding: 9px 13px;
+  border-radius: 12px;
+  border: 1px solid var(--ro-border);
+  background: var(--ro-paper);
+  color: var(--ro-text);
+  font: 600 12px/1.2 'DM Sans',sans-serif;
+  cursor: pointer;
+  box-shadow: 0 1px 3px #11182708;
+}
+.ro-theme-toggle:hover { border-color: var(--ro-accent); }
+.ro-theme-toggle .ro-lucide-icon { width: 18px; height: 18px; }
+.ro-theme-toggle:focus-visible { outline: 2px solid var(--ro-focus); outline-offset: 2px; }
+
+/* High-contrast light palette across the SPA, standalone creator tools and guides. */
+html[data-theme='light'] body {
+  background: radial-gradient(ellipse 75% 52% at 100% -10%, #eee9fe, transparent 70%), var(--ro-page) !important;
+  color: var(--ro-text) !important;
+}
+html[data-theme='light'] body:before { opacity: .15; }
+html[data-theme='light'] :is(.brand, .brand-name, .brand a, .page-head h1, h1, h2, h3, h4, .section-title, .card-title) { color: var(--ro-text); }
+html[data-theme='light'] :is(.muted, .small, .hero p, .hero-copy>p, .page-head p, .section-header p, .card p, .panel p, .lead p, .note, .hint, small) { color: var(--ro-muted); }
+html[data-theme='light'] :is(.eyebrow, .sidebar-label, .serif, h1 em, h2 em, .brand span, .brand-name span) { color: var(--ro-accent); }
+html[data-theme='light'] a { color: var(--ro-accent); }
+
+html[data-theme='light'] :is(body > header, .topbar, .desktop-nav, .mobile-drawer, .app-sidebar, .ro-quick-nav) {
+  background: #fffffff2 !important;
+  color: var(--ro-text);
+  border-color: var(--ro-border);
+}
+html[data-theme='light'] :is(.navlink, .side-link, .mobile-drawer button, .desktop-nav a, header nav a) { color: #566174; }
+html[data-theme='light'] :is(.navlink:hover,.navlink.active,.side-link:hover,.side-link.active) { color: var(--ro-accent); background-color: #f0edfb; }
+html[data-theme='light'] .side-link.active { box-shadow: inset 3px 0 var(--ro-accent); }
+html[data-theme='light'] :is(.footer, footer, .hairline) { background-color: transparent; color: var(--ro-muted); border-color: var(--ro-border); }
+html[data-theme='light'] :is(.footer-links, .footer-bottom, footer .wrap) { color: var(--ro-muted); }
+
+html[data-theme='light'] :is(.app-shell .panel, .panel, .shell, .card, .feature, .editorial, .app-banner, .tile,
+  .ro-cc-lounge, .ro-indian-lounge, .ro-feed-composer, .ro-feed-post, .ro-feed-hero, .ro-cc-tile,
+  .ro-song-card, .ro-cc-console, .ro-cc-player, .profile-card, .stat, .matchbox, .history, .privacy,
+  .ro-mobile-sheet-card, .modal, .note, .small-note) {
+  background: var(--ro-paper) !important;
+  border-color: var(--ro-border) !important;
+  color: var(--ro-text);
+  box-shadow: var(--ro-shadow);
+}
+html[data-theme='light'] :is(.panel p, .shell p, .card p, .feature p, .editorial p, .stat small, .ro-feed-post p) { color: var(--ro-muted); }
+html[data-theme='light'] :is(.badge, .chip, .pill, .tag, .ro-indian-folder) {
+  background: #f0edfb !important;
+  color: var(--ro-accent) !important;
+  border-color: #cfc6f1 !important;
+}
+html[data-theme='light'] :is(.btn, button.btn, .tabs button, .track, .side-link, .chip, .ro-cc-transport button, .ro-cc-volume-row button) {
+  background: var(--ro-paper);
+  color: var(--ro-text);
+  border-color: var(--ro-border);
+}
+html[data-theme='light'] :is(.btn.gold, .btn.primary, .action, .tabs button[aria-selected=true], .ro-yt-search-button) {
+  background: var(--ro-accent) !important;
+  color: #fff !important;
+  border-color: var(--ro-accent) !important;
+  box-shadow: 0 6px 20px #6050ab22;
+}
+html[data-theme='light'] :is(.btn.gold:hover, .btn.primary:hover, .action:hover) { background: var(--ro-accent-hover) !important; }
+html[data-theme='light'] :is(input, textarea, select, .field input, .field textarea, .field select,
+  .select, .searchbox, .ro-yt-search-form input, .ro-feed-composer textarea, .ro-feed-composer input, .ro-feed-comment input) {
+  background: var(--ro-paper) !important;
+  color: var(--ro-text) !important;
+  border-color: #cbd3e1 !important;
+}
+html[data-theme='light'] input::placeholder, html[data-theme='light'] textarea::placeholder { color: #748095; opacity: 1; }
+html[data-theme='light'] :is(.status, .empty, .notice, .hint, .note, .small-note, .ro-cc-credit) {
+  background: #f3f4fa !important;
+  color: #4f5e71 !important;
+  border-color: #dce1ed !important;
+}
+
+/* Listening scene: keep its animation while using a light, readable surface. */
+html[data-theme='light'] :is(#roCcScene, .ro-cc-scene, .lyric-screen, .hero-art, .artside, .ro-cc-art, .art) {
+  background: radial-gradient(ellipse at 70% 12%, #e4d8ff 0, transparent 45%), linear-gradient(140deg, #f5efff, #eaf3ff) !important;
+  border-color: #d4c8ee !important;
+  color: #342c50 !important;
+}
+html[data-theme='light'] #roCcScene .ro-cc-console { background: #fffffff0 !important; border-color: #d7cbea; color: var(--ro-text); }
+html[data-theme='light'] :is(.ro-cc-song-name, .ro-cc-console strong, .ro-cc-tile h4, .ro-indian-tile h4, .track strong, .lyric-screen .line) { color: var(--ro-text) !important; }
+html[data-theme='light'] :is(.ro-cc-song-artist, .ro-cc-scene-text, .lyric-screen .mini, .lyric-screen .upcoming, .track span, .ro-indian-meta) { color: #62667d !important; }
+html[data-theme='light'] :is(.ro-cc-seek-row input, input[type=range]) { accent-color: var(--ro-accent); }
+html[data-theme='light'] :is(.track[aria-pressed=true], .tabs button[aria-selected=true]) { border-color: var(--ro-accent) !important; }
+html[data-theme='light'] .ro-yt-search-shell { background: #f2eefb !important; border-color: #d6ccea; box-shadow: none; }
+html[data-theme='light'] :is(.ro-cc-grid .ro-cc-tile, .ro-indian-results .ro-indian-tile) { background: var(--ro-paper) !important; border-color: var(--ro-border); }
+html[data-theme='light'] #roListenSourceModes button { background: #fff; border-color: #d8d1e9; color: var(--ro-text); }
+html[data-theme='light'] #roListenSourceModes button[aria-pressed=true] { background: #eeeafa; border-color: var(--ro-accent); color: var(--ro-accent); }
+
+/* The social feed and chat need the same clear contrast as creator tools. */
+html[data-theme='light'] :is(#roOrbitHelpPanel, .ro-riya-top, .ro-riya-bubble.assistant, .ro-feed-comment-item, .ro-feed-comment input) {
+  background: var(--ro-paper) !important;
+  color: var(--ro-text) !important;
+  border-color: var(--ro-border);
+}
+html[data-theme='light'] :is(.ro-riya-bubble.user, #roOrbitHelpButton) { background: #e8e0fb !important; color: #332a5a !important; border-color: #c8b6f2; }
+html[data-theme='light'] #roOrbitHelpPanel textarea { background: #fff; color: var(--ro-text); }
+
+/* Shared mobile tabs, More sheet and cross-page breadcrumbs. */
+html[data-theme='light'] .ro-mobile-tab-bar {
+  background: #fffffff2 !important;
+  border-top-color: #dce1ed;
+  box-shadow: 0 -8px 32px #2d35521a;
+}
+html[data-theme='light'] .ro-mobile-tab { color: #697386; }
+html[data-theme='light'] .ro-mobile-tab.is-active { color: var(--ro-accent); }
+html[data-theme='light'] .ro-mobile-tab.is-active .ro-mobile-tab-icon { background: #eeeafa; }
+html[data-theme='light'] .ro-mobile-tab-sing .ro-mobile-tab-icon { background: var(--ro-accent); color: #fff; border-color: #fff; }
+html[data-theme='light'] .ro-mobile-sheet-panel { background: #f8f8fe !important; color: var(--ro-text); border-color: var(--ro-border); }
+html[data-theme='light'] .ro-mobile-sheet-head h2 { color: var(--ro-text); }
+html[data-theme='light'] .ro-mobile-sheet-head :is(p,.ro-mobile-sheet-eyebrow),
+html[data-theme='light'] .ro-mobile-sheet-card small { color: var(--ro-muted); }
+html[data-theme='light'] .ro-mobile-sheet-head h2 em,
+html[data-theme='light'] .ro-mobile-feature-symbol { color: var(--ro-accent); }
+html[data-theme='light'] .ro-mobile-sheet-close { background: #fff; color: var(--ro-text); border-color: var(--ro-border); }
+html[data-theme='light'] .ro-mobile-theme-card { background: #fff; border-color: var(--ro-border); color: var(--ro-text); }
+html[data-theme='light'] .ro-mobile-theme-card > span:first-child { background: #eeebfa; }
+html[data-theme='light'] .ro-mobile-theme-card small { color: var(--ro-muted); }
+html[data-theme='light'] .ro-mobile-sheet-grip { background: #c2c6d4; }
+html[data-theme='light'] :is(.ro-quick-nav a, .ro-quick-link, .ro-quick-back) { color: #536176; background: #fff; border-color: #dde2ec; }
+html[data-theme='light'] .ro-quick-nav .ro-quick-active { color: var(--ro-accent) !important; background: #f0edfb; border-color: #cfc4f0; }
+
+/* Professional typography: readable body copy and predictable tap targets. */
+.app-main :is(p, li), .panel :is(p, li), main :is(p, li) { line-height: 1.65; }
+html[data-theme='light'] .field label, html[data-theme='light'] .check, html[data-theme='light'] .player-title { color: #354154; }
+html[data-theme='light'] .pitch strong, html[data-theme='light'] .score { color: var(--ro-accent); }
+html[data-theme='light'] .times, html[data-theme='light'] .pitch small { color: #59677b; }
+
+@media (max-width: 760px) {
+  .ro-theme-toggle { padding: 10px; min-width: 43px; min-height: 43px; }
+  .ro-theme-toggle .ro-theme-label { display: none; }
+  .header-actions .ro-theme-toggle, body > header .top .ro-theme-toggle { display: none; }
+  .ro-mobile-theme-card { display: flex; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ro-theme-toggle { transition: none; }
+}

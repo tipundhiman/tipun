@@ -11,9 +11,15 @@
     more: '<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
     close: '<path d="M18 6 6 18M6 6l12 12"/>',
     arrow: '<path d="M5 12h14m-6-6 6 6-6 6"/>',
-    back: '<path d="m15 18-6-6 6-6"/>'
+    back: '<path d="m15 18-6-6 6-6"/>',
+    moon: '<path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"/>',
+    arrowRight: '<path d="M5 12h14m-6-6 6 6-6 6"/>'
   };
-  const svg = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name]}</svg>`;
+  const svg = name => {
+    const shared = { home: 'house', songs: 'music', sing: 'mic', create: 'sparkles', more: 'grid' };
+    if (window.roDesign?.icon) return window.roDesign.icon(shared[name] || name, 22);
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name]}</svg>`;
+  };
   const tabs = [
     { name: 'Home', icon: 'home', href: '/', page: 'home' },
     { name: 'Songs', icon: 'songs', href: '/#listen', page: 'listen' },
@@ -21,19 +27,19 @@
     { name: 'Create', icon: 'create', href: '/#studio', page: 'studio' }
   ];
   const features = [
-    { title: 'AI Studio', subtitle: 'Make original music', symbol: '✦', href: '/#studio' },
-    { title: 'Listen & Chill', subtitle: 'Free music & videos', symbol: '♫', href: '/#listen' },
-    { title: 'Sing Your Song', subtitle: 'Your karaoke stage', symbol: '🎙', href: '/sing-your-song' },
-    { title: 'Video Maker', subtitle: 'Turn songs into visuals', symbol: '▣', href: '/video-maker' },
-    { title: 'Vocal Lab', subtitle: 'Explore audio tools', symbol: '◉', href: '/vocal-lab' },
-    { title: 'AI Lyrics', subtitle: 'Write something new', symbol: '✎', href: '/ai-lyrics-generator' },
-    { title: 'Shayari', subtitle: 'Words with feeling', symbol: '❋', href: '/shayari-generator' },
-    { title: 'Community', subtitle: 'Find your people', symbol: '♧', href: '/#community' },
-    { title: 'My Studio', subtitle: 'Your saved creations', symbol: '▤', href: '/#projects' },
-    { title: 'Download Audio', subtitle: 'Your music library', symbol: '↓', href: '/#downloads' },
-    { title: 'Vibe Match', subtitle: 'Discover creators', symbol: '◎', href: '/#match' },
-    { title: 'Install App', subtitle: 'Keep RhymeOrbit close', symbol: '↘', href: '/install' },
-    { title: 'Help & Support', subtitle: 'We are here to help', symbol: '?', href: '/#help' }
+    { title: 'AI Studio', subtitle: 'Make original music', icon: 'sparkles', href: '/#studio' },
+    { title: 'Listen & Chill', subtitle: 'Free music & videos', icon: 'music', href: '/#listen' },
+    { title: 'Sing Your Song', subtitle: 'Your karaoke stage', icon: 'mic', href: '/sing-your-song' },
+    { title: 'Video Maker', subtitle: 'Turn songs into visuals', icon: 'film', href: '/video-maker' },
+    { title: 'Vocal Lab', subtitle: 'Explore audio tools', icon: 'headphones', href: '/vocal-lab' },
+    { title: 'AI Lyrics', subtitle: 'Write something new', icon: 'pen', href: '/ai-lyrics-generator' },
+    { title: 'Shayari', subtitle: 'Words with feeling', icon: 'heart', href: '/shayari-generator' },
+    { title: 'Community', subtitle: 'Find your people', icon: 'users', href: '/#community' },
+    { title: 'My Studio', subtitle: 'Your saved creations', icon: 'library', href: '/#projects' },
+    { title: 'Download Audio', subtitle: 'Your music library', icon: 'download', href: '/#downloads' },
+    { title: 'Vibe Match', subtitle: 'Discover creators', icon: 'orbit', href: '/#match' },
+    { title: 'Install App', subtitle: 'Keep RhymeOrbit close', icon: 'download', href: '/install' },
+    { title: 'Help & Support', subtitle: 'We are here to help', icon: 'help', href: '/#help' }
   ];
   let bar;
   let sheet;
@@ -107,7 +113,7 @@
     sheet.id = 'roMobileFeatureSheet';
     sheet.className = 'ro-mobile-feature-sheet';
     sheet.hidden = true;
-    sheet.innerHTML = `<div class="ro-mobile-sheet-scrim" data-ro-close="true"></div><section class="ro-mobile-sheet-panel" role="dialog" aria-modal="true" aria-label="Explore RhymeOrbit features"><div class="ro-mobile-sheet-grip" aria-hidden="true"></div><header class="ro-mobile-sheet-head"><div><span class="ro-mobile-sheet-eyebrow">YOUR MUSIC UNIVERSE</span><h2>Explore your <em>orbit.</em></h2><p>Every creative tool, one tap away.</p></div><button type="button" class="ro-mobile-sheet-close" aria-label="Close features">${svg('close')}</button></header><div class="ro-mobile-sheet-grid">${features.map(item => `<a class="ro-mobile-sheet-card" href="${item.href}"><span class="ro-mobile-feature-symbol" aria-hidden="true">${item.symbol}</span><strong>${item.title}</strong><small>${item.subtitle}</small></a>`).join('')}</div></section>`;
+    sheet.innerHTML = `<div class="ro-mobile-sheet-scrim" data-ro-close="true"></div><section class="ro-mobile-sheet-panel" role="dialog" aria-modal="true" aria-label="Explore RhymeOrbit features"><div class="ro-mobile-sheet-grip" aria-hidden="true"></div><header class="ro-mobile-sheet-head"><div><span class="ro-mobile-sheet-eyebrow">YOUR MUSIC UNIVERSE</span><h2>Explore your <em>orbit.</em></h2><p>Every creative tool, one tap away.</p></div><button type="button" class="ro-mobile-sheet-close" aria-label="Close features">${svg('close')}</button></header><button type="button" class="ro-mobile-theme-card" data-ro-theme-toggle="true" aria-label="Change appearance"><span data-ro-theme-icon>${svg('moon')}</span><span><strong>Appearance</strong><small data-ro-theme-value>Light theme</small></span><span class="ro-mobile-theme-arrow">${svg('arrowRight')}</span></button><div class="ro-mobile-sheet-grid">${features.map(item => `<a class="ro-mobile-sheet-card" href="${item.href}"><span class="ro-mobile-feature-symbol" aria-hidden="true">${svg(item.icon)}</span><strong>${item.title}</strong><small>${item.subtitle}</small></a>`).join('')}</div></section>`;
     sheet.addEventListener('click', event => {
       if (event.target.closest('[data-ro-close], .ro-mobile-sheet-close')) close();
       else activateLink(event);
@@ -123,6 +129,7 @@
       }
     });
     document.body.append(bar, sheet);
+    window.roDesign?.refresh();
     window.addEventListener('hashchange', () => refresh());
     window.addEventListener('popstate', () => refresh());
     refresh();

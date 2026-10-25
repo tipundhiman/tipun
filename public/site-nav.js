@@ -3,16 +3,16 @@
   'use strict';
 
   const links = [
-    { label: 'Home', href: '/', symbol: '⌂' },
-    { label: 'Listen & Chill', href: '/#listen', symbol: '♫' },
-    { label: 'Sing Your Song', href: '/sing-your-song', symbol: '♩' },
-    { label: 'AI Studio', href: '/#studio', symbol: '✦' },
-    { label: 'Video Maker', href: '/video-maker', symbol: '▣' },
-    { label: 'Vocal Lab', href: '/vocal-lab', symbol: '◉' },
-    { label: 'AI Lyrics', href: '/ai-lyrics-generator', symbol: '✎' },
-    { label: 'Community', href: '/#community', symbol: '♧' },
-    { label: 'Shayari', href: '/shayari-generator', symbol: '❋' },
-    { label: 'Install App', href: '/install', symbol: '↓' }
+    { label: 'Home', href: '/', icon: 'house' },
+    { label: 'Listen & Chill', href: '/#listen', icon: 'music' },
+    { label: 'Sing Your Song', href: '/sing-your-song', icon: 'mic' },
+    { label: 'AI Studio', href: '/#studio', icon: 'sparkles' },
+    { label: 'Video Maker', href: '/video-maker', icon: 'film' },
+    { label: 'Vocal Lab', href: '/vocal-lab', icon: 'headphones' },
+    { label: 'AI Lyrics', href: '/ai-lyrics-generator', icon: 'pen' },
+    { label: 'Community', href: '/#community', icon: 'users' },
+    { label: 'Shayari', href: '/shayari-generator', icon: 'heart' },
+    { label: 'Install App', href: '/install', icon: 'download' }
   ];
 
   function normalizedPath(path) {
@@ -58,12 +58,12 @@
     if (!document.querySelector('link[href^="/mobile-app.css"]')) {
       const mobileStyle = document.createElement('link');
       mobileStyle.rel = 'stylesheet';
-      mobileStyle.href = '/mobile-app.css?v=20261025-mobile-3';
+      mobileStyle.href = '/mobile-app.css?v=20261025-theme-1';
       document.head.appendChild(mobileStyle);
     }
     if (!document.querySelector('script[src^="/mobile-app.js"]')) {
       const mobileScript = document.createElement('script');
-      mobileScript.src = '/mobile-app.js?v=20261025-mobile-3';
+      mobileScript.src = '/mobile-app.js?v=20261025-theme-1';
       mobileScript.defer = true;
       document.head.appendChild(mobileScript);
     }
@@ -101,7 +101,7 @@
       const icon = document.createElement('span');
       icon.className = 'ro-quick-icon';
       icon.setAttribute('aria-hidden', 'true');
-      icon.textContent = item.symbol;
+      icon.innerHTML = window.roDesign?.icon(item.icon, 17) || '';
       const text = document.createElement('span');
       text.textContent = item.label;
       link.append(icon, text);
