@@ -54,6 +54,20 @@
     stylesheet.href = '/site-nav.css?v=20261025-1';
     document.head.appendChild(stylesheet);
 
+    // Keep the same thumb-friendly app navigation on standalone creator tools.
+    if (!document.querySelector('link[href^="/mobile-app.css"]')) {
+      const mobileStyle = document.createElement('link');
+      mobileStyle.rel = 'stylesheet';
+      mobileStyle.href = '/mobile-app.css?v=20261025-1';
+      document.head.appendChild(mobileStyle);
+    }
+    if (!document.querySelector('script[src^="/mobile-app.js"]')) {
+      const mobileScript = document.createElement('script');
+      mobileScript.src = '/mobile-app.js?v=20261025-1';
+      mobileScript.defer = true;
+      document.head.appendChild(mobileScript);
+    }
+
     const wrapper = document.createElement('nav');
     wrapper.className = 'ro-quick-nav';
     wrapper.setAttribute('aria-label', 'Quick navigation between RhymeOrbit features');
