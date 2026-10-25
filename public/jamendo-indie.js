@@ -183,7 +183,8 @@
       button.addEventListener('click', () => selectSource(source));
       modes.append(button);
     }
-    status.parentNode.insertBefore(modes, status);
+    // Source choice comes first; show source-specific folders beneath it.
+    status.parentNode.insertBefore(modes, document.getElementById('roVideoFolders') || status);
     selectSource('indian');
   }
 
