@@ -58,12 +58,12 @@
     if (!document.querySelector('link[href^="/mobile-app.css"]')) {
       const mobileStyle = document.createElement('link');
       mobileStyle.rel = 'stylesheet';
-      mobileStyle.href = '/mobile-app.css?v=20261025-1';
+      mobileStyle.href = '/mobile-app.css?v=20261025-mobile-3';
       document.head.appendChild(mobileStyle);
     }
     if (!document.querySelector('script[src^="/mobile-app.js"]')) {
       const mobileScript = document.createElement('script');
-      mobileScript.src = '/mobile-app.js?v=20261025-1';
+      mobileScript.src = '/mobile-app.js?v=20261025-mobile-3';
       mobileScript.defer = true;
       document.head.appendChild(mobileScript);
     }
