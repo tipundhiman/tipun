@@ -11,7 +11,8 @@
     { label: 'Vocal Lab', href: '/vocal-lab', symbol: '◉' },
     { label: 'AI Lyrics', href: '/ai-lyrics-generator', symbol: '✎' },
     { label: 'Community', href: '/#community', symbol: '♧' },
-    { label: 'Shayari', href: '/shayari-generator', symbol: '❋' }
+    { label: 'Shayari', href: '/shayari-generator', symbol: '❋' },
+    { label: 'Install App', href: '/install', symbol: '↓' }
   ];
 
   function normalizedPath(path) {
@@ -34,6 +35,19 @@
     if (document.querySelector('.ro-quick-nav')) return;
     const header = document.querySelector('body > header');
     if (!header) return;
+
+    if (!document.querySelector('link[rel="manifest"]')) {
+      const manifest = document.createElement('link');
+      manifest.rel = 'manifest';
+      manifest.href = '/manifest.webmanifest';
+      document.head.appendChild(manifest);
+    }
+    if (!document.querySelector('link[rel="apple-touch-icon"]')) {
+      const touchIcon = document.createElement('link');
+      touchIcon.rel = 'apple-touch-icon';
+      touchIcon.href = '/icons/apple-touch-icon.png';
+      document.head.appendChild(touchIcon);
+    }
 
     const stylesheet = document.createElement('link');
     stylesheet.rel = 'stylesheet';

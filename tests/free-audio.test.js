@@ -43,5 +43,7 @@ test('On-site featured YouTube music cards are not external redirects', () => {
   const fallback = read('public/youtube-fallback.js');
   assert.match(fallback, /window\.roYtPlay/);
   assert.match(fallback, /showFeatured/);
-  assert.doesNotMatch(fallback, /Continue on YouTube|results\?search_query=/);
+  assert.doesNotMatch(fallback, /Continue on YouTube|window\.location\.assign/);
+  assert.match(fallback, /No embeddable videos found/);
+  assert.match(fallback, /link\.target = '_blank'/, 'An explicit external search opens a new tab only when in-app matches do not exist');
 });

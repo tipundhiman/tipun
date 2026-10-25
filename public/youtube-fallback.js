@@ -98,8 +98,21 @@
     const status = document.getElementById('roYtStatus');
     const grid = document.getElementById('roYtGrid');
     if (!input || !status || !grid) return;
-    if (/^YouTube unavailable:|^No embeddable videos found/.test(status.textContent || '')) {
+    if (/^YouTube unavailable:/.test(status.textContent || '')) {
       showFeatured(input.value.trim());
+      status.textContent = 'Live YouTube search is temporarily unavailable. These are featured videos, not search matches.';
+      return;
+    }
+    if (/^No embeddable videos found/.test(status.textContent || '')) {
+      // Never pass unrelated featured videos off as a match for the user's song.
+      const link = document.createElement('a');
+      link.className = 'btn sm';
+      link.href = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(input.value.trim());
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = 'Search this song on YouTube ↗';
+      grid.replaceChildren(link);
+      status.textContent = 'No embeddable video matched this search. You can search YouTube directly.';
       return;
     }
     // Keep creator links and YouTube branding intact.

@@ -20,6 +20,8 @@ test('Signup requires email verification for unconfirmed accounts',()=>{
  assert.match(read('cloudflare/media-storage.js'),/user\.email_confirmed_at !== null/);
  assert.match(auth,/Username/);
  assert.match(auth,/Forgot password\?/);
+ assert.match(auth,/Verification is needed only if required by account settings/);
+ assert.doesNotMatch(auth,/You must confirm your inbox before using the account/);
 });
 test('Forgot password retains email reset link and routes to a dedicated recovery page',()=>{
  const auth=read('public/integration.js');

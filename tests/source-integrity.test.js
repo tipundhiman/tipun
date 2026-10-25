@@ -117,7 +117,8 @@ test('Public landing animations remain accessible and in-app video tiles do not 
  const fallback=read('public/youtube-fallback.js');
  assert.match(fallback,/showFeatured/);
  assert.match(fallback,/window\.roYtPlay/);
- assert.doesNotMatch(fallback,/https:\/\/www\.youtube\.com\/results\?search_query=/);
+ assert.doesNotMatch(fallback,/window\.location\.(?:assign|replace|href)\s*=/);
+ assert.match(fallback,/No embeddable videos found/);
 });
 test('Dedicated search landing pages provide accurate, indexable creator flows',()=>{
  const sitemap=read('public/sitemap.xml');

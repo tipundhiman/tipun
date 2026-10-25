@@ -9,15 +9,16 @@ const listenCss = readFileSync(new URL('../public/listen-polish.css', import.met
 const youtube = readFileSync(new URL('../public/youtube-fallback.js', import.meta.url), 'utf8');
 const player = readFileSync(new URL('../public/listen-player.js', import.meta.url), 'utf8');
 
-test('Listen & Chill keeps music, video and Audius community catalog in distinct modes', () => {
-  for (const mode of ["['music', '♫ Listen to Music']", "['indian', '🇮🇳 Hindi & More · Audius']", "['videos', '▶ Watch Music Videos']"]) {
+test('Listen & Chill uses one Songs search before its separate YouTube video mode', () => {
+  for (const mode of ["['songs', '♫ Songs · Free Audio']", "['videos', '▶ YouTube Videos']"]) {
     assert.ok(ui.includes(mode), `Missing source mode ${mode}`);
   }
+  assert.doesNotMatch(ui, /\['indian', '🇮🇳 Hindi & More · Audius'\]/);
   assert.match(ui, /catalog\.hidden = !music/);
-  assert.match(ui, /indianCatalog\.hidden = mode !== 'indian'/);
-  assert.match(ui, /selectSource\('indian'\)/,'Hindi songs should be the first browse mode');
+  assert.match(ui, /indianCatalog\.hidden = !music/);
+  assert.match(ui, /selectSource\('songs'\)/, 'Songs search should load first');
   assert.match(ui, /insertBefore\(modes, document\.getElementById\('roVideoFolders'\) \|\| status\)/,'Music source tabs appear before video folders');
-  assert.match(ui, /mode==='music' && available && !indieLoaded/,'Load indie songs only when requested');
+  assert.match(ui, /music && available && !indieLoaded/,'Load indie music in unified Songs mode');
   assert.match(ui, /previousMode !== mode\) window\.roCcPlayer\?\.pause\(\)/, 'Source switches pause the shared audio');
 });
 
@@ -28,15 +29,24 @@ test('indie music renders six songs at a time with accessible show more', () => 
   assert.match(ui, /more\.hidden = !remaining && !moreOffset/);
 });
 
-test('Audius player uses verified catalog audio URLs and keeps video discovery available', () => {
+test('Audius and Jamendo search runs before official YouTube fallback', () => {
   assert.match(ui, /\/api\/catalog\/audius\/search\?q=/);
   assert.match(ui, /https:\/\/api\.audius\.co\/v1\/tracks\/search\?query=/);
   assert.match(ui, /normalizePublicAudiusTrack/);
   assert.match(ui, /checkedHttps\(track\.audio,\s*'api\.audius\.co'\)/);
   assert.match(ui, /event\.stopImmediatePropagation\(\)/);
-  assert.match(ui, /if \(mode === 'indian'\) searchIndianCatalog\(query\)/);
+  assert.match(ui, /if \(mode !== 'songs'\) return/);
+  assert.match(ui, /searchAllAudio\(query\)/);
+  assert.match(ui, /Promise\.all\(\[/);
+  assert.match(ui, /searchIndianCatalog\(query\)/);
+  assert.match(ui, /available \? searchJamendo\(query\)/);
+  assert.match(ui, /if \(total > 0\)/);
+  assert.match(ui, /selectSource\('videos'\)/);
+  assert.match(ui, /await window\.roYtSearch\?\.\(\)/);
   assert.doesNotMatch(ui, /Find music video/,'Do not distract Hindi audio listeners with per-card video search');
   assert.doesNotMatch(ui, /track\.audioUrl|track\.stream_urls/);
+  assert.match(youtube, /No embeddable videos found/);
+  assert.match(youtube, /Search this song on YouTube/);
 });
 
 test('Audius and Jamendo use the animated DJ stage as one audio player with transport controls', () => {

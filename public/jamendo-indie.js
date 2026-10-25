@@ -18,6 +18,7 @@
   let indianAbort = null;
   let indianTracks = [];
   let indianShown = 0;
+  let unifiedRequest = 0;
   const indianPageSize = 8;
   const indianFolders = [
     {id:'hindi',label:'🎵 Hindi picks',query:'Hindi song'},
@@ -123,7 +124,7 @@
   function selectSource(mode) {
     const previousMode = document.querySelector('#roListenSourceModes button[aria-pressed="true"]')?.dataset.source;
     if (previousMode && previousMode !== mode) window.roCcPlayer?.pause();
-    const music = mode === 'music';
+    const music = mode === 'songs';
     const videos = mode === 'videos';
     document.getElementById('roCcScene')?.classList.toggle('ro-cc-video-mode', videos);
     const catalog = document.getElementById('roJamendoSection');
@@ -132,7 +133,7 @@
     const videoGrid = document.getElementById('roYtGrid');
     const videoPlayer = document.getElementById('roYtPlayer');
     if (catalog) catalog.hidden = !music;
-    if (indianCatalog) indianCatalog.hidden = mode !== 'indian';
+    if (indianCatalog) indianCatalog.hidden = !music;
     for (const element of [videoStatus, videoGrid, videoPlayer]) {
       if (element) element.style.display = videos ? '' : 'none';
     }
@@ -144,17 +145,19 @@
       button.setAttribute('aria-pressed', String(active));
       button.classList.toggle('gold', active);
     });
-    if (mode === 'indian') {
+    if (music) {
       const section = document.getElementById('roIndianCatalogSection');
       if (!section?.dataset.searched) searchIndianCatalog('Hindi song','hindi');
     }
-    if (mode==='music' && available && !indieLoaded) {indieLoaded=true;searchJamendo('rock');}
+    if (music && available && !indieLoaded) {indieLoaded=true;searchJamendo('rock');}
     if (videos && videoGrid && !videoGrid.children.length) window.roYtShowFeatured?.();
     const search = document.getElementById('roYtQuery');
     if (search) {
-      search.placeholder = mode==='indian'?'Search a song, artist or language…':mode==='videos'?'Search music videos…':'Search independent tracks…';
-      search.setAttribute('aria-label',mode==='indian'?'Search Audius songs':mode==='videos'?'Search YouTube music videos':'Search independent music');
+      search.placeholder = videos?'Search YouTube music videos…':'Search any song or artist — audio first, then YouTube…';
+      search.setAttribute('aria-label',videos?'Search YouTube music videos':'Search free songs, with YouTube fallback');
     }
+    const hint = document.getElementById('roUnifiedSearchStatus');
+    if (hint) hint.hidden = !music;
   }
 
   function installSourceModes() {
@@ -165,23 +168,36 @@
     modes.setAttribute('role', 'group');
     modes.setAttribute('aria-label', 'Choose what to listen to');
     modes.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 16px';
-    const options = [
-      ...(available ? [['music', '♫ Listen to Music']] : []),
-      ['indian', '🇮🇳 Hindi & More · Audius'],
-      ['videos', '▶ Watch Music Videos']
-    ];
+    const options = [['songs', '♫ Songs · Free Audio'], ['videos', '▶ YouTube Videos']];
     for (const [source, label] of options) {
       const button = document.createElement('button');
       button.className = 'btn sm';
       button.type = 'button';
       button.dataset.source = source;
       button.textContent = label;
-      button.addEventListener('click', () => selectSource(source));
+      button.addEventListener('click', () => {
+        unifiedRequest++;
+        const notice = document.getElementById('roAutoFallbackNotice');
+        if (notice) notice.hidden = true;
+        selectSource(source);
+      });
       modes.append(button);
     }
     // Source choice comes first; show source-specific folders beneath it.
     status.parentNode.insertBefore(modes, document.getElementById('roVideoFolders') || status);
-    selectSource('indian');
+    const hint = document.createElement('p');
+    hint.id = 'roUnifiedSearchStatus';
+    hint.className = 'muted small ro-unified-status';
+    hint.setAttribute('role', 'status');
+    hint.textContent = 'One search: Audius and Jamendo audio first. If no playable match is found, we’ll look for YouTube videos.';
+    modes.insertAdjacentElement('afterend', hint);
+    const fallback = document.createElement('p');
+    fallback.id = 'roAutoFallbackNotice';
+    fallback.className = 'ro-unified-fallback';
+    fallback.setAttribute('role', 'status');
+    fallback.hidden = true;
+    hint.insertAdjacentElement('afterend', fallback);
+    selectSource('songs');
   }
 
   function installIndianCatalog() {
@@ -315,11 +331,11 @@
     const status = document.getElementById('roIndianCatalogStatus');
     const results = document.getElementById('roIndianCatalogResults');
     const section = document.getElementById('roIndianCatalogSection');
-    if (!status || !results) return;
+    if (!status || !results) return null;
     const trending=folderId==='trending';
     if (!trending && (query.length < 2 || query.length > 80)) {
       status.textContent = 'Enter a song or artist name between 2 and 80 characters.';
-      return;
+      return { count: 0, failed: false };
     }
     const request = ++indianRequest;
     indianAbort?.abort();
@@ -332,7 +348,7 @@
     status.textContent = 'Loading songs…';
     try {
       const tracks = await getAudiusTracks(query, indianAbort.signal, trending);
-      if (request !== indianRequest || !document.getElementById('roIndianCatalogResults')) return;
+      if (request !== indianRequest || !document.getElementById('roIndianCatalogResults')) return null;
       const seen=new Set();
       indianTracks=tracks.filter(track=>{
         if(!/^[A-Za-z0-9_-]{1,80}$/.test(track.id||'')||!checkedHttps(track.audio,'api.audius.co')||seen.has(track.id))return false;
@@ -346,9 +362,11 @@
         folderId==='new'?`${indianTracks.length} Hindi search matches · newest Audius uploads first.`:
         `${indianTracks.length} playable community tracks · covers and independent music.`;
       showNextIndianSongs();
+      return { count: indianTracks.length, failed: false };
     } catch (error) {
-      if (error.name === 'AbortError' || request !== indianRequest) return;
+      if (error.name === 'AbortError' || request !== indianRequest) return null;
       status.textContent = 'Audius search is not responding right now. Try again later or use Music Videos.';
+      return { count: 0, failed: true };
     }
   }
 
@@ -356,13 +374,13 @@
     const result = document.getElementById('roJamendoResults');
     const info = document.getElementById('roJamendoStatus');
     const more = document.getElementById('roJamendoMore');
-    if (!result || !info || query.length < 2) return;
-    if (append && moreQuery !== query) return;
+    if (!result || !info || query.length < 2) return null;
+    if (append && moreQuery !== query) return null;
     if (append && shownCount < cachedTracks.length) {
       showNextSongs();
-      return;
+      return { count: cachedTracks.length, failed: false };
     }
-    if (append && !moreOffset) return;
+    if (append && !moreOffset) return { count: cachedTracks.length, failed: false };
     const current = ++searchCount;
     searchAbort?.abort();
     searchAbort = new AbortController();
@@ -380,18 +398,48 @@
         signal: searchAbort.signal
       });
       const data = await response.json();
-      if (current !== searchCount || !document.getElementById('roJamendoResults')) return;
+      if (current !== searchCount || !document.getElementById('roJamendoResults')) return null;
       if (!response.ok) throw Error(data.error || 'Jamendo unavailable');
       const items = Array.isArray(data.items) ? data.items : [];
       cachedTracks.push(...items);
       moreOffset = items.length && data.hasMore ? Number(data.nextOffset) : 0;
       moreQuery = query;
       showNextSongs();
+      return { count: cachedTracks.length, failed: false };
     } catch (error) {
-      if (error.name === 'AbortError' || current !== searchCount) return;
+      if (error.name === 'AbortError' || current !== searchCount) return null;
       info.textContent = 'Independent catalog unavailable for now. You can still use the other music players.';
       if (more) more.hidden = !append;
+      return { count: 0, failed: true };
     }
+  }
+
+  async function searchAllAudio(query) {
+    const request = ++unifiedRequest;
+    const status = document.getElementById('roUnifiedSearchStatus');
+    const notice = document.getElementById('roAutoFallbackNotice');
+    if (notice) notice.hidden = true;
+    if (status) status.textContent = 'Searching free playable audio on Audius' + (available ? ' and Jamendo' : '') + '…';
+    const [audius, jamendo] = await Promise.all([
+      searchIndianCatalog(query),
+      available ? searchJamendo(query) : Promise.resolve({ count: 0, failed: false })
+    ]);
+    if (request !== unifiedRequest || !document.getElementById('roListenSourceModes')) return;
+    const total = (audius?.count || 0) + (jamendo?.count || 0);
+    if (total > 0) {
+      if (status) status.textContent = `${total} playable audio matches. Choose a track to play in the animated DJ.`;
+      return;
+    }
+    if (!audius || !jamendo) return; // Another search superseded these requests.
+
+    const failed = audius.failed && (jamendo.failed || !available);
+    const fallbackText = failed
+      ? `Free audio sources are unavailable for “${query}”. Searching YouTube videos instead.`
+      : `No playable free audio found for “${query}”. Showing YouTube videos instead.`;
+    if (status) status.textContent = fallbackText;
+    selectSource('videos');
+    if (notice) { notice.textContent = fallbackText; notice.hidden = false; }
+    await window.roYtSearch?.();
   }
 
   function showCatalog() {
@@ -450,13 +498,12 @@
       form.addEventListener('submit', event => {
         const query = document.getElementById('roYtQuery')?.value.trim();
         const mode = document.querySelector('#roListenSourceModes button[aria-pressed="true"]')?.dataset.source;
-        if (mode !== 'indian' && mode !== 'music') return;
-        // Audio modes search audio only; do not run a redundant YouTube API call.
+        if (mode !== 'songs') return;
+        // Songs mode searches the free audio sources before contacting YouTube.
         event.preventDefault();
         event.stopImmediatePropagation();
         if (!query || query.length < 2) return;
-        if (mode === 'indian') searchIndianCatalog(query);
-        else searchJamendo(query);
+        searchAllAudio(query);
       }, { capture: true });
     }
   }

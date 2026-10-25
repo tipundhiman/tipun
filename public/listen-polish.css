@@ -63,5 +63,8 @@
 .ro-cc-card-play{width:100%;justify-content:center;margin:9px 0 4px;border-color:#f1c6dd85!important;background:#f4d3e216!important;color:#fde5ef!important}
 .ro-cc-card-play:hover{background:#f2bfd52e!important}
 .ro-indian-tile .ro-cc-card-play{margin-top:auto}
+.ro-unified-status{margin:3px 0 15px!important;color:#e2cde4!important;line-height:1.65}
+.ro-unified-fallback{border:1px solid #f1d2a263;border-radius:13px;background:#f1d2a216;color:#ffebcb;padding:11px 14px;margin:5px 0 14px;font:600 12px/1.65 system-ui,sans-serif}
+.ro-unified-status[hidden],.ro-unified-fallback[hidden]{display:none!important}
 @media(max-width:640px){#roCcScene{padding:17px 9px;min-height:400px}#roCcScene .ro-cc-console{padding:14px;border-radius:19px}.ro-cc-transport{margin:12px 0 9px}.ro-cc-transport .ro-cc-main-play{width:58px;height:58px}.ro-cc-seek-row{gap:6px}.ro-cc-song-name{font-size:17px}}
 @media(prefers-reduced-motion:reduce){#roCcScene .ro-cc-console,.ro-cc-transport button,.ro-cc-volume-row button{transition:none!important}}

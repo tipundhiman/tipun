@@ -1,0 +1,23 @@
+{
+  "id": "/",
+  "name": "RhymeOrbit — Music & Creators",
+  "short_name": "RhymeOrbit",
+  "description": "Listen, sing, write original songs and connect with music creators.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#08090c",
+  "theme_color": "#08090c",
+  "lang": "en",
+  "categories": ["music", "entertainment"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Listen & Chill", "url": "/#listen", "description": "Play songs in the DJ lounge" },
+    { "name": "Sing Your Song", "url": "/sing-your-song", "description": "Practice songs and record vocals" },
+    { "name": "AI Studio", "url": "/#studio", "description": "Create original lyrics and songs" }
+  ]
+}
