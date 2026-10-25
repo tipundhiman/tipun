@@ -212,6 +212,9 @@ html[data-theme='light'] :is(#roGuideButton, #roGuideCategories button[aria-pres
   border-color: #cfc5f0 !important;
   box-shadow: 0 6px 25px #2d35521a;
 }
+html[data-theme='light'] #roGuideNudge button { background: #f2f0f8; color: #43366f; border-color: #d6d0e6; }
+html[data-theme='light'] #roGuideNudge button:first-child { background: var(--ro-accent); color: #fff; border-color: var(--ro-accent); }
+html[data-theme='light'] .roQuickStart a { background: #f3f0fa; color: var(--ro-accent); border-color: #d5cbea; }
 
 /* Keep desktop navigation on one line, and collapse it before it gets cramped. */
 @media (min-width: 761px) and (max-width: 1450px) {
