@@ -29,7 +29,7 @@ a{color:var(--pink)}button,select,input{font:inherit}button{cursor:pointer}butto
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
 <script type="module" src="/sing-your-song.js?v=20261025-sing-3"></script>
 <script type="module" src="/sing-jamendo.js?v=20261025-indie-2"></script>
-<script type="module" src="/sing-audius.js?v=20261025-audius-sing-3"></script>
+<script type="module" src="/sing-audius.js?v=20261025-audius-sing-4"></script>
 <script src="/feature-guide.js?v=20261025-sing-1" defer></script>
 </head>
 <body>
@@ -87,6 +87,12 @@ a{color:var(--pink)}button,select,input{font:inherit}button{cursor:pointer}butto
     <p class="mic-hint">Auto-ducking detects microphone volume, not perfect singing pitch. When you pause, music returns to normal. Wear headphones to prevent feedback.</p>
     <div class="sing-audius-meter" aria-label="Microphone level"><span id="ssAudiusMicLevel"></span></div>
     <div class="lyric-screen sing-audius-stage" aria-live="off"><span class="mini" id="ssAudiusLyricLabel">LYRICS READY WHEN YOU ARE</span><div class="line" id="ssAudiusCurrent">Add authorized lyrics below to sing along.</div><div class="upcoming" id="ssAudiusNext">Timed LRC lyrics sync to playback; plain lines follow estimated timing.</div></div>
+    <div class="sing-audius-lyric-lookup">
+      <p class="mic-hint" id="ssAudiusLicensedStatus" role="status" aria-live="polite">Licensed lyrics are checked automatically when you select a song, where available.</p>
+      <label for="ssAudiusOriginalArtist" class="muted">Original singer or artist (if the Audius uploader is different)</label>
+      <div class="sing-audius-search"><input class="select" id="ssAudiusOriginalArtist" maxlength="140" placeholder="Original singer / artist"><button type="button" class="btn" id="ssAudiusFindLyrics" disabled>Find song lyrics</button></div>
+      <p class="mic-hint" id="ssAudiusLicensedCredit" hidden></p>
+    </div>
     <div class="progress" role="progressbar" aria-label="Audius song progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="ssAudiusProgress"><div id="ssAudiusProgressFill"></div></div>
     <div class="times"><span id="ssAudiusTime">0:00</span><span id="ssAudiusDuration">0:00</span></div>
     <label for="ssAudiusLyrics" class="muted">Lyrics you own or have permission to use</label>
@@ -102,7 +108,7 @@ a{color:var(--pink)}button,select,input{font:inherit}button{cursor:pointer}butto
     </section>
     <div class="row" style="margin:10px 0"><button type="button" id="ssAudiusLyricsApply" class="btn primary">✓ Save & show lyrics</button><button type="button" id="ssAudiusLyricsClear" class="btn">✕ Clear / Write new</button><button type="button" id="ssAudiusLyricsReset" class="btn">↶ Reset saved lyrics</button></div>
     <div class="row" style="margin:10px 0"><label for="ssAudiusOffset" class="muted">Timing offset <output id="ssAudiusOffsetLabel">0s</output></label><input id="ssAudiusOffset" type="range" min="-10" max="10" step="0.5" value="0" aria-label="Lyrics timing offset" style="flex:1;min-width:100px;accent-color:#f1b5d4"></div>
-    <p id="ssAudiusLyricStatus" class="mic-hint" aria-live="polite">Audius doesn't supply reliable synchronized lyrics; paste your authorized lyrics to show them.</p>
+    <p id="ssAudiusLyricStatus" class="mic-hint" aria-live="polite">Your own lyrics and authorized song lyrics appear on the stage when available.</p>
     <a id="ssAudiusDownload" class="btn primary" download hidden>↓ Download your voice recording</a>
    </section>
   </div>

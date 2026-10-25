@@ -67,7 +67,9 @@ test('Audius Sing Along has independent search, playback, mic ducking, local-onl
   assert.match(script,/window\.roSaveAudiusSinging\s*=/);
   assert.doesNotMatch(audiusScript,/cloudflare\.com\/.*upload|SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(audiusScript,/selectTrack\(items\[0\]\)/,'Best search match is auto-selected for mobile users');
-  assert.match(audiusScript,/LYRICS NOT SUPPLIED WITH THIS TRACK/,'Missing licensed lyrics must be explained, not invented');
+  assert.match(audiusScript,/LYRICS NOT AVAILABLE FOR THIS TRACK/,'Missing licensed lyrics must be explained, not invented');
+  assert.match(audiusScript,/findLicensedLyrics\(item\)/,'Selected songs attempt automatic licensed lyrics lookup');
+  assert.match(audiusScript,/\/api\/lyrics\/match/,'Licensed lookup uses the first-party endpoint');
 });
 
 test('Sing Along offers opt-in Gemini audio-to-text for owned audio and voice-only takes',()=>{

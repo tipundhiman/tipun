@@ -25,6 +25,10 @@ import { parseSingAlongLyrics, activeLyricIndex, duckTargetVolume } from './sing
   let transcribing = false;
   let transcriptAbort = null;
   let lyricRevision = 0;
+  let licensedLyrics = null;
+  let lyricsLoading = false;
+  let lyricsManualBlank = false;
+  let lyricsLookupAbort = null;
 
   const transcriptionStatus = message => { $('ssAudiusTranscribeStatus').textContent = message; };
   function updateTranscriptionButtons() {
@@ -176,34 +180,91 @@ import { parseSingAlongLyrics, activeLyricIndex, duckTargetVolume } from './sing
     const index = activeLyricIndex(parsedLyrics, seconds, duration, Number($('ssAudiusOffset').value));
     const count = parsedLyrics.lines.length;
     if (!count) {
-      $('ssAudiusLyricLabel').textContent = selected ? 'LYRICS NOT SUPPLIED WITH THIS TRACK' : 'SELECT A SONG ABOVE';
+      $('ssAudiusLyricLabel').textContent = lyricsLoading ? 'FINDING LICENSED LYRICS' : selected ? 'LYRICS NOT AVAILABLE FOR THIS TRACK' : 'SELECT A SONG ABOVE';
       $('ssAudiusCurrent').textContent = selected ? selected.title : 'Choose an Audius song to begin.';
       $('ssAudiusNext').textContent = selected
-        ? 'Add authorized lyrics, or transcribe audio you own below. Audius does not provide exact lyrics for this upload.'
+        ? lyricsLoading ? 'Checking the licensed lyrics library…' : 'Use your own lyrics below, or try the original artist name above.'
         : 'Select a track to enable playback and lyric practice.';
       return;
     }
-    $('ssAudiusLyricLabel').textContent = `${parsedLyrics.timed ? 'TIMED LYRICS' : 'ESTIMATED LYRICS'} · ${Math.max(0, index + 1)} / ${count}`;
+    const provider = !$('ssAudiusLyrics').value.trim() && licensedLyrics && !lyricsManualBlank ? ' · LICENSED' : '';
+    $('ssAudiusLyricLabel').textContent = `${parsedLyrics.timed ? 'TIMED LYRICS' : 'ESTIMATED LYRICS'}${provider} · ${Math.max(0, index + 1)} / ${count}`;
     $('ssAudiusCurrent').textContent = index < 0 ? '♫ Intro — lyrics coming up' : parsedLyrics.lines[index].text;
     $('ssAudiusNext').textContent = parsedLyrics.lines[index + 1]?.text || '🎶 Keep singing from the heart';
   }
 
   function applyLyrics() {
-    parsedLyrics = parseSingAlongLyrics($('ssAudiusLyrics').value);
+    const authored = parseSingAlongLyrics($('ssAudiusLyrics').value);
+    parsedLyrics = authored.lines.length || lyricsManualBlank ? authored : licensedLyrics?.parsed || authored;
     if (selected) {
       try {localStorage.setItem(lyricKey(selected.id), $('ssAudiusLyrics').value.slice(0, 8000));} catch {}
     }
     lyricsStatus(!parsedLyrics.lines.length
       ? 'This Audius upload does not include verified lyrics. Enter licensed lyrics or generate a transcript from audio you own.'
+      : !authored.lines.length && licensedLyrics && !lyricsManualBlank
+        ? `${parsedLyrics.lines.length} licensed ${parsedLyrics.timed ? 'timed' : 'plain'} lyric lines loaded automatically from Musixmatch.`
       : parsedLyrics.timed
         ? `${parsedLyrics.lines.length} timestamped lines loaded. They follow the song clock.`
         : `${parsedLyrics.lines.length} lines loaded. Timing is estimated across the song; use [mm:ss.xx] LRC for accurate sync.`);
     displayLyrics(session?.audio.currentTime || 0, currentDuration());
   }
 
+  async function findLicensedLyrics(item) {
+    lyricsLookupAbort?.abort();
+    lyricsLookupAbort = new AbortController();
+    const signal = lyricsLookupAbort.signal;
+    const revision = lyricRevision;
+    const artist = $('ssAudiusOriginalArtist').value.trim();
+    if (!artist || !item) {
+      $('ssAudiusLicensedStatus').textContent = 'Enter the original artist name to search licensed lyrics.';
+      return;
+    }
+    lyricsLoading = true;
+    lyricsManualBlank = false;
+    $('ssAudiusLicensedCredit').hidden = true;
+    $('ssAudiusLicensedStatus').textContent = 'Finding licensed lyrics for this song…';
+    displayLyrics(session?.audio.currentTime || 0, currentDuration());
+    try {
+      const url = new URL('/api/lyrics/match', location.origin);
+      url.searchParams.set('title', item.title);
+      url.searchParams.set('artist', artist);
+      if (item.duration) url.searchParams.set('duration', String(Math.round(item.duration)));
+      const response = await fetch(url, { signal, cache: 'no-store' });
+      const result = await response.json().catch(() => ({}));
+      if (signal.aborted || selected?.id !== item.id || lyricRevision !== revision) return;
+      if (result.status === 'ok' && typeof result.lyrics === 'string') {
+        const parsed = parseSingAlongLyrics(result.lyrics);
+        if (parsed.lines.length) {
+          licensedLyrics = { parsed, provider: result.provider || 'Licensed provider' };
+          const credit = $('ssAudiusLicensedCredit');
+          credit.textContent = 'Lyrics supplied by ' + licensedLyrics.provider + (result.copyright ? ' · ' + String(result.copyright).slice(0, 500) : '');
+          credit.hidden = false;
+          $('ssAudiusLicensedStatus').textContent = '✓ Licensed lyrics found! Sing along while the song plays.';
+        } else {
+          licensedLyrics = null;
+          $('ssAudiusLicensedStatus').textContent = 'This song has no usable licensed lyrics. Try the original singer name above.';
+        }
+      } else {
+        licensedLyrics = null;
+        $('ssAudiusLicensedStatus').textContent = result.reason || result.error || 'No licensed lyrics match this recording. Try the original singer above.';
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError' && selected?.id === item.id) $('ssAudiusLicensedStatus').textContent = 'Lyrics lookup unavailable. You can still use your own words below.';
+    } finally {
+      if (!signal.aborted && selected?.id === item.id && lyricRevision === revision) {
+        lyricsLoading = false;
+        applyLyrics();
+      }
+    }
+  }
+
   function selectTrack(item) {
     stop(); selected = item;
     lyricRevision++;
+    lyricsLookupAbort?.abort();
+    licensedLyrics = null;
+    lyricsLoading = false;
+    lyricsManualBlank = false;
     transcriptAbort?.abort();
     lastVoiceTake = null;
     updateTranscriptionButtons();
@@ -213,10 +274,15 @@ import { parseSingAlongLyrics, activeLyricIndex, duckTargetVolume } from './sing
     $('ssAudiusSource').href = item.source;
     $('ssAudiusSource').hidden = false;
     $('ssAudiusListen').disabled = false; $('ssAudiusSing').disabled = false;
+    $('ssAudiusFindLyrics').disabled = false;
+    $('ssAudiusOriginalArtist').value = item.artist;
+    $('ssAudiusLicensedCredit').hidden = true;
     $('ssAudiusDownload').hidden = true;
     $('ssAudiusLyrics').value = '';
     try { $('ssAudiusLyrics').value = localStorage.getItem(lyricKey(item.id)) || ''; } catch {}
     applyLyrics();
+    if (!$('ssAudiusLyrics').value.trim()) void findLicensedLyrics(item);
+    else $('ssAudiusLicensedStatus').textContent = 'Your saved custom lyrics are ready. Reset them to search licensed lyrics.';
     showProgress(0);
     status('Ready! Listen first, then wear headphones and tap Sing & record.');
   }
@@ -370,7 +436,15 @@ import { parseSingAlongLyrics, activeLyricIndex, duckTargetVolume } from './sing
   $('ssAudiusSing').addEventListener('click', () => start(true));
   $('ssAudiusStop').addEventListener('click', () => {stop();status('Playback finished. Your voice recording is being prepared, if recorded.');});
   $('ssAudiusLyricsApply').addEventListener('click', applyLyrics);
-  $('ssAudiusLyrics').addEventListener('input', () => {lyricRevision++;});
+  $('ssAudiusLyrics').addEventListener('input', () => {lyricRevision++;lyricsLookupAbort?.abort();lyricsLoading=false;});
+  $('ssAudiusFindLyrics').addEventListener('click', () => {
+    if (!selected) return;
+    if ($('ssAudiusLyrics').value.trim()) {
+      $('ssAudiusLicensedStatus').textContent = 'Your custom lyrics are active. Reset saved lyrics first to use the licensed version.';
+      return;
+    }
+    void findLicensedLyrics(selected);
+  });
   $('ssAudiusOwnAudio').addEventListener('change', () => {lyricRevision++;updateTranscriptionButtons();});
   $('ssAudiusAudioRights').addEventListener('change', () => {
     if (!$('ssAudiusAudioRights').checked) transcriptAbort?.abort();
@@ -380,6 +454,8 @@ import { parseSingAlongLyrics, activeLyricIndex, duckTargetVolume } from './sing
   $('ssAudiusTranscribeTake').addEventListener('click', () => transcribeOwnAudio('take'));
   $('ssAudiusLyricsClear').addEventListener('click', () => {
     lyricRevision++;
+    lyricsLookupAbort?.abort(); licensedLyrics=null; lyricsLoading=false; lyricsManualBlank=true;
+    $('ssAudiusLicensedCredit').hidden = true;
     $('ssAudiusLyrics').value = '';
     applyLyrics();
     $('ssAudiusLyrics').focus();
@@ -387,11 +463,13 @@ import { parseSingAlongLyrics, activeLyricIndex, duckTargetVolume } from './sing
   });
   $('ssAudiusLyricsReset').addEventListener('click', () => {
     lyricRevision++;
+    lyricsLookupAbort?.abort(); licensedLyrics=null; lyricsLoading=false; lyricsManualBlank=false;
     if (selected) {try {localStorage.removeItem(lyricKey(selected.id));} catch {}}
     $('ssAudiusLyrics').value = '';
     parsedLyrics = {timed:false,lines:[]};
     displayLyrics(session?.audio.currentTime || 0, currentDuration());
     lyricsStatus('Saved custom lyrics removed for this track. You can start fresh.');
+    if (selected) void findLicensedLyrics(selected);
   });
   $('ssAudiusOffset').addEventListener('input', () => {
     $('ssAudiusOffsetLabel').textContent = $('ssAudiusOffset').value + 's';
