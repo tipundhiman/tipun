@@ -15,6 +15,20 @@
   let shownCount = 0;
   let indianRequest = 0;
   let indianAbort = null;
+  let indianTracks = [];
+  let indianShown = 0;
+  const indianPageSize = 8;
+  const indianFolders = [
+    {id:'hindi',label:'🎵 Hindi picks',query:'Hindi'},
+    {id:'trending',label:'🔥 Trending worldwide',query:''},
+    {id:'played',label:'🏆 Most played',query:'Hindi'},
+    {id:'new',label:'🆕 New uploads',query:'Hindi'},
+    {id:'romantic',label:'💗 Romantic',query:'Hindi romantic'},
+    {id:'devotional',label:'🙏 Devotional',query:'Hindi bhajan'},
+    {id:'punjabi',label:'⚡ Punjabi',query:'Punjabi song'},
+    {id:'haryanvi',label:'🌾 Haryanvi',query:'Haryanvi song'},
+    {id:'bhojpuri',label:'🎉 Bhojpuri',query:'Bhojpuri song'}
+  ];
 
   function checkedHttps(url, host) {
     try {
@@ -123,6 +137,8 @@
     for (const element of [videoStatus, videoGrid, videoPlayer]) {
       if (element) element.style.display = videos ? '' : 'none';
     }
+    const videoFolders=document.getElementById('roVideoFolders');
+    if(videoFolders)videoFolders.hidden=!videos;
     if (!videos) videoPlayer?.replaceChildren();
     if (!music) document.querySelectorAll('#roJamendoResults audio').forEach(audio => audio.pause());
     if (mode !== 'indian') document.querySelectorAll('#roIndianCatalogResults audio').forEach(audio => audio.pause());
@@ -132,9 +148,13 @@
       button.classList.toggle('gold', active);
     });
     if (mode === 'indian') {
-      const query = document.getElementById('roYtQuery')?.value.trim() || '';
       const section = document.getElementById('roIndianCatalogSection');
-      if (query.length >= 2 && !section?.dataset.searched) searchIndianCatalog(query);
+      if (!section?.dataset.searched) searchIndianCatalog('Hindi','hindi');
+    }
+    const search = document.getElementById('roYtQuery');
+    if (search) {
+      search.placeholder = mode==='indian'?'Search a song, artist or language…':mode==='videos'?'Search music videos…':'Search independent tracks…';
+      search.setAttribute('aria-label',mode==='indian'?'Search Audius songs':mode==='videos'?'Search YouTube music videos':'Search independent music');
     }
   }
 
@@ -170,35 +190,40 @@
     const section = document.createElement('section');
     section.id = 'roIndianCatalogSection';
     section.hidden = true;
-    section.style.cssText = 'margin-top:16px;padding:18px;border:1px solid #ffffff30;border-radius:18px;background:#ffffff06';
+    section.className = 'ro-indian-lounge';
     const heading = document.createElement('h3');
-    heading.textContent = '🎧 Hindi & More · Audius Community';
+    heading.textContent = '🎧 Explore Songs';
     const description = document.createElement('p');
     description.className = 'muted small';
-    description.textContent = 'Search playable music uploaded by Audius creators, including Hindi covers and independent songs when available. Community uploads are not verified original film recordings. Some songs may be unavailable in your region.';
-    const sample = document.createElement('button');
-    sample.type = 'button';
-    sample.className = 'btn sm';
-    sample.textContent = 'Try searching Kesariya ↗';
-    sample.addEventListener('click', () => {
-      const input = document.getElementById('roYtQuery');
-      if (input) input.value = 'Kesariya';
-      searchIndianCatalog('Kesariya');
-    });
+    description.textContent = 'Free community audio from Audius · independent tracks and covers, not a verified Bollywood catalog.';
+    const folders = document.createElement('div');
+    folders.id = 'roIndianFolders';folders.className = 'ro-indian-folders';
+    folders.setAttribute('role','group');folders.setAttribute('aria-label','Browse music collections');
+    for (const folder of indianFolders) {
+      const button = document.createElement('button');
+      button.type = 'button';button.className = 'ro-indian-folder';button.dataset.folder = folder.id;
+      button.textContent = folder.label;
+      button.setAttribute('aria-pressed',String(folder.id==='hindi'));
+      button.addEventListener('click',()=>{
+        const input=document.getElementById('roYtQuery');
+        if(input)input.value=folder.query;
+        searchIndianCatalog(folder.query,folder.id);
+      });
+      folders.append(button);
+    }
     const status = document.createElement('p');
     status.id = 'roIndianCatalogStatus';
     status.className = 'muted small';
     status.setAttribute('role', 'status');
-    status.textContent = 'Type a song or artist above and tap Let’s Jam, or try the example. No API key needed.';
+    status.textContent = 'Choose a collection or search above.';
     const results = document.createElement('div');
     results.id = 'roIndianCatalogResults';
-    results.className = 'ro-cc-grid';
-    const watch = document.createElement('button');
-    watch.className = 'btn sm';
-    watch.type = 'button';
-    watch.textContent = '▶ Explore Music Videos instead';
-    watch.addEventListener('click', () => selectSource('videos'));
-    section.append(heading, description, sample, status, results, watch);
+    results.className = 'ro-cc-grid ro-indian-results';
+    const more = document.createElement('button');
+    more.id = 'roIndianMore';more.className = 'btn sm';more.type = 'button';
+    more.textContent = 'Show more songs ↓';more.hidden = true;
+    more.addEventListener('click',showNextIndianSongs);
+    section.append(heading, description, folders, status, results, more);
     videoGrid.parentNode.insertBefore(section, videoGrid);
   }
 
@@ -206,17 +231,24 @@
     if (!track || track.is_available !== true || track.is_streamable !== true) return null;
     const id = typeof track.id === 'string' ? track.id : '';
     if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) return null;
+    const released = Date.parse(track.release_date || track.created_at || '');
+    const artwork = track.artwork?.['480x480'];
     return {
       id,
       title: String(track.title || 'Community song').slice(0, 140),
       artist: String(track.user?.name || track.user?.handle || 'Audius creator').slice(0, 140),
       audio: 'https://api.audius.co/v1/tracks/' + encodeURIComponent(id) + '/stream',
-      source: 'https://audius.co' + (typeof track.permalink === 'string' && /^\/[a-zA-Z0-9_/-]+$/.test(track.permalink) ? track.permalink : '')
+      source: 'https://audius.co' + (typeof track.permalink === 'string' && /^\/[a-zA-Z0-9_/-]+$/.test(track.permalink) ? track.permalink : ''),
+      cover: checkedHttps(artwork, 'figment.io') || checkedHttps(artwork, 'audius.co'),
+      playCount: Number.isFinite(Number(track.play_count)) ? Math.max(0, Number(track.play_count)) : null,
+      releaseAt: Number.isFinite(released) && released > 0 ? released : 0
     };
   }
 
-  async function getAudiusTracks(query, signal) {
-    const directUrl = 'https://api.audius.co/v1/tracks/search?query=' + encodeURIComponent(query) + '&limit=12';
+  async function getAudiusTracks(query, signal, trending = false) {
+    const directUrl = trending
+      ? 'https://api.audius.co/v1/tracks/trending?time=week&limit=30'
+      : 'https://api.audius.co/v1/tracks/search?query=' + encodeURIComponent(query) + '&limit=40';
     // Audius explicitly supports public read-only browser access. Its CORS
     // endpoint is useful when an edge-hosted backend gets blocked upstream.
     try {
@@ -224,24 +256,66 @@
       if (!direct.ok) throw Error('Audius direct search unavailable');
       const data = await direct.json();
       if (!Array.isArray(data?.data)) throw Error('Unexpected Audius response');
-      return data.data.map(normalizePublicAudiusTrack).filter(Boolean).slice(0, 12);
+      return data.data.map(normalizePublicAudiusTrack).filter(Boolean);
     } catch (error) {
       if (error.name === 'AbortError') throw error;
+      if (trending) throw error;
       const response = await fetch('/api/catalog/audius/search?q=' + encodeURIComponent(query), {
         signal, cache: 'no-store'
       });
       if (!response.ok) throw Error('Audius search unavailable');
       const data = await response.json();
-      return Array.isArray(data.tracks) ? data.tracks.slice(0, 12) : [];
+      return Array.isArray(data.tracks) ? data.tracks.slice(0, 20) : [];
     }
   }
 
-  async function searchIndianCatalog(query) {
+  function showNextIndianSongs() {
+    const results = document.getElementById('roIndianCatalogResults');
+    const more = document.getElementById('roIndianMore');
+    if (!results || !more) return;
+    for (const track of indianTracks.slice(indianShown, indianShown + indianPageSize)) {
+      const tile = document.createElement('article');tile.className = 'ro-cc-tile ro-indian-tile';
+      const cover = document.createElement('div');cover.className = 'ro-indian-art';
+      if (track.cover) {
+        const image=document.createElement('img');image.src=track.cover;image.alt='';image.loading='lazy';
+        image.referrerPolicy='no-referrer';cover.append(image);
+      } else cover.textContent='♫';
+      const body = document.createElement('div');body.className='ro-cc-tile-body';
+      const title = document.createElement('h4');title.textContent=track.title;
+      const artist = document.createElement('p');artist.className='muted small';artist.textContent=track.artist;
+      const meta = document.createElement('p');meta.className='ro-indian-meta';
+      const info=[];
+      if (Number.isFinite(track.playCount)) info.push(new Intl.NumberFormat('en',{notation:'compact',maximumFractionDigits:1}).format(track.playCount)+' plays');
+      if (track.releaseAt) info.push(new Date(track.releaseAt).toLocaleDateString('en-IN',{month:'short',year:'numeric'}));
+      meta.textContent=info.join(' · ') || 'Audius community';
+      body.append(title,artist,meta);
+      const audioUrl=checkedHttps(track.audio,'api.audius.co');
+      if (audioUrl) {
+        const player=document.createElement('audio');player.src=audioUrl;player.controls=true;player.preload='none';
+        player.setAttribute('aria-label','Play '+track.title+' by '+track.artist);
+        player.addEventListener('play',()=>{
+          document.querySelectorAll('#roIndianCatalogResults audio, #roJamendoResults audio').forEach(other=>{
+            if(other!==player)other.pause();
+          });
+        });
+        body.append(player);
+      }
+      const original=checkedHttps(track.source,'audius.co');
+      if(original){const source=document.createElement('a');source.href=original;source.target='_blank';source.rel='noopener noreferrer';source.textContent='On Audius ↗';source.className='ro-indian-source';body.append(source);}
+      tile.append(cover,body);results.append(tile);
+    }
+    indianShown=Math.min(indianTracks.length,indianShown+indianPageSize);
+    more.hidden=indianShown>=indianTracks.length;
+    more.textContent='Show more songs · '+(indianTracks.length-indianShown)+' left ↓';
+  }
+
+  async function searchIndianCatalog(query,folderId='search') {
     const status = document.getElementById('roIndianCatalogStatus');
     const results = document.getElementById('roIndianCatalogResults');
     const section = document.getElementById('roIndianCatalogSection');
     if (!status || !results) return;
-    if (query.length < 2 || query.length > 80) {
+    const trending=folderId==='trending';
+    if (!trending && (query.length < 2 || query.length > 80)) {
       status.textContent = 'Enter a song or artist name between 2 and 80 characters.';
       return;
     }
@@ -250,64 +324,26 @@
     indianAbort = new AbortController();
     section.dataset.searched = 'yes';
     results.replaceChildren();
-    status.textContent = 'Searching playable community audio…';
+    const more=document.getElementById('roIndianMore');if(more)more.hidden=true;
+    indianTracks=[];indianShown=0;
+    document.querySelectorAll('#roIndianFolders button').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.folder===folderId)));
+    status.textContent = 'Loading songs…';
     try {
-      const tracks = await getAudiusTracks(query, indianAbort.signal);
+      const tracks = await getAudiusTracks(query, indianAbort.signal, trending);
       if (request !== indianRequest || !document.getElementById('roIndianCatalogResults')) return;
-      status.textContent = tracks.length ? `${tracks.length} Audius community tracks found. Tap play to listen; these may be covers or independent uploads.` : 'No playable Audius matches. Try a different song, singer or genre.';
-      for (const track of tracks) {
-        const tile = document.createElement('article');
-        tile.className = 'ro-cc-tile';
-        const body = document.createElement('div');
-        body.className = 'ro-cc-tile-body';
-        const title = document.createElement('h4');
-        title.textContent = String(track.title || 'Song');
-        const artist = document.createElement('p');
-        artist.className = 'muted small';
-        artist.textContent = String(track.artist || 'Audius creator');
-        const audioUrl = checkedHttps(track.audio, 'api.audius.co');
-        if (audioUrl) {
-          const player = document.createElement('audio');
-          player.src = audioUrl;
-          player.controls = true;
-          player.preload = 'none';
-          player.setAttribute('aria-label', 'Play ' + title.textContent + ' by ' + artist.textContent);
-          player.style.cssText = 'width:100%;max-width:100%';
-          player.addEventListener('play', () => {
-            document.querySelectorAll('#roIndianCatalogResults audio, #roJamendoResults audio').forEach(other => {
-              if (other !== player) other.pause();
-            });
-          });
-          body.append(title, artist, player);
-        } else body.append(title, artist);
-        const attribution = document.createElement('p');
-        attribution.className = 'muted small';
-        attribution.textContent = 'Uploaded on Audius · Rights belong to their respective owners.';
-        body.append(attribution);
-        const watch = document.createElement('button');
-        watch.type = 'button';
-        watch.className = 'btn sm';
-        watch.textContent = '▶ Find music video';
-        watch.addEventListener('click', () => {
-          const input = document.getElementById('roYtQuery');
-          if (input) input.value = [track.title, track.artist].filter(Boolean).join(' ');
-          selectSource('videos');
-          window.roYtSearch?.({ preventDefault() {} });
-        });
-        body.append(watch);
-        const original = checkedHttps(track.source, 'audius.co');
-        if (original) {
-          const source = document.createElement('a');
-          source.className = 'muted small';
-          source.href = original;
-          source.target = '_blank';
-          source.rel = 'noopener noreferrer';
-          source.textContent = ' · View on Audius ↗';
-          body.append(source);
-        }
-        tile.append(body);
-        results.append(tile);
-      }
+      const seen=new Set();
+      indianTracks=tracks.filter(track=>{
+        if(!/^[A-Za-z0-9_-]{1,80}$/.test(track.id||'')||!checkedHttps(track.audio,'api.audius.co')||seen.has(track.id))return false;
+        seen.add(track.id);return true;
+      });
+      if(folderId==='played')indianTracks.sort((a,b)=>(b.playCount||0)-(a.playCount||0));
+      if(folderId==='new')indianTracks.sort((a,b)=>(b.releaseAt||0)-(a.releaseAt||0));
+      status.textContent=!indianTracks.length?'No playable matches. Try another collection.':
+        folderId==='trending'?`${indianTracks.length} trending on Audius worldwide this week · not Hindi-only.`:
+        folderId==='played'?`${indianTracks.length} Hindi search matches · sorted by Audius play count.`:
+        folderId==='new'?`${indianTracks.length} Hindi search matches · newest Audius uploads first.`:
+        `${indianTracks.length} playable community tracks · covers and independent music.`;
+      showNextIndianSongs();
     } catch (error) {
       if (error.name === 'AbortError' || request !== indianRequest) return;
       status.textContent = 'Audius search is not responding right now. Try again later or use Music Videos.';
@@ -412,19 +448,14 @@
       form.addEventListener('submit', event => {
         const query = document.getElementById('roYtQuery')?.value.trim();
         const mode = document.querySelector('#roListenSourceModes button[aria-pressed="true"]')?.dataset.source;
-        if (mode !== 'indian') return;
-        // Only the Audius section intercepts the original inline YouTube
-        // submit handler; existing video and indie modes stay unchanged.
+        if (mode !== 'indian' && mode !== 'music') return;
+        // Audio modes search audio only; do not run a redundant YouTube API call.
         event.preventDefault();
         event.stopImmediatePropagation();
         if (!query || query.length < 2) return;
-        searchIndianCatalog(query);
+        if (mode === 'indian') searchIndianCatalog(query);
+        else searchJamendo(query);
       }, { capture: true });
-      form.addEventListener('submit', () => {
-        const query = document.getElementById('roYtQuery')?.value.trim();
-        const mode = document.querySelector('#roListenSourceModes button[aria-pressed="true"]')?.dataset.source;
-        if (mode === 'music' && query?.length >= 2) searchJamendo(query);
-      });
     }
   }
 

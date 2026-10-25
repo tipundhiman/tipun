@@ -4,13 +4,18 @@
   const searchLive = window.roYtSearch;
   const mountLive = window.roCcMount;
   if (typeof searchLive !== 'function') return;
-  // Small, clearly labelled featured selection (not an unlicensed search scraper).
+  // Verified public YouTube watch IDs. Never label this hand-picked list as live trends.
   const featured = [
-    { id: '1G4isv_Fylg', title: 'Paradise', channel: 'Coldplay', tags: 'dreamy chill rock pop' },
-    { id: 'JGwWNGJdvx8', title: 'Shape of You', channel: 'Ed Sheeran', tags: 'dance pop romantic' },
-    { id: 'e-ORhEE9VVg', title: 'Blank Space', channel: 'Taylor Swift', tags: 'romantic pop' },
-    { id: 'YykjpeuMNEk', title: 'Hymn for the Weekend', channel: 'Coldplay', tags: 'hindi india colorful pop' }
+    { id:'BSJa1UytM8w', title:'Saiyaara — Title Song', channel:'YRF', category:'hindi', tags:'hindi latest love bollywood romantic' },
+    { id:'tk8ya-cJtrs', title:'Kesariya — Dance Mix', channel:'Sony Music India', category:'hindi', tags:'hindi dance brahmastra bollywood arijit' },
+    { id:'jCVjudmnByk', title:'Saiyaara — Lyrical', channel:'YRF Music', category:'hindi', tags:'hindi lyrical romantic' },
+    { id:'XtZTpxnrHAc', title:'Aaj Ki Raat — Stree 2', channel:'Sachin-Jigar', category:'hindi', tags:'hindi dance bollywood' },
+    { id:'1G4isv_Fylg', title:'Paradise', channel:'Coldplay', category:'global', tags:'dreamy chill rock pop' },
+    { id:'JGwWNGJdvx8', title:'Shape of You', channel:'Ed Sheeran', category:'global', tags:'dance pop romantic' },
+    { id:'e-ORhEE9VVg', title:'Blank Space', channel:'Taylor Swift', category:'global', tags:'romantic pop' },
+    { id:'YykjpeuMNEk', title:'Hymn for the Weekend', channel:'Coldplay', category:'global', tags:'india colorful pop' }
   ];
+  let videoFolder='hindi';
   function play(id, title) {
     window.roYtPlay(id, title);
     document.getElementById('roCcScene')?.classList.add('playing');
@@ -22,7 +27,7 @@
     card.className = 'ro-cc-tile';
     const art = document.createElement('button');
     art.type = 'button';
-    art.className = 'ro-cc-art';
+    art.className = 'ro-cc-art ro-video-cover';
     art.style.cssText = 'width:100%;padding:0;border:0;cursor:pointer;position:relative;overflow:hidden';
     art.setAttribute('aria-label', 'Play ' + item.title + ' here');
     const thumbnail = document.createElement('img');
@@ -41,26 +46,49 @@
     title.textContent = item.title;
     const artist = document.createElement('p');
     artist.className = 'muted small';
-    artist.textContent = item.channel + ' · YouTube player';
+    artist.textContent = item.channel;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'btn sm';
     button.textContent = '▶ Play here';
     button.onclick = () => play(item.id, item.title);
-    body.append(title, artist, button);
+    const link=document.createElement('a');link.className='ro-indian-source';
+    link.href='https://www.youtube.com/watch?v='+item.id;link.target='_blank';link.rel='noopener noreferrer';
+    link.textContent='On YouTube ↗';
+    const actions=document.createElement('div');actions.className='ro-cc-tile-actions';actions.append(button,link);
+    body.append(title, artist, actions);
     card.append(art, body);
     return card;
   }
-  function showFeatured(query = '') {
+  function showFeatured(query = '', folder = videoFolder) {
     const grid = document.getElementById('roYtGrid');
     const status = document.getElementById('roYtStatus');
     if (!grid || !status) return;
+    videoFolder=folder;
+    document.querySelectorAll('#roVideoFolders button').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.folder===folder)));
     const words = query.toLowerCase().split(/\s+/).filter(word => word.length > 1);
-    const matching = words.length ? featured.filter(item => words.some(word => (item.title + ' ' + item.channel + ' ' + item.tags).toLowerCase().includes(word))) : featured;
-    grid.replaceChildren(...(matching.length ? matching : featured).map(tile));
+    let collection = folder==='all'?featured:featured.filter(item=>item.category===folder);
+    let matching = words.length ? collection.filter(item => words.some(word => (item.title + ' ' + item.channel + ' ' + item.tags).toLowerCase().includes(word))) : collection;
+    if(words.length&&!matching.length){
+      const acrossAll=featured.filter(item=>words.some(word=>(item.title+' '+item.channel+' '+item.tags).toLowerCase().includes(word)));
+      if(acrossAll.length){matching=acrossAll;collection=featured;videoFolder='all';document.querySelectorAll('#roVideoFolders button').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.folder==='all')));}
+    }
+    grid.replaceChildren(...(matching.length ? matching : collection).map(tile));
     status.textContent = words.length
-      ? (matching.length ? '🎧 Featured matches you can watch here.' : '🎧 Live search is not connected. Enjoy these featured in-app music videos.')
-      : '🎧 Featured music videos — tap any tile to play without leaving RhymeOrbit.';
+      ? (matching.length ? 'Showing featured matches · live YouTube search requires an API key.' : 'No featured match. Showing hand-picked videos; live search is not connected.')
+      : 'Featured videos · play in the official YouTube player below.';
+  }
+  function installVideoFolders() {
+    const status=document.getElementById('roYtStatus');
+    if(!status||document.getElementById('roVideoFolders'))return;
+    const container=document.createElement('div');container.id='roVideoFolders';container.className='ro-indian-folders';
+    container.setAttribute('role','group');container.setAttribute('aria-label','Browse YouTube video collections');
+    for(const [id,label] of [['hindi','🇮🇳 Hindi videos'],['global','🌍 Global hits'],['all','✨ All featured']]){
+      const button=document.createElement('button');button.type='button';button.className='ro-indian-folder';
+      button.dataset.folder=id;button.textContent=label;button.setAttribute('aria-pressed',String(id===videoFolder));
+      button.addEventListener('click',()=>showFeatured('',id));container.append(button);
+    }
+    status.parentNode.insertBefore(container,status);
   }
   window.roYtShowFeatured = showFeatured;
   window.roYtSearch = async function (event) {
@@ -73,7 +101,7 @@
       showFeatured(input.value.trim());
       return;
     }
-    grid.querySelectorAll('a[href^="https://www.youtube.com/"]').forEach(link => link.remove());
+    // Keep creator links and YouTube branding intact.
     grid.querySelectorAll('.ro-cc-art').forEach(art => {
       const playButton = art.closest('.ro-cc-tile')?.querySelector('button');
       if (playButton) {
@@ -88,6 +116,7 @@
   if (typeof mountLive === 'function') {
     window.roCcMount = function () {
       mountLive();
+      installVideoFolders();
       const grid = document.getElementById('roYtGrid');
       if (grid && !grid.children.length) showFeatured();
     };
