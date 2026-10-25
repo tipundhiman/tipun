@@ -59,6 +59,8 @@ test('Audius and Jamendo use the animated DJ stage as one audio player with tran
     assert.ok(player.includes(`id="${id}"`), `Shared DJ player missing ${id}`);
   assert.match(player, /stage\.classList\.toggle\('playing', playing\)/);
   assert.match(player, /audio\.addEventListener\('timeupdate', updateProgress\)/);
+  assert.match(player, /Paused\. Tap Play to resume\./);
+  assert.match(ui, /total === 1 \? 'match' : 'matches'/);
   assert.match(player, /provider === 'audius' && host === 'api\.audius\.co'/);
   assert.match(player, /provider === 'jamendo' && \(host === 'storage\.jamendo\.com'/);
   assert.doesNotMatch(player, /youtube\.com|youtube-nocookie\.com|youtu\.be/);

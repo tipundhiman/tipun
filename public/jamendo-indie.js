@@ -112,7 +112,7 @@
     const remaining = cachedTracks.length - shownCount;
     info.textContent = shownCount
       ? `${shownCount} songs ready to play${remaining || moreOffset ? ' · More songs available below' : ''}.`
-      : 'No matching indie music here. Try Rock, Piano or Acoustic, or switch to Music Videos.';
+      : 'No matching indie music here. Try Rock, Piano or Acoustic, or choose YouTube Videos.';
     if (more) {
       more.hidden = !remaining && !moreOffset;
       more.textContent = remaining
@@ -180,6 +180,11 @@
         const notice = document.getElementById('roAutoFallbackNotice');
         if (notice) notice.hidden = true;
         selectSource(source);
+        if (source === 'songs') {
+          const hint = document.getElementById('roUnifiedSearchStatus');
+          if (hint?.textContent.includes('YouTube videos instead'))
+            hint.textContent = 'No free audio for the last search. Try another title or browse the song collections below.';
+        }
       });
       modes.append(button);
     }
@@ -427,7 +432,7 @@
     if (request !== unifiedRequest || !document.getElementById('roListenSourceModes')) return;
     const total = (audius?.count || 0) + (jamendo?.count || 0);
     if (total > 0) {
-      if (status) status.textContent = `${total} playable audio matches. Choose a track to play in the animated DJ.`;
+      if (status) status.textContent = `${total} playable audio ${total === 1 ? 'match' : 'matches'}. Choose a track to play in the animated DJ.`;
       return;
     }
     if (!audius || !jamendo) return; // Another search superseded these requests.

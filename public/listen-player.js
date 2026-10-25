@@ -114,7 +114,10 @@
     audio.volume = volume;
     $('roCcVolume').value = String(Math.round(volume * 100));
     audio.addEventListener('play', updateControls);
-    audio.addEventListener('pause', updateControls);
+    audio.addEventListener('pause', () => {
+      if (index >= 0 && !audio.ended) setStatus('Paused. Tap Play to resume.');
+      updateControls();
+    });
     audio.addEventListener('playing', () => { setStatus('♫ Now playing in the DJ lounge'); updateControls(); });
     audio.addEventListener('timeupdate', updateProgress);
     audio.addEventListener('durationchange', updateProgress);

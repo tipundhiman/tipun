@@ -2,8 +2,8 @@
    Cache only this public offline notice — never API responses, media or user data. */
 'use strict';
 
-const CACHE = 'rhymeorbit-offline-v1';
-const OFFLINE = '/offline.html';
+const CACHE = 'rhymeorbit-offline-v2';
+const OFFLINE = '/offline';
 const ICON = '/icons/icon-192.png';
 
 self.addEventListener('install', event => {
