@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500" role="img" aria-label="RhymeOrbit music and creator app feature graphic">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#faf9fe"/>
+      <stop offset=".63" stop-color="#eeeaf8"/>
+      <stop offset="1" stop-color="#e0ddf5"/>
+    </linearGradient>
+    <radialGradient id="sphere" cx="29%" cy="24%" r="80%">
+      <stop stop-color="#fce4f6"/>
+      <stop offset=".24" stop-color="#ca9be0"/>
+      <stop offset=".62" stop-color="#8267c3"/>
+      <stop offset="1" stop-color="#2f275f"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#ffefde"/>
+      <stop offset=".48" stop-color="#ca94c8"/>
+      <stop offset="1" stop-color="#6953ae"/>
+    </linearGradient>
+    <filter id="soft-shadow" x="-50%" y="-50%" width="200%" height="220%">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+  </defs>
+  <rect width="1024" height="500" fill="url(#paper)"/>
+  <circle cx="930" cy="30" r="218" fill="#c5b7e8" opacity=".17"/>
+  <path d="M0 438c205-66 311-49 480 62H0Z" fill="#fff" opacity=".5"/>
+  <g transform="translate(82 82)">
+    <rect width="62" height="62" rx="18" fill="#332953"/>
+    <circle cx="30" cy="31" r="15" fill="#d7a9df"/>
+    <ellipse cx="30" cy="32" rx="25" ry="10" transform="rotate(-24 30 32)" stroke="#fde6dc" stroke-width="4" fill="none"/>
+    <path d="M28 23v18m0-18h8q6 0 6 5t-6 5h-8m9 0 7 8" fill="none" stroke="#281f43" stroke-width="3.7" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="158" y="126" fill="#2b2943" font-family="Manrope,Arial,sans-serif" font-size="28" font-weight="700" letter-spacing="-.7">RhymeOrbit</text>
+  <text x="80" y="259" fill="#262743" font-family="Manrope,Arial,sans-serif" font-size="55" font-weight="750" letter-spacing="-2">Listen. Sing. Create.</text>
+  <text x="82" y="310" fill="#62647e" font-family="Arial,sans-serif" font-size="24">Your music. Your words. Your space.</text>
+  <rect x="80" y="360" width="174" height="46" rx="23" fill="#4c3c8a"/>
+  <text x="167" y="389" text-anchor="middle" font-family="Arial,sans-serif" font-size="17" fill="#fff" font-weight="600">Music &amp; creators</text>
+  <ellipse cx="795" cy="390" rx="178" ry="49" fill="#392861" opacity=".19" filter="url(#soft-shadow)"/>
+  <circle cx="798" cy="238" r="174" fill="url(#sphere)"/>
+  <circle cx="741" cy="160" r="58" fill="#fff" opacity=".09"/>
+  <path d="M659 122c57-28 115-35 188-8" stroke="#fff" stroke-opacity=".25" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <ellipse cx="798" cy="246" rx="243" ry="79" transform="rotate(-27 798 246)" fill="none" stroke="url(#ring)" stroke-width="20" stroke-linecap="round"/>
+  <ellipse cx="798" cy="246" rx="243" ry="79" transform="rotate(-27 798 246)" fill="none" stroke="#fff" stroke-opacity=".32" stroke-width="4"/>
+  <path d="M930 67l10 28 28 10-28 10-10 28-10-28-28-10 28-10Z" fill="#fff8eb"/>
+  <circle cx="584" cy="108" r="7" fill="#a995d9"/>
+  <circle cx="951" cy="409" r="5" fill="#aa90d2"/>
+</svg>
