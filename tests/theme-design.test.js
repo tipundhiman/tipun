@@ -52,3 +52,13 @@ test('interactive navigation replaces emoji UI icons with local SVGs', () => {
   assert.match(source('site-nav.js'), /window\.roDesign\?\.icon\(item\.icon, 17\)/);
   assert.match(source('licenses.html'), /Lucide icons/);
 });
+
+test('mobile hero keeps a full-contrast orbit below readable copy and honors reduced motion', () => {
+  const css = source('ro-design.css');
+  assert.match(css, /\.hero \.orb-stage \{ opacity: 1 !important; isolation: isolate; \}/);
+  assert.match(css, /\.hero \.orb \{[\s\S]*?background:[\s\S]*?radial-gradient/);
+  assert.match(css, /\.hero \.orb-stage \{\s*position: relative;[\s\S]*?opacity: 1 !important;/);
+  assert.match(css, /\.hero \.roQuickStart \{ display: flex; flex-wrap: nowrap;/);
+  assert.match(css, /\.ro-mobile-tab-label \{ font-size: 11px;/);
+  assert.match(css, /\.hero \.orb \{ animation: none !important; will-change: auto; \}/);
+});

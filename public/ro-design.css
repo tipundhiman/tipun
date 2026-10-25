@@ -347,3 +347,136 @@ html[data-theme='light'] .times, html[data-theme='light'] .pitch small { color: 
 @media (prefers-reduced-motion: reduce) {
   .ro-theme-toggle { transition: none; }
 }
+
+/* Launch-ready art direction: a defined, dimensional brand orb at every width.
+   In the old mobile layout its parent opacity was .45, washing it out on light palettes. */
+.hero .orb-stage { opacity: 1 !important; isolation: isolate; }
+.hero .orb {
+  background:
+    radial-gradient(circle at 30% 20%, #e6d5fa 0%, #bda0df 9%, #736295 23%, #393353 42%, #181929 65%, #080d18 87%),
+    #171529;
+  border: 1px solid #d8cbf16b;
+  box-shadow: inset -24px -32px 55px #060a18, inset 7px 8px 33px #efe0fc23,
+    0 23px 60px #27204436, 0 0 80px #8b72ca2b;
+  animation: ro-orb-breathe 8s ease-in-out infinite;
+  will-change: transform;
+}
+.hero .orb::before {
+  content: '';
+  position: absolute;
+  inset: 5%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 25% 12%, #fbf1ff70, transparent 28%),
+    linear-gradient(158deg, transparent 33%, #c2aff814 46%, transparent 57%);
+  transform: rotate(-9deg);
+}
+.hero .orb::after { border-color: #bba3ee60; box-shadow: 0 0 28px #9d8bd238; }
+.hero .orb-glow { background: radial-gradient(circle, #bba4f638, transparent 68%); }
+.hero .orbit-ring { border-color: #9581c848; }
+.hero .orbit-ring.r2 { border-color: #c5a3d73b; }
+.hero .orbit-ring.r3 { border-color: #877bc32c; }
+html[data-theme='light'] .hero .serif {
+  background: none !important;
+  -webkit-text-fill-color: var(--ro-accent);
+  color: var(--ro-accent) !important;
+  animation: none !important;
+}
+@keyframes ro-orb-breathe {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -8px, 0) scale(1.017); }
+}
+
+/* Typography and spacing shared by the mobile web app and standalone creator tools. */
+@media (max-width: 760px) {
+  html { scroll-padding-bottom: 102px; }
+  body { font-size: 15px; line-height: 1.6; }
+  :is(.app-main, main) :is(p, li) { line-height: 1.62; }
+  .eyebrow, .sidebar-label { font-size: 11px; letter-spacing: 1.35px; }
+  .app-main .page-head h1 { font-size: clamp(30px, 8.5vw, 38px); line-height: 1.16; letter-spacing: -1.2px; }
+  .app-main .page-head p { font-size: 14px; line-height: 1.6; }
+  .page-head p { font-size: 14px; }
+  .app-shell .panel, .app-shell .card { border-radius: 18px; }
+  .app-main .panel :is(label, .mic-hint, .note, .hint), .app-main .panel small { font-size: 13px; }
+  main .card p { font-size: 14px; }
+  main .card :is(.mic-hint, .note, small) { font-size: 13px; }
+  main .btn { min-height: 44px; }
+  :is(input:not([type='range']):not([type='checkbox']):not([type='radio']), textarea, select) { font-size: 16px; }
+  .app-main :is(input, textarea, select, button) { max-width: 100%; }
+  .ro-mobile-tab { min-height: 59px; }
+  .ro-mobile-tab-label { font-size: 11px; font-weight: 600; line-height: 1.25; letter-spacing: 0; }
+  .ro-mobile-tab-icon { width: 29px; height: 29px; }
+  .ro-mobile-tab-sing .ro-mobile-tab-icon { width: 39px; height: 39px; }
+  .ro-mobile-sheet-card { min-height: 121px; border-radius: 17px; }
+  .ro-mobile-sheet-card strong { font-size: 14px; line-height: 1.28; }
+  .ro-mobile-sheet-card small { font-size: 12px; line-height: 1.45; }
+  .ro-mobile-theme-card strong { font-size: 14px; }
+  .ro-mobile-theme-card small { font-size: 12px; }
+  .ro-theme-choice small { font-size: 12px; }
+
+  /* Stack the hero deliberately: copy, actions, then a full-color, animated orb. */
+  .hero.container {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
+    padding-top: 38px;
+    padding-bottom: 37px;
+    overflow: hidden;
+  }
+  .hero .hero-copy { width: 100%; order: 0; }
+  .hero h1 { font-size: clamp(43px, 11.6vw, 66px); font-weight: 700; line-height: 1.09; letter-spacing: -.055em; margin: 20px 0 17px; }
+  .hero .hero-copy > p { font-size: 15px; line-height: 1.65; max-width: 36ch; }
+  .hero .hero-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 25px; }
+  .hero .hero-actions .btn { min-height: 48px; padding: 11px 9px; font-size: 13px; white-space: normal; text-align: center; border-radius: 13px; }
+  .hero .roQuickStart { display: flex; flex-wrap: nowrap; max-width: 100%; margin-top: 19px; padding: 1px 1px 10px; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; }
+  .hero .roQuickStart::-webkit-scrollbar { display: none; }
+  .hero .roQuickStart strong { display: none; }
+  .hero .roQuickStart a { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; min-height: 41px; padding: 9px 12px; font: 600 12px/1.2 'DM Sans',sans-serif; white-space: nowrap; scroll-snap-align: start; }
+  .hero .micro { margin-top: 13px; line-height: 1.5; }
+  .hero .avatars { display: none; }
+  .hero .orb-stage {
+    position: relative;
+    order: 1;
+    top: auto;
+    right: auto;
+    width: 100%;
+    height: clamp(240px, 75vw, 360px);
+    margin: 17px auto 2px;
+    opacity: 1 !important;
+    overflow: visible;
+  }
+  .hero .orb { width: clamp(175px, 55vw, 250px); height: clamp(175px, 55vw, 250px); }
+  .hero .orb-glow { width: min(95vw, 380px); height: min(95vw, 380px); filter: blur(21px); }
+  .hero .orbit-ring { width: min(84vw, 346px); height: min(84vw, 346px); }
+  .hero .orbit-ring.r2 { width: min(73vw, 310px); height: min(73vw, 310px); }
+  .hero .orbit-ring.r3 { width: min(95vw, 390px); height: min(95vw, 390px); }
+  .hero .hero-bottom { position: relative; order: 2; left: auto; right: auto; bottom: auto; margin-top: 8px; font-size: 10px; gap: 15px; }
+  .hero .hero-bottom span { font-size: 10px; }
+  .section { padding-block: 45px; }
+  .section-header { gap: 9px; margin-bottom: 23px; }
+  .section-title { font-size: clamp(28px, 8vw, 38px); line-height: 1.18; letter-spacing: -1.2px; }
+  .section-header p { font-size: 14px; max-width: 48ch; }
+  .feature { min-height: 205px; padding: 20px; border-radius: 20px; }
+  .feature h3 { font-size: 18px; }
+  .feature p { font-size: 14px; line-height: 1.55; }
+  .editorial .textside { padding: 27px 24px; }
+  .editorial .artside { min-height: 248px; }
+  .quote { padding-block: 42px; }
+  .quote p { font-size: clamp(24px, 6.6vw, 34px); line-height: 1.36; }
+  .footer { padding-top: 35px; }
+}
+@media (max-width: 360px) {
+  .hero h1 { font-size: 41px; }
+  .hero .hero-actions .btn { font-size: 12px; }
+  .hero .orb-stage { height: 252px; }
+  .ro-mobile-sheet-panel { padding-inline: 12px; }
+}
+@media (min-width: 761px) and (max-width: 1050px) {
+  .hero .orb-stage { right: -15%; opacity: .94 !important; }
+  .hero .orb { width: min(36vw, 380px); height: min(36vw, 380px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero .orb { animation: none !important; will-change: auto; }
+  .hero .roQuickStart { scroll-behavior: auto; }
+}
