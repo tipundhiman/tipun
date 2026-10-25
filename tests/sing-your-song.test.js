@@ -154,9 +154,14 @@ test('Karaoke search labels reflect the licensed four-track library',()=>{
   assert.match(page,/only 4 original|current 4 original/);
 });
 
-test('AI timestamp parsing rejects invalid content and never invents timing',()=>{
+test('AI timestamp parsing accepts valid structured, fenced and LRC formats without inventing times',()=>{
   assert.equal(parseTimedLyrics('nonsense'),null);
-  assert.equal(parseTimedLyrics('[{"start":4,"text":"hello"},{"start":3,"text":"wrong order"}]'),null);
+  assert.equal(parseTimedLyrics('[{"start":4,"text":"hello"},{"start":3,"text":"wrong order"}]'),
+    '[00:03.00] wrong order\n[00:04.00] hello');
   assert.equal(parseTimedLyrics('[{"start":5.2,"text":"Mera dil"},{"start":13.65,"text":"Tere sang"}]'),
     '[00:05.20] Mera dil\n[00:13.65] Tere sang');
+  assert.equal(parseTimedLyrics('{"lines":[{"start":11.3,"text":"पहली लाइन"}]}'), '[00:11.30] पहली लाइन');
+  assert.equal(parseTimedLyrics('```json\n{"segments":[{"timestamp":"01:02.5","line":"सुनो"}]}\n```'), '[01:02.50] सुनो');
+  assert.equal(parseTimedLyrics('[00:09.50] Dil se\n[00:16.10] Meri maa'), '[00:09.50] Dil se\n[00:16.10] Meri maa');
+  assert.equal(parseTimedLyrics('{"lines":[]}'), null);
 });

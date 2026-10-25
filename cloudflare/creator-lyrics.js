@@ -57,24 +57,40 @@ const audioTypes = new Set(['audio/mpeg','audio/mp3','audio/wav','audio/x-wav','
 
 export function parseTimedLyrics(text) {
   let parsed;
+  const body=String(text||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
   try {
-    const body=String(text||'').trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
-    const match=body.match(/\[[\s\S]*\]/);
-    parsed=JSON.parse(match?.[0]||'[]');
-  }catch{return null;}
-  if(!Array.isArray(parsed)||parsed.length<2||parsed.length>200)return null;
+    parsed=JSON.parse(body);
+    if(!Array.isArray(parsed)) parsed=parsed?.lines||parsed?.segments||parsed?.timestamps;
+  } catch {
+    try { const match=body.match(/\[\s*\{[\s\S]*\}\s*\]/); parsed=JSON.parse(match?.[0]||'null'); }
+    catch { parsed=null; }
+  }
+  // Some transcription models supply valid LRC lines instead of JSON.
+  if(!Array.isArray(parsed)) parsed=body.split(/\r?\n/).map(line=>{
+    const match=/^\[(\d{1,3}):(\d{2})(?:\.(\d{1,3}))?\]\s*(.+)$/.exec(line.trim());
+    return match && {start:Number(match[1])*60+Number(match[2])+Number('0.'+(match[3]||'0')),text:match[4]};
+  }).filter(Boolean);
+  if(!parsed.length||parsed.length>250)return null;
+  const timed=parsed.map(item=>{
+    const raw=item?.start??item?.start_seconds??item?.timestamp??item?.time;
+    let start=Number(raw);
+    if(typeof raw==='string'&&!Number.isFinite(start)){
+      const time=/^(\d{1,3}):(\d{2})(?:\.(\d{1,3}))?$/.exec(raw.trim());
+      if(time) start=Number(time[1])*60+Number(time[2])+Number('0.'+(time[3]||'0'));
+    }
+    const line=String(item?.text??item?.lyrics??item?.line??'').replace(/[\r\n]+/g,' ').trim();
+    return {start,line};
+  }).filter(item=>Number.isFinite(item.start)&&item.start>=0&&item.start<=1800&&item.line&&item.line.length<=300)
+    .sort((a,b)=>a.start-b.start);
+  if(!timed.length)return null;
   const lines=[];
-  let previous=-1;
-  for(const item of parsed){
-    const start=Number(item?.start),line=String(item?.text||'').replace(/[\r\n]+/g,' ').trim();
-    if(!Number.isFinite(start)||start<0||start>300||start<previous||!line||line.length>300)return null;
-    previous=start;
+  for(const {start,line} of timed){
     const hundredths=Math.round(start*100);
     const prefix='['+String(Math.floor(hundredths/6000)).padStart(2,'0')+':'+String(Math.floor(hundredths/100)%60).padStart(2,'0')+'.'+String(hundredths%100).padStart(2,'0')+']';
+    if(lines.join('\n').length+prefix.length+line.length+3>MAX_LYRICS)break;
     lines.push(prefix+' '+line);
   }
-  const lyrics=lines.join('\n');
-  return lyrics.length<=MAX_LYRICS?lyrics:null;
+  return lines.length?lines.join('\n'):null;
 }
 
 async function transcribe(request, env, user) {
@@ -99,7 +115,12 @@ async function transcribe(request, env, user) {
       { text: timed ? 'Listen to this audio and transcribe only genuinely audible sung words in their original language/script. Return ONLY a valid JSON array of objects [{"start":12.34,"text":"lyric line"}] where start is the approximate SECOND at which that precise line begins IN THE AUDIO. Each sung phrase should be a separate entry, chronological. Use actual audio time, NOT evenly-spaced guesses. Include pauses; do not invent lyrics; if words cannot be heard, omit them. No markdown or prose. Return [] for instrumental only.' : 'Transcribe the sung or spoken words of this audio into song lyrics in their original language and script. Preserve line breaks. Do not invent words: if a line is unintelligible, mark [unclear]. Output ONLY the transcript, no explanations or markdown.' },
       { inline_data: { mime_type: ['audio/x-m4a','audio/m4a'].includes(mime) ? 'audio/mp4' : mime === 'audio/mp3' ? 'audio/mpeg' : mime === 'audio/x-flac' ? 'audio/flac' : mime, data: btoa(binary) } }
     ] }],
-    generationConfig: { maxOutputTokens: 4800, temperature: 0 }
+    generationConfig: { maxOutputTokens: timed ? 8192 : 4800, temperature: 0,
+      ...(timed ? { responseFormat: { text: { mimeType: 'APPLICATION_JSON', schema: {
+        type: 'object', properties: { lines: { type: 'array', items: { type: 'object',
+          properties: { start: { type: 'number' }, text: { type: 'string' } }, required: ['start','text'] } } },
+        required: ['lines']
+      } } } } : {}) }
   };
   const result = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
     method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
@@ -112,14 +133,19 @@ async function transcribe(request, env, user) {
   const payload = await result.json();
   const output=String((payload.candidates?.[0]?.content?.parts || []).map(part => part.text || '').join('\n')).trim();
   const lyrics=timed?parseTimedLyrics(output):output.slice(0,MAX_LYRICS);
-  if (!lyrics) return json(422, { error: 'No clear words found. You can type or generate lyrics instead.' });
+  if (!lyrics) return json(422, { error: timed
+    ? 'AI could not identify reliable line timestamps. Try a clearer vocal recording, or use Mark next lyric while the song plays.'
+    : 'No clear words found. You can type or generate lyrics instead.' });
   return json(200, { lyrics, timed, provider: 'Gemini', reviewRequired: true });
 }
 
 export async function handleCreatorLyricsRequest(request, env) {
   const url = new URL(request.url);
   if (!['/api/music/lyrics', '/api/lyrics/transcribe'].includes(url.pathname)) return null;
-  if (!env.SONGS_BUCKET || typeof env.SONGS_BUCKET.get !== 'function') return json(503, { error: 'Private R2 song storage is unavailable.' });
+  // Audio-to-text is ephemeral: unlike the private song-lyrics sidecars, it
+  // does not need R2. A storage binding outage must not break AI timing.
+  if (url.pathname === '/api/music/lyrics' && (!env.SONGS_BUCKET || typeof env.SONGS_BUCKET.get !== 'function'))
+    return json(503, { error: 'Private R2 song storage is unavailable.' });
   try {
     const user = await verifiedUser(request, env);
     if (!user) return json(401, { error: 'Sign in with a verified RhymeOrbit account.' });

@@ -71,3 +71,25 @@ test('Audio requests beyond inline limit are rejected before reading body', asyn
   assert.equal((await handleCreatorLyricsRequest(request, env)).status, 413);
   assert.equal(files.size, 0);
 });
+
+test('Timed lyrics use structured JSON, and audio transcription does not require R2 storage', async t => {
+  const calls=[];
+  t.mock.method(globalThis,'fetch',async (url,options={})=>{
+    const path=new URL(url).pathname;
+    if(path==='/auth/v1/user')return response({id:userA,email_confirmed_at:'2026-01-01'});
+    if(path.endsWith(':generateContent')){
+      const query=JSON.parse(options.body);
+      assert.equal(query.generationConfig.responseFormat.text.mimeType,'APPLICATION_JSON');
+      assert.equal(query.generationConfig.responseFormat.text.schema.properties.lines.type,'array');
+      calls.push('timed');
+      return response({candidates:[{content:{parts:[{text:'{"lines":[{"start":7.6,"text":"दिल मेरा"},{"start":15.4,"text":"तेरे संग"}]}' }]}}]});
+    }
+    throw Error('Unexpected URL '+url);
+  });
+  const missingBucketEnv={SUPABASE_URL:'https://demo.supabase.co',SUPABASE_ANON_KEY:'public',GEMINI_API_KEY:'fake-key'};
+  const audio=new Blob(['A'.repeat(200)],{type:'audio/mpeg'});
+  const result=await handleCreatorLyricsRequest(req('/api/lyrics/transcribe?timed=1','POST','a',audio,'audio/mpeg'),missingBucketEnv);
+  assert.equal(result.status,200);
+  assert.deepEqual(await result.json(),{lyrics:'[00:07.60] दिल मेरा\n[00:15.40] तेरे संग',timed:true,provider:'Gemini',reviewRequired:true});
+  assert.deepEqual(calls,['timed']);
+});

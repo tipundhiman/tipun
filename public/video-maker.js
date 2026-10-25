@@ -231,17 +231,28 @@
   }
 
   async function transcribeAudio(blob, { timed = false } = {}) {
-    if (transcribing) { lyricsInfo('Already transcribing audio. Please wait.'); return; }
-    if (!blob) { lyricsInfo('Choose a song first.'); return; }
+    if (transcribing) {
+      const message='AI is already processing your audio. Please wait for it to finish.';
+      lyricsInfo(message); if (timed) $('vmSyncStatus').textContent=message;
+      return;
+    }
+    if (!blob) {
+      const message='First choose a saved song or upload your own MP3/WAV in Step 1 · Music.';
+      lyricsInfo(message); if (timed) $('vmSyncStatus').textContent=message;
+      return;
+    }
     if (blob.size > TRANSCRIBE_LIMIT) {
-      lyricsInfo('This audio is over 13 MB; upload a smaller MP3 for automatic transcription, or type lyrics.');
+      const message='This audio is over 13 MB. Use a smaller MP3 for AI timing, or mark lyric lines manually while playing.';
+      lyricsInfo(message); if (timed) $('vmSyncStatus').textContent=message;
       return;
     }
     const thisSong = selectedSongId;
     const startedWith = lyricDraftVersion;
     transcribing = true;
     $('vmTranscribe').disabled = true;
+    $('vmAutoSync').disabled = true;
     lyricsInfo(timed ? '🎯 Gemini is estimating the start time of every sung line… Please wait.' : '🎙 Gemini is listening for words in your recording. This can take a minute…');
+    if (timed) $('vmSyncStatus').textContent='🎯 Listening to your song and matching sung lines with the audio timeline…';
     try {
       const response = await apiRequest('/api/lyrics/transcribe' + (timed ? '?timed=1' : ''), {
         method: 'POST', headers: { 'Content-Type': /\.m4a$/i.test(blob.name || sourceName) ? 'audio/mp4' : (blob.type || 'audio/mpeg').split(';')[0] }, body: blob
@@ -256,8 +267,8 @@
       lyricDraftVersion++;
       lyricsInfo(timed ? '✓ Line timestamps estimated. Play the song and review each timecode; AI timing may need manual corrections.' : '✓ Audio lyrics detected. Review mistakes and' + (selectedSongId ? ' select “Save lyrics to this song” for your R2 library.' : ' edit the text before exporting.'));
       if (timed) $('vmSyncStatus').textContent = '✓ AI-timed lyrics ready. Each [mm:ss.xx] timecode controls both preview and exported video. Adjust any line manually before export.';
-    } catch (error) { lyricsInfo('Audio transcription unavailable: ' + error.message + ' You can type or generate lyrics instead.'); if (timed) $('vmSyncStatus').textContent = 'Could not time lyrics: ' + error.message + '. Try marking each line manually while playing your song.'; }
-    finally { transcribing = false; $('vmTranscribe').disabled = false; }
+    } catch (error) { lyricsInfo('Audio transcription unavailable: ' + error.message + ' You can type or generate lyrics instead.'); if (timed) $('vmSyncStatus').textContent = 'Could not time lyrics: ' + error.message + ' Existing lyrics are safe; use Mark next lyric as a fallback.'; }
+    finally { transcribing = false; $('vmTranscribe').disabled = false; $('vmAutoSync').disabled = false; }
   }
   $('vmTranscribe').addEventListener('click', () => transcribeAudio(audioBlob || $('vmAudioFile').files?.[0]));
   $('vmAutoSync').addEventListener('click', () => transcribeAudio(audioBlob || $('vmAudioFile').files?.[0], {timed:true}));
