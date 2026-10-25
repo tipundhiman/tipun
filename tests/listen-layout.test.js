@@ -6,8 +6,8 @@ const ui = readFileSync(new URL('../public/jamendo-indie.js', import.meta.url), 
 const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../public/premium-polish.css', import.meta.url), 'utf8');
 
-test('Listen & Chill keeps music, video and Indian catalog in distinct modes', () => {
-  for (const mode of ["['music', '♫ Listen to Music']", "['indian', '🇮🇳 Indian Songs · Beta']", "['videos', '▶ Watch Music Videos']"]) {
+test('Listen & Chill keeps music, video and Audius community catalog in distinct modes', () => {
+  for (const mode of ["['music', '♫ Listen to Music']", "['indian', '🇮🇳 Hindi & More · Audius']", "['videos', '▶ Watch Music Videos']"]) {
     assert.ok(ui.includes(mode), `Missing source mode ${mode}`);
   }
   assert.match(ui, /catalog\.hidden = !music/);
@@ -22,8 +22,10 @@ test('indie music renders six songs at a time with accessible show more', () => 
   assert.match(ui, /more\.hidden = !remaining && !moreOffset/);
 });
 
-test('unverified catalog uses existing embedded video search rather than fake playback URLs', () => {
-  assert.match(ui, /\/api\/catalog\/gaana\/search\?q=/);
+test('Audius player uses verified catalog audio URLs and keeps video discovery available', () => {
+  assert.match(ui, /\/api\/catalog\/audius\/search\?q=/);
+  assert.match(ui, /checkedHttps\(track\.audio, 'api\.audius\.co'\)/);
+  assert.match(ui, /event\.stopImmediatePropagation\(\)/);
   assert.match(ui, /window\.roYtSearch\?\./);
   assert.doesNotMatch(ui, /track\.audioUrl|track\.stream_urls/);
 });

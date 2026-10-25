@@ -4,6 +4,7 @@ import { r2Enabled, r2ConfigState, r2Put, r2PresignedGet, r2Remove, validR2Key }
 import {handleTestBilling,handleTestWebhook} from './razorpay-test.js';
 import {handleJamendoApi} from './jamendo.js';
 import {handleGaanaCatalog} from './gaana-catalog.js';
+import {handleAudiusCatalog} from './audius.js';
 
 const env = k => process.env[k] || '';
 const limits = new Map();
@@ -342,6 +343,7 @@ function pathOf(req) {
 export async function handleApi(req, res) {
   const { path, raw } = pathOf(req);
   try {
+    if (await handleAudiusCatalog(req, res, { path, raw, send, rate })) return;
     if (await handleGaanaCatalog(req, res, { path, raw, send, rate })) return;
     if (await handleJamendoApi(req, res, { path, raw, send, rate, auth, isAdmin })) return;
     if(req.method==='GET'&&path.startsWith('/api/music/audio/')){

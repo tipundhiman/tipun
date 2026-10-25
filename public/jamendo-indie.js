@@ -125,6 +125,7 @@
     }
     if (!videos) videoPlayer?.replaceChildren();
     if (!music) document.querySelectorAll('#roJamendoResults audio').forEach(audio => audio.pause());
+    if (mode !== 'indian') document.querySelectorAll('#roIndianCatalogResults audio').forEach(audio => audio.pause());
     document.querySelectorAll('#roListenSourceModes button').forEach(button => {
       const active = button.dataset.source === mode;
       button.setAttribute('aria-pressed', String(active));
@@ -147,7 +148,7 @@
     modes.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 16px';
     const options = [
       ...(available ? [['music', '♫ Listen to Music']] : []),
-      ['indian', '🇮🇳 Indian Songs · Beta'],
+      ['indian', '🇮🇳 Hindi & More · Audius'],
       ['videos', '▶ Watch Music Videos']
     ];
     for (const [source, label] of options) {
@@ -171,10 +172,10 @@
     section.hidden = true;
     section.style.cssText = 'margin-top:16px;padding:18px;border:1px solid #ffffff30;border-radius:18px;background:#ffffff06';
     const heading = document.createElement('h3');
-    heading.textContent = '🇮🇳 Indian Song Discovery · Beta';
+    heading.textContent = '🎧 Hindi & More · Audius Community';
     const description = document.createElement('p');
     description.className = 'muted small';
-    description.textContent = 'Test Indian song discovery using the search box above. Catalog results depend on the source. Full audio playback is not enabled until verified; music videos remain available in the next tab.';
+    description.textContent = 'Search playable music uploaded by Audius creators, including Hindi covers and independent songs when available. Community uploads are not verified original film recordings. Some songs may be unavailable in your region.';
     const sample = document.createElement('button');
     sample.type = 'button';
     sample.className = 'btn sm';
@@ -188,7 +189,7 @@
     status.id = 'roIndianCatalogStatus';
     status.className = 'muted small';
     status.setAttribute('role', 'status');
-    status.textContent = 'Type a song or artist above and tap Let’s Jam, or try the example.';
+    status.textContent = 'Type a song or artist above and tap Let’s Jam, or try the example. No API key needed.';
     const results = document.createElement('div');
     results.id = 'roIndianCatalogResults';
     results.className = 'ro-cc-grid';
@@ -215,20 +216,20 @@
     indianAbort = new AbortController();
     section.dataset.searched = 'yes';
     results.replaceChildren();
-    status.textContent = 'Searching the Indian catalog…';
+    status.textContent = 'Searching playable community audio…';
     try {
-      const response = await fetch('/api/catalog/gaana/search?q=' + encodeURIComponent(query), {
+      const response = await fetch('/api/catalog/audius/search?q=' + encodeURIComponent(query), {
         signal: indianAbort.signal,
         cache: 'no-store'
       });
       const data = await response.json();
       if (request !== indianRequest || !document.getElementById('roIndianCatalogResults')) return;
       if (!response.ok) {
-        status.textContent = 'Indian catalog is temporarily unavailable. The Music Videos tab still lets you search and watch supported videos here.';
+        status.textContent = 'Audius audio is temporarily unavailable. Try again shortly or use Music Videos.';
         return;
       }
-      const tracks = Array.isArray(data.tracks) ? data.tracks.slice(0, 8) : [];
-      status.textContent = tracks.length ? `${tracks.length} matching song titles found. Select a title to explore its music video.` : 'No Indian catalog matches yet. Try a different title or Music Videos.';
+      const tracks = Array.isArray(data.tracks) ? data.tracks.slice(0, 12) : [];
+      status.textContent = tracks.length ? `${tracks.length} Audius community tracks found. Tap play to listen; these may be covers or independent uploads.` : 'No playable Audius matches. Try a different song, singer or genre.';
       for (const track of tracks) {
         const tile = document.createElement('article');
         tile.className = 'ro-cc-tile';
@@ -238,7 +239,26 @@
         title.textContent = String(track.title || 'Song');
         const artist = document.createElement('p');
         artist.className = 'muted small';
-        artist.textContent = String(track.artist || 'Indian catalog');
+        artist.textContent = String(track.artist || 'Audius creator');
+        const audioUrl = checkedHttps(track.audio, 'api.audius.co');
+        if (audioUrl) {
+          const player = document.createElement('audio');
+          player.src = audioUrl;
+          player.controls = true;
+          player.preload = 'none';
+          player.setAttribute('aria-label', 'Play ' + title.textContent + ' by ' + artist.textContent);
+          player.style.cssText = 'width:100%;max-width:100%';
+          player.addEventListener('play', () => {
+            document.querySelectorAll('#roIndianCatalogResults audio, #roJamendoResults audio').forEach(other => {
+              if (other !== player) other.pause();
+            });
+          });
+          body.append(title, artist, player);
+        } else body.append(title, artist);
+        const attribution = document.createElement('p');
+        attribution.className = 'muted small';
+        attribution.textContent = 'Uploaded on Audius · Rights belong to their respective owners.';
+        body.append(attribution);
         const watch = document.createElement('button');
         watch.type = 'button';
         watch.className = 'btn sm';
@@ -249,15 +269,15 @@
           selectSource('videos');
           window.roYtSearch?.({ preventDefault() {} });
         });
-        body.append(title, artist, watch);
-        const original = checkedHttps(track.url, 'gaana.com');
+        body.append(watch);
+        const original = checkedHttps(track.source, 'audius.co');
         if (original) {
           const source = document.createElement('a');
           source.className = 'muted small';
           source.href = original;
           source.target = '_blank';
           source.rel = 'noopener noreferrer';
-          source.textContent = ' · Original song page ↗';
+          source.textContent = ' · View on Audius ↗';
           body.append(source);
         }
         tile.append(body);
@@ -265,7 +285,7 @@
       }
     } catch (error) {
       if (error.name === 'AbortError' || request !== indianRequest) return;
-      status.textContent = 'Song search is not responding right now. Try Music Videos or the independent music tab.';
+      status.textContent = 'Audius search is not responding right now. Try again later or use Music Videos.';
     }
   }
 
@@ -364,13 +384,18 @@
     installSourceModes();
     if (form.dataset.jamendoConnected !== 'yes') {
       form.dataset.jamendoConnected = 'yes';
-      form.addEventListener('submit', () => {
+      form.addEventListener('submit', event => {
         const query = document.getElementById('roYtQuery')?.value.trim();
-        if (query?.length < 2) return;
         const mode = document.querySelector('#roListenSourceModes button[aria-pressed="true"]')?.dataset.source;
+        if (mode === 'videos') return;
+        // The original form has an inline YouTube submit handler. Capture
+        // audio searches first so they never trigger hidden video requests.
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (!query || query.length < 2) return;
         if (mode === 'music') searchJamendo(query);
         if (mode === 'indian') searchIndianCatalog(query);
-      });
+      }, { capture: true });
     }
   }
 
