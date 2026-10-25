@@ -42,9 +42,22 @@
     image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L5 21"/>'
   };
   const icon = (name, size = 20) => `<svg class="ro-lucide-icon" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths[name] || paths.sparkles}</svg>`;
-  let current = 'light';
-  try { current = localStorage.getItem(KEY) === 'dark' ? 'dark' : 'light'; } catch (_) { /* private browsing */ }
-  document.documentElement.dataset.theme = current;
+  const INTRO_KEY = 'rhymeorbit-theme-picker-v1';
+  const themes = {
+    pearl: { label: 'Pearl', caption: 'Bright, balanced and calm', icon: 'sun', status: '#f7f8fc' },
+    linen: { label: 'Linen', caption: 'Warm, natural and understated', icon: 'flower', status: '#fbf7ef' },
+    coast: { label: 'Coast', caption: 'Cool, clear and focused', icon: 'globe', status: '#f2f8fb' },
+    midnight: { label: 'Midnight', caption: 'Low-light, deep navy', icon: 'moon', status: '#10111a' }
+  };
+  let current = 'pearl';
+  let hasSeenPicker = false;
+  try {
+    const saved = localStorage.getItem(KEY);
+    current = saved === 'dark' ? 'midnight' : saved === 'light' ? 'pearl' : themes[saved] ? saved : 'pearl';
+    hasSeenPicker = localStorage.getItem(INTRO_KEY) === '1';
+  } catch (_) { /* private browsing */ }
+  document.documentElement.dataset.theme = current === 'midnight' ? 'dark' : 'light';
+  document.documentElement.dataset.roPalette = current;
 
   const iconNames = new Map([
     ['🎙️', 'mic'], ['🎙', 'mic'], ['🎤', 'mic'], ['🎧', 'headphones'],
@@ -103,24 +116,88 @@
   }
 
   function syncToggles() {
-    const label = current === 'light' ? 'Switch to dark theme' : 'Switch to light theme';
+    const label = `Change appearance, currently ${themes[current].label}`;
     for (const button of document.querySelectorAll('[data-ro-theme-toggle]')) {
       button.setAttribute('aria-label', label);
       button.setAttribute('title', label);
       const graphic = button.querySelector('[data-ro-theme-icon]');
-      if (graphic) graphic.innerHTML = icon(current === 'light' ? 'moon' : 'sun', 19);
+      if (graphic) graphic.innerHTML = icon(themes[current].icon, 19);
       const value = button.querySelector('[data-ro-theme-value]');
-      if (value) value.textContent = current === 'light' ? 'Light theme' : 'Dark theme';
+      if (value) value.textContent = `${themes[current].label} theme`;
+    }
+    for (const button of document.querySelectorAll('[data-ro-palette-choice]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.roPaletteChoice === current));
     }
   }
 
   function apply(theme) {
-    current = theme === 'dark' ? 'dark' : 'light';
-    document.documentElement.dataset.theme = current;
+    current = theme === 'dark' ? 'midnight' : theme === 'light' ? 'pearl' : themes[theme] ? theme : 'pearl';
+    document.documentElement.dataset.theme = current === 'midnight' ? 'dark' : 'light';
+    document.documentElement.dataset.roPalette = current;
     try { localStorage.setItem(KEY, current); } catch (_) { /* private browsing */ }
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', current === 'light' ? '#f7f8fc' : '#10111a');
+    if (meta) meta.setAttribute('content', themes[current].status);
     syncToggles();
+  }
+
+  let picker = null;
+  let pickerOrigin = null;
+  function markPickerSeen() {
+    hasSeenPicker = true;
+    try { localStorage.setItem(INTRO_KEY, '1'); } catch (_) { /* private browsing */ }
+  }
+
+  function createPicker() {
+    if (picker || !document.body) return;
+    picker = document.createElement('div');
+    picker.id = 'roThemePicker';
+    picker.className = 'ro-theme-picker';
+    picker.hidden = true;
+    picker.innerHTML = `<div class="ro-theme-scrim" data-ro-theme-dismiss></div>
+      <section class="ro-theme-panel" role="dialog" aria-modal="true" aria-labelledby="roThemeTitle" aria-describedby="roThemeDescription">
+        <div class="ro-theme-panel-top"><span class="ro-theme-kicker">MAKE IT YOURS</span><button type="button" class="ro-theme-close" data-ro-theme-dismiss aria-label="Close appearance settings">${icon('close', 21)}</button></div>
+        <h2 id="roThemeTitle">Choose how RhymeOrbit feels.</h2>
+        <p id="roThemeDescription">Four thoughtful looks. Pick one now, or change it anytime from Appearance.</p>
+        <div class="ro-theme-options" role="group" aria-label="Color theme">
+          ${Object.entries(themes).map(([id, theme]) => `<button class="ro-theme-choice" type="button" data-ro-palette-choice="${id}" aria-pressed="false"><span class="ro-theme-swatch" aria-hidden="true"><span class="ro-theme-swatch-header"></span><span class="ro-theme-swatch-heading"></span><span class="ro-theme-swatch-line"></span><span class="ro-theme-swatch-cards"><i></i><i></i></span></span><span class="ro-theme-choice-heading">${icon(theme.icon, 17)} <strong>${theme.label}</strong></span><small>${theme.caption}</small></button>`).join('')}
+        </div>
+        <div class="ro-theme-panel-bottom"><span>Your preference is saved on this device.</span><button type="button" class="ro-theme-confirm" data-ro-theme-confirm>Use this theme ${icon('arrowRight', 17)}</button></div>
+      </section>`;
+    document.body.appendChild(picker);
+    picker.addEventListener('click', event => {
+      const choice = event.target.closest('[data-ro-palette-choice]');
+      if (choice) { apply(choice.dataset.roPaletteChoice); return; }
+      if (event.target.closest('[data-ro-theme-confirm], [data-ro-theme-dismiss]')) closePicker();
+    });
+    picker.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.preventDefault(); closePicker(); }
+      if (event.key !== 'Tab') return;
+      const buttons = Array.from(picker.querySelectorAll('button:not([disabled])'));
+      if (!buttons.length) return;
+      const first = buttons[0], last = buttons[buttons.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    });
+  }
+
+  function openPicker() {
+    createPicker();
+    if (!picker) return;
+    pickerOrigin = document.activeElement;
+    picker.hidden = false;
+    document.body.classList.add('ro-theme-picker-open');
+    syncToggles();
+    const selected = picker.querySelector(`[data-ro-palette-choice="${current}"]`);
+    (selected || picker.querySelector('button')).focus();
+  }
+
+  function closePicker() {
+    if (!picker) return;
+    picker.hidden = true;
+    document.body.classList.remove('ro-theme-picker-open');
+    markPickerSeen();
+    if (pickerOrigin && typeof pickerOrigin.focus === 'function' && pickerOrigin.isConnected) pickerOrigin.focus();
+    pickerOrigin = null;
   }
 
   function refresh() {
@@ -140,11 +217,15 @@
 
   document.addEventListener('click', event => {
     const button = event.target.closest('[data-ro-theme-toggle]');
-    if (button) { event.preventDefault(); apply(current === 'light' ? 'dark' : 'light'); }
+    if (button) { event.preventDefault(); openPicker(); }
   });
-  window.roDesign = { icon, refresh, apply, getTheme: () => current };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refresh, { once: true });
-  else refresh();
+  window.roDesign = { icon, refresh, apply, openPicker, getTheme: () => current };
+  function ready() {
+    refresh();
+    createPicker();
+    if (!hasSeenPicker) setTimeout(openPicker, 420);
+    observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+  }
   const observer = new MutationObserver(mutations => {
     for (const change of mutations) {
       if (change.type === 'characterData') iconifyText(change.target);
@@ -153,5 +234,6 @@
     const target = document.querySelector('.header-actions') || document.querySelector('body > header .top') || document.querySelector('body > header .wrap') || document.querySelector('body > header');
     if (target && !target.querySelector('.ro-theme-toggle')) refresh();
   });
-  document.addEventListener('DOMContentLoaded', () => observer.observe(document.body, { subtree: true, childList: true, characterData: true }), { once: true });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready, { once: true });
+  else ready();
 })();

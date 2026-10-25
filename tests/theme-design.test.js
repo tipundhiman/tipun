@@ -21,16 +21,26 @@ test('the full site uses a light-first shared theme without remote icon runtime'
   assert.doesNotMatch(source('mobile-app.js'), /lucide@.*cdn/);
 });
 
-test('theme persistence is opt-in dark with light as default', () => {
+test('four curated themes use Pearl as default, persist, and offer a first-visit picker', () => {
   const js = source('ro-design.js');
   const css = source('ro-design.css');
-  assert.match(js, /localStorage\.getItem\(KEY\) === 'dark' \? 'dark' : 'light'/);
+  assert.match(js, /let current = 'pearl'/);
+  assert.match(js, /saved === 'dark' \? 'midnight' : saved === 'light' \? 'pearl'/);
+  assert.match(js, /rhymeorbit-theme-picker-v1/);
+  assert.match(js, /data-ro-palette-choice/);
+  assert.match(js, /aria-modal=\\"true\\"|aria-modal="true"/);
+  assert.match(js, /openPicker/);
   assert.match(js, /localStorage\.setItem\(KEY, current\)/);
+  assert.match(js, /localStorage\.setItem\(INTRO_KEY, '1'\)/);
   assert.match(js, /data-ro-theme-toggle/);
   assert.match(css, /:root\[data-theme='light'\]/);
   assert.match(css, /:root\[data-theme='dark'\]/);
+  assert.match(css, /:root\[data-ro-palette='linen'\]/);
+  assert.match(css, /:root\[data-ro-palette='coast'\]/);
   assert.match(css, /color-scheme: light/);
   assert.match(css, /font-size: 15px/);
+  assert.match(css, /\.footer, footer\) \{ background: var\(--ro-page\) !important/);
+  assert.match(css, /html body #roOrbitHelpButton/);
 });
 
 test('interactive navigation replaces emoji UI icons with local SVGs', () => {
