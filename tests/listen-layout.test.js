@@ -7,6 +7,7 @@ const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf
 const css = readFileSync(new URL('../public/premium-polish.css', import.meta.url), 'utf8');
 const listenCss = readFileSync(new URL('../public/listen-polish.css', import.meta.url), 'utf8');
 const youtube = readFileSync(new URL('../public/youtube-fallback.js', import.meta.url), 'utf8');
+const player = readFileSync(new URL('../public/listen-player.js', import.meta.url), 'utf8');
 
 test('Listen & Chill keeps music, video and Audius community catalog in distinct modes', () => {
   for (const mode of ["['music', '♫ Listen to Music']", "['indian', '🇮🇳 Hindi & More · Audius']", "['videos', '▶ Watch Music Videos']"]) {
@@ -17,7 +18,7 @@ test('Listen & Chill keeps music, video and Audius community catalog in distinct
   assert.match(ui, /selectSource\('indian'\)/,'Hindi songs should be the first browse mode');
   assert.match(ui, /insertBefore\(modes, document\.getElementById\('roVideoFolders'\) \|\| status\)/,'Music source tabs appear before video folders');
   assert.match(ui, /mode==='music' && available && !indieLoaded/,'Load indie songs only when requested');
-  assert.match(ui, /if \(!music\) document\.querySelectorAll\('#roJamendoResults audio'\)/);
+  assert.match(ui, /previousMode !== mode\) window\.roCcPlayer\?\.pause\(\)/, 'Source switches pause the shared audio');
 });
 
 test('indie music renders six songs at a time with accessible show more', () => {
@@ -36,6 +37,23 @@ test('Audius player uses verified catalog audio URLs and keeps video discovery a
   assert.match(ui, /if \(mode === 'indian'\) searchIndianCatalog\(query\)/);
   assert.doesNotMatch(ui, /Find music video/,'Do not distract Hindi audio listeners with per-card video search');
   assert.doesNotMatch(ui, /track\.audioUrl|track\.stream_urls/);
+});
+
+test('Audius and Jamendo use the animated DJ stage as one audio player with transport controls', () => {
+  assert.match(html, /listen-player\.js\?v=/);
+  assert.match(html, /id="roCcScene"/);
+  assert.match(ui, /window\.roCcPlayer\?\.playFrom\('audius',indianTracks,track\.id\)/);
+  assert.match(ui, /window\.roCcPlayer\?\.playFrom\('jamendo', cachedTracks, item\.id\)/);
+  assert.doesNotMatch(ui, /document\.createElement\('audio'\)/, 'Per-card duplicate audio elements must not compete with DJ');
+  for (const id of ['roCcAudio','roCcToggle','roCcPrev','roCcNext','roCcSeek','roCcVolume','roCcNowTitle'])
+    assert.ok(player.includes(`id="${id}"`), `Shared DJ player missing ${id}`);
+  assert.match(player, /stage\.classList\.toggle\('playing', playing\)/);
+  assert.match(player, /audio\.addEventListener\('timeupdate', updateProgress\)/);
+  assert.match(player, /provider === 'audius' && host === 'api\.audius\.co'/);
+  assert.match(player, /provider === 'jamendo' && \(host === 'storage\.jamendo\.com'/);
+  assert.doesNotMatch(player, /youtube\.com|youtube-nocookie\.com|youtu\.be/);
+  assert.match(listenCss, /#roCcScene \.ro-cc-console/);
+  assert.match(listenCss, /prefers-reduced-motion:reduce/);
 });
 
 test('Hindi audio collections use real play counts, upload dates and Audius weekly trending',()=>{

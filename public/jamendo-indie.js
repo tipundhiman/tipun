@@ -65,18 +65,13 @@
 
     const audio = checkedHttps(item.audio, 'storage.jamendo.com');
     if (audio) {
-      const player = document.createElement('audio');
-      player.src = audio;
-      player.controls = true;
-      player.preload = 'none';
-      player.setAttribute('aria-label', 'Play ' + title.textContent);
-      player.style.cssText = 'width:100%;max-width:100%';
-      player.addEventListener('play', () => {
-        document.querySelectorAll('#roJamendoResults audio').forEach(other => {
-          if (other !== player) other.pause();
-        });
-      });
-      body.append(player);
+      const play = document.createElement('button');
+      play.type = 'button';
+      play.className = 'btn sm ro-cc-card-play';
+      play.textContent = '▶ Play in DJ Lounge';
+      play.setAttribute('aria-label', 'Play ' + title.textContent + ' by ' + artist.textContent + ' in the animated player');
+      play.addEventListener('click', () => window.roCcPlayer?.playFrom('jamendo', cachedTracks, item.id));
+      body.append(play);
     }
 
     const credits = document.createElement('p');
@@ -126,8 +121,11 @@
   }
 
   function selectSource(mode) {
+    const previousMode = document.querySelector('#roListenSourceModes button[aria-pressed="true"]')?.dataset.source;
+    if (previousMode && previousMode !== mode) window.roCcPlayer?.pause();
     const music = mode === 'music';
     const videos = mode === 'videos';
+    document.getElementById('roCcScene')?.classList.toggle('ro-cc-video-mode', videos);
     const catalog = document.getElementById('roJamendoSection');
     const indianCatalog = document.getElementById('roIndianCatalogSection');
     const videoStatus = document.getElementById('roYtStatus');
@@ -141,8 +139,6 @@
     const videoFolders=document.getElementById('roVideoFolders');
     if(videoFolders)videoFolders.hidden=!videos;
     if (!videos) videoPlayer?.replaceChildren();
-    if (!music) document.querySelectorAll('#roJamendoResults audio').forEach(audio => audio.pause());
-    if (mode !== 'indian') document.querySelectorAll('#roIndianCatalogResults audio').forEach(audio => audio.pause());
     document.querySelectorAll('#roListenSourceModes button').forEach(button => {
       const active = button.dataset.source === mode;
       button.setAttribute('aria-pressed', String(active));
@@ -242,6 +238,7 @@
       id,
       title: String(track.title || 'Community song').slice(0, 140),
       artist: String(track.user?.name || track.user?.handle || 'Audius creator').slice(0, 140),
+      duration: Number.isFinite(Number(track.duration)) ? Math.max(0, Math.min(86400, Number(track.duration))) : 0,
       audio: 'https://api.audius.co/v1/tracks/' + encodeURIComponent(id) + '/stream',
       source: permalink ? 'https://audius.co' + permalink : '',
       cover: checkedHttps(artwork, 'figment.io') || checkedHttps(artwork, 'audius.co'),
@@ -298,14 +295,12 @@
       body.append(title,artist,meta);
       const audioUrl=checkedHttps(track.audio,'api.audius.co');
       if (audioUrl) {
-        const player=document.createElement('audio');player.src=audioUrl;player.controls=true;player.preload='none';
-        player.setAttribute('aria-label','Play '+track.title+' by '+track.artist);
-        player.addEventListener('play',()=>{
-          document.querySelectorAll('#roIndianCatalogResults audio, #roJamendoResults audio').forEach(other=>{
-            if(other!==player)other.pause();
-          });
-        });
-        body.append(player);
+        const play=document.createElement('button');
+        play.type='button';play.className='btn sm ro-cc-card-play';
+        play.textContent='▶ Play in DJ Lounge';
+        play.setAttribute('aria-label','Play '+track.title+' by '+track.artist+' in the animated player');
+        play.addEventListener('click',()=>window.roCcPlayer?.playFrom('audius',indianTracks,track.id));
+        body.append(play);
       }
       const original=checkedHttps(track.source,'audius.co');
       if(original && new URL(original).pathname!=='/'){const source=document.createElement('a');source.href=original;source.target='_blank';source.rel='noopener noreferrer';source.textContent='On Audius ↗';source.className='ro-indian-source';body.append(source);}

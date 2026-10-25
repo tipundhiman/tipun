@@ -16,7 +16,6 @@
 .ro-indian-tile h4{font-size:15px;line-height:1.4;margin:0;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:39px}
 .ro-indian-tile p{margin:0}
 .ro-indian-meta{color:#ddc9d6;font-size:11px;font-variant-numeric:tabular-nums}
-.ro-indian-tile audio{display:block;width:100%;max-width:100%;height:44px;margin-top:auto;border-radius:22px}
 .ro-indian-source{color:#e9c9dd;font-size:12px;text-decoration:none;display:inline-block;white-space:nowrap}
 .ro-indian-source:hover{text-decoration:underline}
 #roIndianMore{display:flex;margin:20px auto 3px}
@@ -31,6 +30,38 @@
 #roYtPlayer:not(:empty){padding:18px;border:1px solid #eac5dc5c;border-radius:20px;background:linear-gradient(125deg,#2b2136,#12121c);box-shadow:0 20px 55px #0004}
 #roYtPlayer strong{font-size:17px;line-height:1.5;display:block}
 #roYtPlayer iframe{width:100%;max-width:860px;aspect-ratio:16/9;min-height:200px;border-radius:14px;margin:14px auto 0!important}
-@media(max-width:640px){.ro-indian-lounge{padding:15px}.ro-indian-folders{flex-wrap:nowrap;overflow-x:auto;padding:2px 0 10px;scroll-snap-type:x proximity}.ro-indian-folder{scroll-snap-align:start}.ro-indian-results{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ro-indian-art{height:115px}.ro-indian-tile .ro-cc-tile-body{padding:11px}.ro-indian-tile h4{font-size:13px}.ro-indian-tile audio{height:40px}.ro-indian-meta{font-size:10px}#roYtPlayer:not(:empty){padding:11px}#roYtPlayer iframe{min-height:200px}}
+@media(max-width:640px){.ro-indian-lounge{padding:15px}.ro-indian-folders{flex-wrap:nowrap;overflow-x:auto;padding:2px 0 10px;scroll-snap-type:x proximity}.ro-indian-folder{scroll-snap-align:start}.ro-indian-results{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ro-indian-art{height:115px}.ro-indian-tile .ro-cc-tile-body{padding:11px}.ro-indian-tile h4{font-size:13px}.ro-indian-meta{font-size:10px}#roYtPlayer:not(:empty){padding:11px}#roYtPlayer iframe{min-height:200px}}
 @media(max-width:360px){.ro-indian-results{grid-template-columns:1fr}.ro-indian-art{height:170px}}
 @media(prefers-reduced-motion:reduce){.ro-indian-folder,.ro-indian-tile,#roYtGrid .ro-cc-tile{transition:none}}
+
+/* One premium playback console inside the animated DJ scene for audio only. */
+#roCcScene{position:relative;display:flex;align-items:center;flex-direction:column;justify-content:center;min-height:420px;overflow:hidden;padding:24px 14px 22px}
+#roCcScene .ro-cc-mascot{filter:drop-shadow(0 9px 20px #10061e9a)}
+#roCcScene .ro-cc-console{width:min(560px,100%);padding:18px clamp(14px,3vw,28px);background:linear-gradient(145deg,#18162bde,#292039d9);border:1px solid #efd2ee44;border-radius:24px;backdrop-filter:blur(12px);box-shadow:0 20px 60px #09051080,inset 0 1px #ffffff19;transition:border-color .25s,box-shadow .25s}
+#roCcScene.playing .ro-cc-console{border-color:#f6d0f477;box-shadow:0 18px 55px #08020f80,0 0 35px #bb79da25,inset 0 1px #ffffff24}
+#roCcScene.ro-cc-video-mode{min-height:210px}
+#roCcScene.ro-cc-video-mode .ro-cc-console{display:none}
+.ro-cc-playing-tag{font:800 10px/1.4 system-ui,sans-serif;letter-spacing:2.5px;color:#e9c99d;margin-bottom:7px}
+.ro-cc-song-name{font:800 clamp(16px,2.7vw,23px)/1.35 Manrope,system-ui,sans-serif;color:#fff5fc;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ro-cc-song-artist{font:500 12px/1.5 system-ui,sans-serif;color:#c8bcd1;min-height:18px;margin-top:3px;overflow-wrap:anywhere}
+.ro-cc-transport{display:flex;align-items:center;justify-content:center;gap:clamp(13px,4vw,27px);margin:16px 0 12px}
+.ro-cc-transport button,.ro-cc-volume-row button{border:1px solid #e8d0ee57;color:#fff4f7;background:#ffffff13;border-radius:50%;cursor:pointer;display:grid;place-items:center;width:44px;height:44px;font-size:21px;transition:transform .17s,background .17s,border-color .17s}
+.ro-cc-transport button:hover:not(:disabled),.ro-cc-volume-row button:hover:not(:disabled){transform:translateY(-2px);background:#ffffff29;border-color:#ecd1f1ad}
+.ro-cc-transport .ro-cc-main-play{height:62px;width:62px;background:linear-gradient(130deg,#f1b9d8,#e8d2a3);border:0;color:#281b2d;font-size:25px;box-shadow:0 8px 28px #f1b7d347}
+.ro-cc-transport button:disabled,.ro-cc-volume-row button:disabled{opacity:.38;cursor:not-allowed}
+.ro-cc-transport button:focus-visible,.ro-cc-volume-row button:focus-visible,.ro-cc-console input:focus-visible{outline:3px solid #f1d5ac;outline-offset:3px}
+.ro-cc-seek-row{display:flex;align-items:center;gap:11px;color:#d9ccd9;font:600 11px/1.2 system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.ro-cc-seek-row span{min-width:35px}
+.ro-cc-console input[type=range]{min-width:0;accent-color:#f2c1de;cursor:pointer}
+.ro-cc-seek-row input{width:100%;flex:1}
+.ro-cc-console input[type=range]:disabled{cursor:not-allowed;opacity:.5}
+.ro-cc-volume-row{display:flex;justify-content:center;align-items:center;gap:8px;margin:9px auto 0;max-width:160px}
+.ro-cc-volume-row button{height:30px;width:32px;border:0;background:none;font-size:16px}
+.ro-cc-volume-row input{flex:1;width:95px}
+.ro-cc-play-status{min-height:17px;margin-top:8px;color:#c5b8ce;font-size:11px;line-height:1.4}
+#roCcAudio{display:none}
+.ro-cc-card-play{width:100%;justify-content:center;margin:9px 0 4px;border-color:#f1c6dd85!important;background:#f4d3e216!important;color:#fde5ef!important}
+.ro-cc-card-play:hover{background:#f2bfd52e!important}
+.ro-indian-tile .ro-cc-card-play{margin-top:auto}
+@media(max-width:640px){#roCcScene{padding:17px 9px;min-height:400px}#roCcScene .ro-cc-console{padding:14px;border-radius:19px}.ro-cc-transport{margin:12px 0 9px}.ro-cc-transport .ro-cc-main-play{width:58px;height:58px}.ro-cc-seek-row{gap:6px}.ro-cc-song-name{font-size:17px}}
+@media(prefers-reduced-motion:reduce){#roCcScene .ro-cc-console,.ro-cc-transport button,.ro-cc-volume-row button{transition:none!important}}
