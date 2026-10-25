@@ -189,6 +189,42 @@ html[data-theme='light'] .ro-mobile-theme-card small { color: var(--ro-muted); }
 html[data-theme='light'] .ro-mobile-sheet-grip { background: #c2c6d4; }
 html[data-theme='light'] :is(.ro-quick-nav a, .ro-quick-link, .ro-quick-back) { color: #536176; background: #fff; border-color: #dde2ec; }
 html[data-theme='light'] .ro-quick-nav .ro-quick-active { color: var(--ro-accent) !important; background: #f0edfb; border-color: #cfc4f0; }
+.ro-quick-links { scrollbar-width: none !important; }
+.ro-quick-links::-webkit-scrollbar { display: none; }
+
+/* First-time guide, feature finder and tours are part of the same design system. */
+html[data-theme='light'] :is(#roGuideNudge, #roGuideDialog, #roGuideGrid a) {
+  background: #fff !important;
+  color: var(--ro-text) !important;
+  border-color: var(--ro-border) !important;
+  box-shadow: var(--ro-shadow);
+}
+html[data-theme='light'] :is(#roGuideDialog h2, #roGuideNudge strong, #roGuideGrid strong) { color: var(--ro-text) !important; }
+html[data-theme='light'] :is(#roGuideDialog .roGuideMuted, #roGuideGrid span, #roGuideNudge p) { color: var(--ro-muted) !important; }
+html[data-theme='light'] :is(#roGuideInput, #roGuideClose, #roGuideAll, #roGuideCategories button, .roGuideAction, #roGuideSteps button) {
+  background: #f5f6fb !important;
+  color: var(--ro-text) !important;
+  border-color: var(--ro-border) !important;
+}
+html[data-theme='light'] :is(#roGuideButton, #roGuideCategories button[aria-pressed=true], .roGuideAction.primary, #roGuideSteps button[aria-current=step]) {
+  background: #eeeafa !important;
+  color: var(--ro-accent) !important;
+  border-color: #cfc5f0 !important;
+  box-shadow: 0 6px 25px #2d35521a;
+}
+
+/* Keep desktop navigation on one line, and collapse it before it gets cramped. */
+@media (min-width: 761px) and (max-width: 1450px) {
+  .topbar { gap: 15px; }
+  .desktop-nav { gap: 15px; }
+  .desktop-nav :is(button,a), .header-actions .btn { white-space: nowrap; }
+  .header-actions { flex-shrink: 0; }
+  .desktop-nav .navlink:nth-child(4), .desktop-nav .navlink:nth-child(6) { display: none; }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .topbar .desktop-nav { display: none; }
+  .topbar .mobile-menu { display: inline-flex; }
+}
 
 /* Professional typography: readable body copy and predictable tap targets. */
 .app-main :is(p, li), .panel :is(p, li), main :is(p, li) { line-height: 1.65; }
