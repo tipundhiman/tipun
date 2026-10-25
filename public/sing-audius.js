@@ -18,6 +18,81 @@ import { parseSingAlongLyrics, activeLyricIndex, duckTargetVolume } from './sing
   let loaded = false;
   let downloadUrl = null;
   let parsedLyrics = { timed: false, lines: [] };
+  const maxTranscribeBytes = 13 * 1024 * 1024;
+  const transcriptionTypes = new Set(['audio/mpeg','audio/mp3','audio/wav','audio/x-wav','audio/ogg','audio/mp4','audio/x-m4a','audio/m4a','audio/aac','audio/flac','audio/x-flac','audio/webm']);
+  let aiAuthClient = null;
+  let lastVoiceTake = null;
+  let transcribing = false;
+  let transcriptAbort = null;
+  let lyricRevision = 0;
+
+  const transcriptionStatus = message => { $('ssAudiusTranscribeStatus').textContent = message; };
+  function updateTranscriptionButtons() {
+    const allowed = $('ssAudiusAudioRights').checked && !transcribing;
+    $('ssAudiusTranscribeFile').disabled = !allowed || !$('ssAudiusOwnAudio').files?.length;
+    $('ssAudiusTranscribeTake').disabled = !allowed || !lastVoiceTake || lastVoiceTake.trackId !== selected?.id;
+  }
+  function audioMime(blob) {
+    const type = String(blob?.type || '').split(';')[0].toLowerCase();
+    if (transcriptionTypes.has(type)) return type;
+    const ext = String(blob?.name || '').split('.').pop().toLowerCase();
+    return ({mp3:'audio/mpeg',wav:'audio/wav',m4a:'audio/mp4',ogg:'audio/ogg',flac:'audio/flac',aac:'audio/aac',webm:'audio/webm'})[ext] || '';
+  }
+  async function aiSessionToken() {
+    if (!window.supabase?.createClient) throw Error('Sign-in service unavailable. Refresh and try again.');
+    if (!aiAuthClient) {
+      const response = await fetch('/api/config', {cache:'no-store'});
+      if (!response.ok) throw Error('Sign-in configuration unavailable.');
+      const config = await response.json();
+      if (!/^https:\/\/[a-z0-9.-]+\.supabase\.co\/?$/i.test(config.supabaseUrl || '') ||
+          typeof config.supabaseAnonKey !== 'string' || config.supabaseAnonKey.length < 20)
+        throw Error('Sign-in is not configured.');
+      aiAuthClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+    }
+    const {data, error} = await aiAuthClient.auth.getSession();
+    if (error || !data?.session?.access_token)
+      throw Error('Please sign in on RhymeOrbit first, then return here to use AI lyrics.');
+    return data.session.access_token;
+  }
+  async function transcribeOwnAudio(source) {
+    if (transcribing || !$('ssAudiusAudioRights').checked) return;
+    const audio = source === 'take' ? lastVoiceTake?.blob : $('ssAudiusOwnAudio').files?.[0];
+    const mime = audioMime(audio);
+    if (!audio || !mime) {transcriptionStatus('Choose a supported MP3, WAV, M4A, OGG, FLAC or WebM recording.');return;}
+    if (audio.size < 100 || audio.size > maxTranscribeBytes) {
+      transcriptionStatus('Audio must be under 13 MB. Trim or compress your own recording first.');return;
+    }
+    if ($('ssAudiusLyrics').value.trim() && !window.confirm('Replace the current lyrics with AI transcription? Your existing saved lyrics will change.')) return;
+    const trackId = selected?.id || null;
+    const revision = lyricRevision;
+    transcribing = true;
+    transcriptAbort = new AbortController();
+    updateTranscriptionButtons();
+    transcriptionStatus('🎙 Gemini is listening to your audio… This can take up to a minute.');
+    try {
+      const token = await aiSessionToken();
+      const response = await fetch('/api/lyrics/transcribe', {
+        method:'POST', headers:{Authorization:'Bearer ' + token,'Content-Type':mime},
+        body:audio, signal:transcriptAbort.signal, cache:'no-store'
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw Error(result.error || 'Transcription service is unavailable.');
+      if (trackId !== (selected?.id || null) || revision !== lyricRevision) {
+        transcriptionStatus('Song or lyrics changed while AI was processing. Your existing text was kept.');return;
+      }
+      if (typeof result.lyrics !== 'string' || !result.lyrics.trim()) throw Error('No clear sung words found.');
+      $('ssAudiusLyrics').value = result.lyrics.slice(0,8000);
+      lyricRevision++;
+      applyLyrics();
+      transcriptionStatus('✓ Lyrics detected and shown above! Review Hindi/English words and edit any mistakes. Timing is estimated until you add LRC timestamps.');
+    } catch (error) {
+      if (error.name !== 'AbortError') transcriptionStatus('Could not transcribe: ' + (error.message || 'Try a shorter, clearer vocal recording.'));
+    } finally {
+      transcribing = false;
+      transcriptAbort = null;
+      updateTranscriptionButtons();
+    }
+  }
 
   function normalize(track) {
     if (!track || track.is_available !== true || track.is_streamable !== true) return null;
@@ -119,6 +194,10 @@ import { parseSingAlongLyrics, activeLyricIndex, duckTargetVolume } from './sing
 
   function selectTrack(item) {
     stop(); selected = item;
+    lyricRevision++;
+    transcriptAbort?.abort();
+    lastVoiceTake = null;
+    updateTranscriptionButtons();
     for (const button of $('ssAudiusList').children) button.setAttribute('aria-pressed', String(button.dataset.id === item.id));
     $('ssAudiusSongTitle').textContent = item.title;
     $('ssAudiusArtist').textContent = `${item.artist} · Audius community upload`;
@@ -154,9 +233,11 @@ import { parseSingAlongLyrics, activeLyricIndex, duckTargetVolume } from './sing
   };
   const fileExt = type => type.includes('mp4') ? 'm4a' : type.includes('ogg') ? 'ogg' : 'webm';
 
-  async function recordingReady(chunks, type, title) {
+  async function recordingReady(chunks, type, title, trackId) {
     if (!chunks.length) {status('Recording is empty. Please try again.');return;}
     const blob = new Blob(chunks, {type});
+    if (selected?.id === trackId) lastVoiceTake = {blob, trackId};
+    updateTranscriptionButtons();
     if (downloadUrl) URL.revokeObjectURL(downloadUrl);
     downloadUrl = URL.createObjectURL(blob);
     const ext = fileExt(type);
@@ -227,9 +308,9 @@ import { parseSingAlongLyrics, activeLyricIndex, duckTargetVolume } from './sing
       }
       const chunks = [];
       if (recorder) {
-        const title = selected.title;
+        const title = selected.title, trackId = selected.id;
         recorder.ondataavailable = event => {if (event.data?.size) chunks.push(event.data);};
-        recorder.onstop = () => recordingReady(chunks, type, title);
+        recorder.onstop = () => recordingReady(chunks, type, title, trackId);
       }
       const active = {audio, mic, context, recorder, musicGain, tick: null, limit: null, lastVoice: -10000};
       session = active;
@@ -280,13 +361,23 @@ import { parseSingAlongLyrics, activeLyricIndex, duckTargetVolume } from './sing
   $('ssAudiusSing').addEventListener('click', () => start(true));
   $('ssAudiusStop').addEventListener('click', () => {stop();status('Playback finished. Your voice recording is being prepared, if recorded.');});
   $('ssAudiusLyricsApply').addEventListener('click', applyLyrics);
+  $('ssAudiusLyrics').addEventListener('input', () => {lyricRevision++;});
+  $('ssAudiusOwnAudio').addEventListener('change', () => {lyricRevision++;updateTranscriptionButtons();});
+  $('ssAudiusAudioRights').addEventListener('change', () => {
+    if (!$('ssAudiusAudioRights').checked) transcriptAbort?.abort();
+    updateTranscriptionButtons();
+  });
+  $('ssAudiusTranscribeFile').addEventListener('click', () => transcribeOwnAudio('file'));
+  $('ssAudiusTranscribeTake').addEventListener('click', () => transcribeOwnAudio('take'));
   $('ssAudiusLyricsClear').addEventListener('click', () => {
+    lyricRevision++;
     $('ssAudiusLyrics').value = '';
     applyLyrics();
     $('ssAudiusLyrics').focus();
     lyricsStatus('Lyrics cleared. Write or paste your own, then tap Save & show lyrics.');
   });
   $('ssAudiusLyricsReset').addEventListener('click', () => {
+    lyricRevision++;
     if (selected) {try {localStorage.removeItem(lyricKey(selected.id));} catch {}}
     $('ssAudiusLyrics').value = '';
     parsedLyrics = {timed:false,lines:[]};
@@ -306,5 +397,5 @@ import { parseSingAlongLyrics, activeLyricIndex, duckTargetVolume } from './sing
   });
   if (location.hash === '#audius') {loaded = true;discover();}
   document.addEventListener('visibilitychange', () => {if (document.hidden) stop();});
-  window.addEventListener('pagehide', () => {stop();if (downloadUrl) URL.revokeObjectURL(downloadUrl);});
+  window.addEventListener('pagehide', () => {transcriptAbort?.abort();stop();if (downloadUrl) URL.revokeObjectURL(downloadUrl);});
 })();

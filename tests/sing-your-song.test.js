@@ -68,6 +68,23 @@ test('Audius Sing Along has independent search, playback, mic ducking, local-onl
   assert.doesNotMatch(audiusScript,/cloudflare\.com\/.*upload|SUPABASE_SERVICE_ROLE_KEY/);
 });
 
+test('Sing Along offers opt-in Gemini audio-to-text for owned audio and voice-only takes',()=>{
+  for(const id of ['ssAudiusOwnAudio','ssAudiusAudioRights','ssAudiusTranscribeFile','ssAudiusTranscribeTake','ssAudiusTranscribeStatus'])
+    assert.match(page,new RegExp('id="'+id+'"'));
+  assert.match(page,/I own or have permission to transcribe this audio/);
+  assert.match(page,/@supabase\/supabase-js@2\/dist\/umd\/supabase\.min\.js/);
+  assert.match(audiusScript,/\$\('ssAudiusAudioRights'\)\.checked/);
+  assert.match(audiusScript,/lastVoiceTake = \{blob, trackId\}/);
+  assert.match(audiusScript,/source === 'take' \? lastVoiceTake\?\.blob : \$\('ssAudiusOwnAudio'\)\.files\?\.\[0\]/);
+  assert.match(audiusScript,/maxTranscribeBytes = 13 \* 1024 \* 1024/);
+  assert.match(audiusScript,/await aiSessionToken\(\)/);
+  assert.match(audiusScript,/fetch\('\/api\/lyrics\/transcribe'/);
+  assert.match(audiusScript,/window\.confirm\('Replace the current lyrics/);
+  assert.match(audiusScript,/revision !== lyricRevision/,'Do not clobber edits made while transcription runs');
+  assert.match(audiusScript,/applyLyrics\(\)/,'Transcribed words must enter the existing karaoke lyrics stage');
+  assert.match(readFileSync(new URL('../public/privacy.html',import.meta.url),'utf8'),/explicitly choose to transcribe/);
+});
+
 test('LRC lyrics sync precisely while untimed custom lyrics use honest estimated positions',()=>{
   const timed=parseSingAlongLyrics('[00:10.50] पहली लाइन\n[00:20.00] दूसरी लाइन');
   assert.equal(timed.timed,true);

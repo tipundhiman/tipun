@@ -24,10 +24,12 @@ a{color:var(--pink)}button,select,input{font:inherit}button{cursor:pointer}butto
 @keyframes float{0%,100%{transform:translateY(4px) rotate(-2deg)}50%{transform:translateY(-10px) rotate(3deg)}}@media(max-width:840px){.hero,.grid{grid-template-columns:1fr}.hero-art{min-height:160px}.hero-art .mic{font-size:68px}.shell{padding:15px}.hero{padding:24px 0}.topbar .wrap{padding:10px 0}}@media(max-width:450px){.track-list{grid-template-columns:1fr 1fr}.tabs button{flex:1;padding:12px 9px;font-size:12px}.coach-buttons{grid-template-columns:repeat(2,1fr)}.card{padding:15px}}@media(prefers-reduced-motion:reduce){.mic,.float-notes{animation:none}.btn,.track,.tabs button{transition:none}}
 .track[hidden],#ssIndieMore[hidden],#ssIndieDownload[hidden],#ssAudiusDownload[hidden]{display:none}
 .sing-audius-search{display:flex;gap:9px;align-items:center;margin:8px 0}.sing-audius-search .select{flex:1;min-width:0;margin:0}.sing-audius-track-list{max-height:400px;overflow-y:auto;padding-right:4px}.sing-audius-track-list .track{min-width:0;overflow-wrap:anywhere}.sing-audius-lyrics{width:100%;min-height:112px;resize:vertical;color:#fff;background:#10101c;border:1px solid #ffffff50;border-radius:13px;padding:12px;font:14px/1.6 system-ui,sans-serif}.sing-audius-lyrics:focus-visible{outline:3px solid var(--gold);outline-offset:2px}.sing-audius-stage{margin-top:13px}.sing-audius-stage .line{white-space:pre-wrap;overflow-wrap:anywhere}.sing-audius-meter{display:block;height:8px;background:#ffffff22;border-radius:999px;overflow:hidden}.sing-audius-meter span{display:block;width:0;height:100%;background:linear-gradient(90deg,#f0b3d5,#8fe0c6);transition:width .12s}.sing-audius-volume{display:flex;align-items:center;gap:10px;margin:12px 0}.sing-audius-volume input{flex:1;min-width:0;accent-color:#f1b5d4}.sing-audius-volume output{min-width:45px;text-align:right;font-variant-numeric:tabular-nums}
+.sing-transcription{margin:15px 0;padding:16px;border:1px solid #eebdd04d;border-radius:17px;background:linear-gradient(135deg,#e98cbb14,#9b83f014)}.sing-transcription h3{margin:0 0 5px;font-size:17px}.sing-transcription input[type=file]{display:block;width:100%;min-width:0;margin:9px 0 3px;color:#f5e4f0;font-size:13px}.sing-transcription input[type=file]::file-selector-button{border:1px solid #efb8d47a;border-radius:99px;background:#f5b7d328;color:#fff;padding:8px 12px;margin-right:10px;cursor:pointer}.sing-transcription .row .btn{flex:1 1 175px}.sing-transcription .mic-hint{overflow-wrap:anywhere}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
 <script type="module" src="/sing-your-song.js?v=20261025-sing-3"></script>
 <script type="module" src="/sing-jamendo.js?v=20261025-indie-2"></script>
-<script type="module" src="/sing-audius.js?v=20261025-audius-sing-1"></script>
+<script type="module" src="/sing-audius.js?v=20261025-audius-sing-2"></script>
 <script src="/feature-guide.js?v=20261025-sing-1" defer></script>
 </head>
 <body>
@@ -89,6 +91,15 @@ a{color:var(--pink)}button,select,input{font:inherit}button{cursor:pointer}butto
     <div class="times"><span id="ssAudiusTime">0:00</span><span id="ssAudiusDuration">0:00</span></div>
     <label for="ssAudiusLyrics" class="muted">Lyrics you own or have permission to use</label>
     <textarea id="ssAudiusLyrics" class="sing-audius-lyrics" maxlength="8000" spellcheck="false" placeholder="Paste lyrics here, one line at a time. For accurate sync use [00:12.50] Lyrics line format."></textarea>
+    <section class="sing-transcription" aria-labelledby="ssTranscribeTitle">
+      <h3 id="ssTranscribeTitle">✨ Auto lyrics from your audio</h3>
+      <p class="muted">Upload a song you own, or transcribe your last voice recording. Gemini detects Hindi, English and other audible words. Sign in to use AI; only audio you submit is sent for transcription.</p>
+      <label for="ssAudiusOwnAudio" class="muted">Choose your own song or vocal recording (up to 13 MB)</label>
+      <input type="file" id="ssAudiusOwnAudio" accept=".mp3,.m4a,.wav,.ogg,.webm,.flac,.aac,audio/*">
+      <label class="check"><input type="checkbox" id="ssAudiusAudioRights"> I own or have permission to transcribe this audio and consent to Gemini processing it.</label>
+      <div class="row"><button type="button" class="btn primary" id="ssAudiusTranscribeFile" disabled>✨ Generate from my audio</button><button type="button" class="btn" id="ssAudiusTranscribeTake" disabled>🎙 Transcribe my last take</button></div>
+      <p class="mic-hint" id="ssAudiusTranscribeStatus" role="status" aria-live="polite">Choose your audio or finish a voice recording first. Existing lyrics will not be overwritten without confirmation.</p>
+    </section>
     <div class="row" style="margin:10px 0"><button type="button" id="ssAudiusLyricsApply" class="btn primary">✓ Save & show lyrics</button><button type="button" id="ssAudiusLyricsClear" class="btn">✕ Clear / Write new</button><button type="button" id="ssAudiusLyricsReset" class="btn">↶ Reset saved lyrics</button></div>
     <div class="row" style="margin:10px 0"><label for="ssAudiusOffset" class="muted">Timing offset <output id="ssAudiusOffsetLabel">0s</output></label><input id="ssAudiusOffset" type="range" min="-10" max="10" step="0.5" value="0" aria-label="Lyrics timing offset" style="flex:1;min-width:100px;accent-color:#f1b5d4"></div>
     <p id="ssAudiusLyricStatus" class="mic-hint" aria-live="polite">Audius doesn't supply reliable synchronized lyrics; paste your authorized lyrics to show them.</p>
@@ -97,7 +108,7 @@ a{color:var(--pink)}button,select,input{font:inherit}button{cursor:pointer}butto
   </div>
  </div>
 </section>
-<p class="fine" style="margin:0 0 30px">Original karaoke backing tracks are synthesized on your device. The Indie and Audius sing-along modes stream third-party music and record only your microphone; no backing track is copied into recordings. Lyrics are user-supplied and must be authorized. No licensed commercial hit-song karaoke catalog is claimed. Microphone access requires HTTPS and permission.</p>
+<p class="fine" style="margin:0 0 30px">Original karaoke backing tracks are synthesized on your device. Indie and Audius sing-along record only your microphone; no backing track is copied into recordings. Your own audio is sent to Gemini only when you explicitly request AI transcription; RhymeOrbit does not save that submitted audio. AI words and timing can be imperfect. Lyrics must be yours or authorized. No licensed commercial hit-song karaoke catalog is claimed. Microphone access requires HTTPS and permission.</p>
 </main>
 <footer>© 2026 RhymeOrbit · <a href="/features">Explore features</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/copyright">Content rights</a></footer>
 </body></html>
