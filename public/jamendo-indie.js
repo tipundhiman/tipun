@@ -387,15 +387,19 @@
       form.addEventListener('submit', event => {
         const query = document.getElementById('roYtQuery')?.value.trim();
         const mode = document.querySelector('#roListenSourceModes button[aria-pressed="true"]')?.dataset.source;
-        if (mode === 'videos') return;
-        // The original form has an inline YouTube submit handler. Capture
-        // audio searches first so they never trigger hidden video requests.
+        if (mode !== 'indian') return;
+        // Only the Audius section intercepts the original inline YouTube
+        // submit handler; existing video and indie modes stay unchanged.
         event.preventDefault();
         event.stopImmediatePropagation();
         if (!query || query.length < 2) return;
-        if (mode === 'music') searchJamendo(query);
-        if (mode === 'indian') searchIndianCatalog(query);
+        searchIndianCatalog(query);
       }, { capture: true });
+      form.addEventListener('submit', () => {
+        const query = document.getElementById('roYtQuery')?.value.trim();
+        const mode = document.querySelector('#roListenSourceModes button[aria-pressed="true"]')?.dataset.source;
+        if (mode === 'music' && query?.length >= 2) searchJamendo(query);
+      });
     }
   }
 
