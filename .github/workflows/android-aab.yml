@@ -18,9 +18,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
       - name: Install Android SDK
-        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+        run: |
+          echo "SDK location: ${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' 'build-tools;36.0.0'
       - name: Generate unsigned Android App Bundle
         working-directory: android
         run: ./gradlew :app:bundleRelease --no-daemon
