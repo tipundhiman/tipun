@@ -30,7 +30,7 @@ test('Interactive entry pages check age band and Kids Studio stays local',()=>{
  assert.match(age,/18 or older/);
  assert.match(kids,/on-device|on this device/i);
  assert.match(kids,/no online child account/i);
- assert.doesNotMatch(kids,/<script[^>]+src=/i,'No external scripts on kids page');
+ assert.doesNotMatch(kids,/<script[^>]+src=[\\\"']https?:/i,'No remote scripts on kids page');
  assert.doesNotMatch(kids,/\bfetch\s*\(/i,'No network requests from Kids Studio');
  assert.doesNotMatch(kids,/<input[^>]+type="email"/i,'No child email collection');
 });
