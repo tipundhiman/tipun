@@ -15,12 +15,14 @@ test('Signup requires email verification for unconfirmed accounts',()=>{
  assert.match(auth,/await syncSession\(result\.data\.session\)/);
  assert.match(auth,/Please verify your email address before using RhymeOrbit/);
  assert.match(auth,/click the RhymeOrbit verification link before logging in/);
- assert.match(auth,/email_confirmed_at===null/);
+ assert.match(auth,/!result\\.data\\.user\\?\\.email_confirmed_at/);
+ assert.match(auth,/!session\\.user\\?\\.email_confirmed_at/);
+ assert.match(auth,/!verifiedUser\\.email_confirmed_at/);
  assert.match(read('api/index.js'),/Please verify your email address before signing in/);
  assert.match(read('cloudflare/media-storage.js'),/user\.email_confirmed_at !== null/);
  assert.match(auth,/Username/);
  assert.match(auth,/Forgot password\?/);
- assert.match(auth,/Verification is needed only if required by account settings/);
+ assert.match(auth,/Verify your email address using the link we send before signing in/);
  assert.doesNotMatch(auth,/You must confirm your inbox before using the account/);
 });
 test('Forgot password retains email reset link and routes to a dedicated recovery page',()=>{
