@@ -56,3 +56,28 @@ test('Sensitive scripts are syntactically valid',()=>{
   for(const script of scripts)assert.doesNotThrow(()=>new Function(script),name);
  }
 });
+
+test('Parental safety lock uses a salted PIN hash and restricts switching age groups',()=>{
+ const family=file('public/family-guard.js'),kids=file('public/kids.html'),age=file('public/age-check.html');
+ assert.match(family,/PBKDF2/);
+ assert.match(family,/getRandomValues/);
+ assert.match(family,/lockedUntil/);
+ assert.match(family,/dailyMinutes|minutes:30/);
+ assert.doesNotMatch(family,/localStorage\.setItem\([^,]+,\s*pin\s*\)/);
+ assert.match(kids,/Enable parent lock/);
+ assert.match(kids,/daily time limit|time limit|time remaining/i);
+ assert.match(kids,/parent\.settings\(\)\.allowExport/);
+ assert.match(age,/window\.roFamilyGuard\.verify\(pin\)/);
+ assert.match(age,/previous==='under13'/);
+ assert.doesNotThrow(()=>new Function(family));
+});
+
+test('Existing login requires password and server-trusted user before granting UI session',()=>{
+ const api=file('api/index.js'),integration=file('public/integration.js');
+ assert.match(api,/\/auth\/v1\/token\?grant_type=password/);
+ assert.match(api,/username-login/);
+ assert.match(integration,/sb\.auth\.getUser\(\)/);
+ assert.match(integration,/RO_VERIFIED_EMAIL_SIGNUP_READY=false/);
+ assert.match(integration,/mode==='signup'&&!RO_VERIFIED_EMAIL_SIGNUP_READY/);
+ assert.match(integration,/No verified session returned/);
+});
