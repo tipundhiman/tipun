@@ -1,0 +1,57 @@
+name: Android Signed AAB (Google Play)
+
+# Manual release build. NEVER commits a keystore or prints passwords.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-play-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out RhymeOrbit
+        uses: actions/checkout@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK
+        run: |
+          "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Build release AAB
+        working-directory: android
+        run: ./gradlew :app:bundleRelease --no-daemon
+      - name: Sign using original Google Play upload key
+        env:
+          RHYMEORBIT_UPLOAD_KEYSTORE_B64: ${{ secrets.RHYMEORBIT_UPLOAD_KEYSTORE_B64 }}
+          RHYMEORBIT_UPLOAD_STORE_PASSWORD: ${{ secrets.RHYMEORBIT_UPLOAD_STORE_PASSWORD }}
+          RHYMEORBIT_UPLOAD_KEY_ALIAS: ${{ secrets.RHYMEORBIT_UPLOAD_KEY_ALIAS }}
+          RHYMEORBIT_UPLOAD_KEY_PASSWORD: ${{ secrets.RHYMEORBIT_UPLOAD_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$RHYMEORBIT_UPLOAD_KEYSTORE_B64" || -z "$RHYMEORBIT_UPLOAD_STORE_PASSWORD" || -z "$RHYMEORBIT_UPLOAD_KEY_ALIAS" || -z "$RHYMEORBIT_UPLOAD_KEY_PASSWORD" ]]; then
+            echo "::error::Signing secrets missing. Configure original upload key in GitHub Actions repository secrets; NEVER commit or paste keys into a chat."
+            exit 1
+          fi
+          umask 077
+          store="$RUNNER_TEMP/rhymeorbit-upload.jks"
+          trap 'rm -f "$store"' EXIT
+          printf '%s' "$RHYMEORBIT_UPLOAD_KEYSTORE_B64" | base64 --decode > "$store"
+          keytool -list -keystore "$store" -storepass:env RHYMEORBIT_UPLOAD_STORE_PASSWORD -alias "$RHYMEORBIT_UPLOAD_KEY_ALIAS" >/dev/null
+          unsigned="android/app/build/outputs/bundle/release/app-release.aab"
+          signed="android/app/build/outputs/bundle/release/rhymeorbit-v1.1.0-signed.aab"
+          test -s "$unsigned"
+          jarsigner -keystore "$store" -storepass:env RHYMEORBIT_UPLOAD_STORE_PASSWORD -keypass:env RHYMEORBIT_UPLOAD_KEY_PASSWORD -sigalg SHA256withRSA -digestalg SHA-256 -signedjar "$signed" "$unsigned" "$RHYMEORBIT_UPLOAD_KEY_ALIAS"
+          jarsigner -verify "$signed" | grep -q 'jar verified'
+          echo "Signed AAB created and signature verified (version code 2)."
+      - name: Upload signed AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rhymeorbit-v1.1.0-signed-aab
+          path: android/app/build/outputs/bundle/release/rhymeorbit-v1.1.0-signed.aab
+          if-no-files-found: error
+          retention-days: 3
