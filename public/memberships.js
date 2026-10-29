@@ -212,7 +212,7 @@ function openMemberships(reason){
  <h2 id="roMembershipTitle">${reason==='limit'?'Your free song limit is reached 🎵':'Create for free. More coming soon ✦'}</h2>
  <p class="ro-membership-muted">Create music, connect with creators and grow your orbit.</p>
  <p id="roMembershipBalance" class="ro-membership-muted" aria-live="polite">Checking your song balance…</p></div>
- <p class="ro-membership-muted" style="text-align:center">Free public beta is open. Premium and Pro subscriptions are coming soon.</p>
+ <p class="ro-membership-muted" style="text-align:center">Free public beta is open. Premium and Pro subscriptions are coming soon. In the Android app, future digital subscriptions will use Google Play Billing; checkout is currently disabled.</p>
  <div class="ro-membership-grid">${plans.map((p,i)=>`<article class="ro-membership-card"><div style="color:#e5c9a2;font-size:11px">${escapeHTML(p.tag)}</div><div class="ro-plan-state">${i===0?'✓ Available now':'🔒 Coming soon · Paid tier'}</div><h3>${escapeHTML(p.name)}</h3>
  <div class="ro-membership-amount">${i===0?'₹0 / month':'Coming soon'}</div>
  <p class="ro-membership-muted">${i===0?'No payment required':'No pricing or checkout is active yet'}</p>
@@ -229,6 +229,15 @@ function openMemberships(reason){
  overlay.querySelectorAll('[data-cycle]').forEach(b=>b.onclick=()=>{annual=b.dataset.cycle==='annual';openMemberships(reason)});
  overlay.querySelector('.ro-membership-close').focus();
  showBalance();
+ // Billing readiness is server-controlled. Never offer a paid button based on browser detection alone.
+ Promise.resolve(window.roPlayBilling?.check?.()).then(result=>{
+   if(!document.body.contains(overlay))return;
+   const state=document.createElement('p');
+   state.className='ro-membership-muted';
+   state.style.textAlign='center';
+   state.textContent=result?.enabled?'Play Billing: setup detected. Checkout is awaiting purchase verification.':'Play Billing purchases are not enabled yet. No charge can be made.';
+   overlay.querySelector('.ro-membership-dialog')?.append(state);
+ }).catch(()=>{});
  loadSandboxControls(overlay);
 }
 window.roOpenPricing=openMemberships;
