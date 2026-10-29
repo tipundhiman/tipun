@@ -22,6 +22,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="in.rhymeorbit.app">
 
+    <!-- Required for Google Play subscriptions; the active build is TWA Play Billing v8. -->
+    <uses-permission android:name="com.android.vending.BILLING" />
+
 
 
 
