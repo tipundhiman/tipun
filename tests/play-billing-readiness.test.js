@@ -15,6 +15,7 @@ test('TWA next version uses Billing Library 8 bridge and new version code',()=>{
  assert.equal(manifest.features.playBilling.enabled,true);
  assert.match(gradle,/versionCode 2/);
  assert.match(gradle,/com\.google\.androidbrowserhelper:billing:1\.2\.0/);
+ assert.match(android,/com\.android\.vending\.BILLING/);
  assert.match(android,/org\.chromium\.intent\.action\.PAY/);
  assert.match(android,/org\.chromium\.intent\.action\.IS_READY_TO_PAY/);
  assert.match(android,/android:enabled="true"\s+android:exported="true"/);
