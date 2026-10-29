@@ -77,7 +77,10 @@ test('Existing login requires password and server-trusted user before granting U
  assert.match(api,/\/auth\/v1\/token\?grant_type=password/);
  assert.match(api,/username-login/);
  assert.match(integration,/sb\.auth\.getUser\(\)/);
- assert.match(integration,/RO_VERIFIED_EMAIL_SIGNUP_READY=false/);
- assert.match(integration,/mode==='signup'&&!RO_VERIFIED_EMAIL_SIGNUP_READY/);
+ assert.doesNotMatch(integration,/New registration is temporarily paused|RO_VERIFIED_EMAIL_SIGNUP_READY/);
+ assert.match(integration,/sb\.auth\.signUp\(/);
+ assert.match(integration,/emailRedirectTo:'https:\/\/rhymeorbit\.in\/'/);
+ assert.match(integration,/!result\.data\.user\?\.email_confirmed_at/);
+ assert.match(integration,/!verifiedUser\.email_confirmed_at/);
  assert.match(integration,/No verified session returned/);
 });
