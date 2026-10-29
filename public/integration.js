@@ -102,6 +102,54 @@ window.roSaveGreetingPreference=async function(){
 };
 // Disable unsafe local-account deletion: backend account deletion requires a verified server endpoint.
 deleteLocalAccount=function(){window.location.assign('/delete-account.html')};
+// Play AI-generated-content and user-safety reporting: authenticated, RLS-protected, in-app.
+window.roOpenSafetyReport=function(category='general', reference=''){
+ const allowed=['ai','community','user','message','general'];
+ const kind=allowed.includes(category)?category:'general';
+ if(!sb||!state.user){toast('Sign in to submit a safety report.');openAuth('login');return}
+ document.getElementById('roSafetyReportOverlay')?.remove();
+ const layer=document.createElement('div');
+ layer.id='roSafetyReportOverlay';
+ layer.setAttribute('role','presentation');
+ layer.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(8,9,16,.82);display:grid;place-items:center;padding:18px;overflow:auto';
+ const dialog=document.createElement('section');
+ dialog.setAttribute('role','dialog');
+ dialog.setAttribute('aria-modal','true');
+ dialog.setAttribute('aria-labelledby','roSafetyReportTitle');
+ dialog.style.cssText='width:min(100%,500px);border:1px solid #d9d1f6;border-radius:22px;background:#fff;color:#26213d;padding:25px;max-height:90vh;overflow:auto;box-shadow:0 22px 70px #0008';
+ dialog.innerHTML='<h2 id="roSafetyReportTitle" style="margin:0 0 12px;font-size:23px">Report a safety concern</h2>'
+  +'<p style="font-size:14px;line-height:1.6">Help us review harmful, offensive or inappropriate content. Please do not paste illegal images, passwords or private identifiers.</p>'
+  +'<form id="roSafetyReportForm">'
+  +'<label for="roReportReference" style="display:block;margin-top:12px">Content link or reference (optional)</label>'
+  +'<input id="roReportReference" maxlength="200" style="box-sizing:border-box;width:100%;padding:10px;color:#181326;background:#fff;border:1px solid #c1b4d9;border-radius:9px">'
+  +'<label for="roReportReason" style="display:block;margin-top:12px">What happened?</label>'
+  +'<textarea id="roReportReason" required minlength="10" maxlength="1500" rows="5" style="box-sizing:border-box;width:100%;padding:10px;color:#181326;background:#fff;border:1px solid #c1b4d9;border-radius:9px"></textarea>'
+  +'<p id="roReportStatus" role="status" style="font-size:13px;min-height:20px"></p>'
+  +'<div style="display:flex;gap:9px;flex-wrap:wrap">'
+  +'<button id="roReportSend" type="submit" style="padding:10px 15px;border-radius:20px;border:0;background:#6349cc;color:white">Submit report</button>'
+  +'<button id="roReportClose" type="button" style="padding:10px 15px;border-radius:20px;border:1px solid #b9b4ce;background:white;color:#26213d">Cancel</button>'
+  +'</div></form><p style="font-size:12px">If submission fails, contact <a style="color:#5540ad" href="mailto:dtipun@gmail.com?subject=RhymeOrbit%20safety%20report">dtipun@gmail.com</a>.</p>';
+ layer.append(dialog);document.body.append(layer);
+ const ref=dialog.querySelector('#roReportReference');ref.value=String(reference||'').slice(0,200);
+ dialog.querySelector('#roReportClose').onclick=()=>layer.remove();
+ const reason=dialog.querySelector('#roReportReason');reason.focus();
+ dialog.querySelector('#roSafetyReportForm').onsubmit=async function(event){
+  event.preventDefault();
+  const message=reason.value.trim(),status=dialog.querySelector('#roReportStatus'),submit=dialog.querySelector('#roReportSend');
+  if(message.length<10){status.textContent='Please describe the problem (at least 10 characters).';return}
+  submit.disabled=true;status.textContent='Sending your report…';
+  try{
+   const result=await sb.auth.getSession();
+   const session=result.data?.session;
+   if(result.error||!session?.user?.id)throw new Error('Sign in again and retry.');
+   const saved=await sb.from('safety_reports').insert({reporter:session.user.id,category:kind,reference:ref.value.trim().slice(0,200),reason:message});
+   if(saved.error)throw saved.error;
+   status.textContent='Report submitted. Thank you for helping keep RhymeOrbit safe.';
+   submit.remove();setTimeout(()=>layer.remove(),4000);
+  }catch(e){status.textContent='Could not submit: '+(e?.message||'Please retry or email support.');submit.disabled=false}
+ };
+};
+
 // Replace local demo analysis with real Gemini generation when configured.
 async function runAI(kind,input,target){if(!sb||!state.user)return toast('Log in to use AI');const el=$(target);if(el)el.innerHTML='<div class="note loading">Generating with AI…</div>';try{const aiText=await roGenerateAIText(kind,input);if(el)el.innerHTML=`<div class="note" style="white-space:pre-wrap">${esc(aiText)}</div>`}catch(e){if(el)el.innerHTML=`<div class="note">${esc(e.message)}</div>`}}
 songDoctor=function(){const lyrics=$('songLyrics').value.trim();if(!lyrics)return toast('Write some lyrics first');runAI('doctor',lyrics,'doctorResult')};
