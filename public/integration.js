@@ -101,7 +101,7 @@ window.roSaveGreetingPreference=async function(){
  }catch(e){toast('Could not save greeting preference: '+(e.message||'Please retry'))}
 };
 // Disable unsafe local-account deletion: backend account deletion requires a verified server endpoint.
-deleteLocalAccount=function(){toast('Account deletion requires a verified backend workflow. Contact support.')};
+deleteLocalAccount=function(){window.location.assign('/delete-account.html')};
 // Replace local demo analysis with real Gemini generation when configured.
 async function runAI(kind,input,target){if(!sb||!state.user)return toast('Log in to use AI');const el=$(target);if(el)el.innerHTML='<div class="note loading">Generating with AI…</div>';try{const aiText=await roGenerateAIText(kind,input);if(el)el.innerHTML=`<div class="note" style="white-space:pre-wrap">${esc(aiText)}</div>`}catch(e){if(el)el.innerHTML=`<div class="note">${esc(e.message)}</div>`}}
 songDoctor=function(){const lyrics=$('songLyrics').value.trim();if(!lyrics)return toast('Write some lyrics first');runAI('doctor',lyrics,'doctorResult')};
