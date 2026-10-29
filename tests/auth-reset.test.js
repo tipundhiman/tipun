@@ -15,9 +15,9 @@ test('Signup requires email verification for unconfirmed accounts',()=>{
  assert.match(auth,/await syncSession\(result\.data\.session\)/);
  assert.match(auth,/Please verify your email address before using RhymeOrbit/);
  assert.match(auth,/click the RhymeOrbit verification link before logging in/);
- assert.match(auth,/!result\\.data\\.user\\?\\.email_confirmed_at/);
- assert.match(auth,/!session\\.user\\?\\.email_confirmed_at/);
- assert.match(auth,/!verifiedUser\\.email_confirmed_at/);
+ assert.match(auth,/!result\.data\.user\?\.email_confirmed_at/);
+ assert.match(auth,/!session\.user\?\.email_confirmed_at/);
+ assert.match(auth,/!verifiedUser\.email_confirmed_at/);
  assert.match(read('api/index.js'),/Please verify your email address before signing in/);
  assert.match(read('cloudflare/media-storage.js'),/user\.email_confirmed_at !== null/);
  assert.match(auth,/Username/);
