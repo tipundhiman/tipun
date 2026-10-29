@@ -14,6 +14,19 @@ export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
     if (path.startsWith('/api/')) {
+      // Play Billing is staged in Android v1.1, but digital checkout MUST
+      // remain off until Play merchant setup, signed purchase verification,
+      // acknowledgement, renewals and paid quota accounting are completed.
+      if (path === '/api/play-billing/status') {
+        return new Response(JSON.stringify({provider:'google_play',enabled:false,checkoutEnabled:false,reason:'Play Billing verification and paid entitlements are not configured'}),{
+          status:200,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}
+        });
+      }
+      if (path.startsWith('/api/play-billing/')) {
+        return new Response(JSON.stringify({error:'Google Play paid purchases are not enabled; no payment was collected'}),{
+          status:503,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}
+        });
+      }
       const licensedLyricsResponse = await handleLicensedLyricsRequest(request, env);
       if (licensedLyricsResponse) return licensedLyricsResponse;
       const lyricsResponse = await handleCreatorLyricsRequest(request, env);
