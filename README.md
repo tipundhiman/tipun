@@ -16,6 +16,7 @@
 
 | What to edit | Canonical file / system |
 | --- | --- |
+| 20 global Creator Lab tools (lyrics/music/release) | public/creator-lab.html, public/creator-lab.js, public/creator-lab-core.js, public/creator-lab.css; docs/CREATOR_LAB_20_TOOLS.md |
 | Homepage, SPA routes, shared header, Admin dashboard | `public/index.html` |
 | Login/signup/DOB/session | `public/integration.js` + Supabase Auth + `public.ro_account_ages` |
 | Shared pricing & usage UI | `public/memberships.js` |
