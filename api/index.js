@@ -720,7 +720,7 @@ export async function handleApi(req, res) {
       const limit = data.monthlyLimit;
       const expiresAt = data.expiresAt == null ? null : String(data.expiresAt);
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(targetUserId)) return send(res, 400, { error: 'Invalid target user ID' });
-      if (!['free', 'premium'].includes(plan) || !Number.isSafeInteger(limit) || (plan === 'free' && limit !== 3) || (plan === 'premium' && (limit < 1 || limit > 10000))) return send(res, 400, { error: 'Invalid plan or monthly limit' });
+      if (!Object.hasOwn({free:3,premium:35,pro:75},plan) || !Number.isSafeInteger(limit) || (plan === 'free' && limit !== 3) || (plan === 'premium' && (limit < 1 || limit > 35)) || (plan === 'pro' && (limit < 1 || limit > 75))) return send(res, 400, { error: 'Invalid plan or monthly limit' });
       if (expiresAt !== null && (!Number.isFinite(Date.parse(expiresAt)) || Date.parse(expiresAt) <= Date.now())) return send(res, 400, { error: 'Invalid expiration date' });
       const result = await rpc('admin_set_subscription', {
         p_actor_id: user.id,
@@ -738,7 +738,7 @@ export async function handleApi(req, res) {
     console.error('[RhymeOrbit API]',req.method,path,error?.name||'Error',error?.message||'unknown');
     const invalid = error.message === 'Request too large' || error.message === 'Invalid JSON';
     return send(res, invalid ? (error.message === 'Request too large' ? 413 : 400) : 500, {
-      error: invalid ? error.message : (path.startsWith('/api/music/') ? (error.name === 'TimeoutError' || error.name === 'AbortError' ? 'Music service timed out. Retry recovery; no new generation needed.' : 'Music server error. Check Vercel function logs.') : 'Server request failed'), code: invalid ? 'INVALID_REQUEST' : (error.name === 'TimeoutError' || error.name === 'AbortError' ? 'UPSTREAM_TIMEOUT' : 'SERVER_ERROR')
+      error: invalid ? error.message : (path.startsWith('/api/music/') ? (error.name === 'TimeoutError' || error.name === 'AbortError' ? 'Music service timed out. Retry recovery; no new generation needed.' : 'Music server error. Check Cloudflare Workers logs.') : 'Server request failed'), code: invalid ? 'INVALID_REQUEST' : (error.name === 'TimeoutError' || error.name === 'AbortError' ? 'UPSTREAM_TIMEOUT' : 'SERVER_ERROR')
     });
   }
 }
