@@ -67,8 +67,8 @@ test('Membership entry uses shared user session and payments remain disabled', (
   assert.match(html, /aria-label="View Memberships"/);
   assert.match(html, /<script src="\/memberships\.js\?/);
   assert.match(membership, /typeof state==='undefined'\|\|!state\.user/);
-  assert.match(membership, /Checkout unavailable/);
-  assert.match(membership, /disabled>/);
+  assert.match(membership, /Paid checkout is not active yet/);
+  assert.match(membership, /data-select-plan/);
   for (const plan of ['Free', 'Premium', 'Pro']) assert.match(membership, new RegExp("name:'" + plan + "'"));
 });
 
