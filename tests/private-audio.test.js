@@ -33,6 +33,7 @@ test('R2 audio streams in private 206 byte ranges without exposing the R2 URL',a
   globalThis.fetch=async(url,opts={})=>{
     const target=String(url);
     if(target.includes('/auth/v1/user'))return fakeResponse({id:userId});
+    if(target.includes('/rest/v1/ro_account_ages'))return fakeResponse([{user_id:userId}]);
     if(target.includes('/rest/v1/generated_songs')){
       return fakeResponse([{task_id:taskId,title:'Test song',voice:'male',status:'ready',
         storage_path:`r2:songs/${userId}/${taskId}.ogg`,created_at:'2026-10-24T09:02:00Z'}]);
