@@ -2,7 +2,7 @@
 (function(){
 'use strict';
 const plans=[
- {name:'Free',monthly:0,annual:0,credits:300,songs:3,tag:'Start your orbit',perks:['Unlimited AI lyrics & Shayari (provider limits apply)','Community & Vibe Match','3 AI songs per calendar month','MP3 downloads · 128/192 kbps']},
+ {name:'Free',monthly:0,annual:0,credits:300,songs:3,tag:'Start your orbit',perks:['Unlimited AI lyrics & Shayari (provider limits apply)','Community and creator tools (age-eligible)','3 AI songs per calendar month','MP3 downloads · 128/192 kbps']},
  {name:'Premium',monthly:599,annual:549,credits:3500,songs:35,tag:'Most popular',perks:['35 standard AI songs per month (after paid launch)','High-quality MP3 · 256/320 kbps, WAV & original files','Paid creator tools and analytics are not active']},
  {name:'Pro',monthly:1299,annual:1199,credits:7500,songs:75,tag:'For serious creators',perks:['75 standard AI songs per month (after paid launch)','High-quality MP3 · 256/320 kbps, WAV & original files','Paid portfolio and collaboration tools are not active']}
 ];
@@ -209,24 +209,37 @@ function openMemberships(reason){
  overlay.innerHTML=`<section class="ro-membership-dialog" role="dialog" aria-modal="true" aria-labelledby="roMembershipTitle">
  <button class="ro-membership-close" type="button" aria-label="Close memberships">×</button>
  <div style="text-align:center"><div style="font-size:11px;letter-spacing:3px;color:#e5c9a2">RHYMEORBIT MEMBERSHIPS</div>
- <h2 id="roMembershipTitle">${reason==='limit'?'Your free song limit is reached 🎵':'Create for free. More coming soon ✦'}</h2>
+ <h2 id="roMembershipTitle">${reason==='limit'?'Your free song limit is reached 🎵':'Choose your creator plan ✦'}</h2>
  <p class="ro-membership-muted">Create music, connect with creators and grow your orbit.</p>
  <p id="roMembershipBalance" class="ro-membership-muted" aria-live="polite">Checking your song balance…</p></div>
- <p class="ro-membership-muted" style="text-align:center">Free public beta is open. Premium and Pro subscriptions are coming soon. In the Android app, future digital subscriptions will use Google Play Billing; checkout is currently disabled.</p>
- <div class="ro-membership-grid">${plans.map((p,i)=>`<article class="ro-membership-card"><div style="color:#e5c9a2;font-size:11px">${escapeHTML(p.tag)}</div><div class="ro-plan-state">${i===0?'✓ Available now':'🔒 Coming soon · Paid tier'}</div><h3>${escapeHTML(p.name)}</h3>
- <div class="ro-membership-amount">${i===0?'₹0 / month':'Coming soon'}</div>
- <p class="ro-membership-muted">${i===0?'No payment required':'No pricing or checkout is active yet'}</p>
- <p><strong>${p.songs} ${i===0?'free':'planned'} songs</strong> / month<br><span class="ro-membership-muted">${i===0?'Free monthly allowance':'Planned allowance after verified paid launch'} · ${p.credits.toLocaleString('en-IN')} planned credits</span></p>
- <ul>${p.perks.map(x=>'<li>'+escapeHTML(x)+'</li>').join('')}</ul><button type="button" disabled>${i===0?'✓ Current free plan':'🔒 Checkout unavailable'}</button></article>`).join('')}</div>
+ <p class="ro-membership-muted" style="text-align:center">Compare creator plans. Paid checkout requires merchant approval and purchase verification before real charges can begin.</p>
+ <div class="ro-membership-cycle" role="group" aria-label="Billing period"><button type="button" data-cycle="monthly" aria-pressed="${!annual}">Monthly</button><button type="button" data-cycle="annual" aria-pressed="${annual}">Annual · Save more</button></div>
+ <div class="ro-membership-grid">${plans.map((p,i)=>`<article class="ro-membership-card"><div style="color:#e5c9a2;font-size:11px">${escapeHTML(p.tag)}</div><div class="ro-plan-state">${i===0?'✓ Free account':'Payment setup in progress'}</div><h3>${escapeHTML(p.name)}</h3>
+ <div class="ro-membership-amount">₹${(annual?p.annual:p.monthly).toLocaleString('en-IN')}<span style="font-size:13px;color:#b3aebe;font-weight:500"> / month</span></div>
+ <p class="ro-membership-muted">${i===0?'No payment required':annual?'Preview: ₹'+(p.annual*12).toLocaleString('en-IN')+' billed annually':'Preview price · monthly billing'}</p>
+ <p><strong>${p.songs} ${i===0?'included':'proposed'} songs</strong> / month<br><span class="ro-membership-muted">${i===0?'Free monthly allowance':'Subject to paid activation'} · ${p.credits.toLocaleString('en-IN')} planned credits</span></p>
+ <ul>${p.perks.map(x=>'<li>'+escapeHTML(x)+'</li>').join('')}</ul><button type="button" ${i===0?'disabled':`data-select-plan="${escapeHTML(p.name.toLowerCase())}"`}>${i===0?'✓ Current free plan':'Select '+escapeHTML(p.name)}</button></article>`).join('')}</div>
+ <p id="roPlanSelectionStatus" role="status" aria-live="polite" class="ro-membership-muted" style="text-align:center;margin-top:14px">No payment will be collected before verified checkout becomes available.</p>
  <details class="ro-membership-details"><summary>Compare all 18 creator features ↓</summary>
  <div class="ro-membership-matrix-wrap"><table class="ro-membership-matrix"><thead><tr><th scope="col">Feature</th><th scope="col">Free</th><th scope="col">Premium</th><th scope="col">Pro</th></tr></thead>
  <tbody>${featureMatrix.map(row=>`<tr>${row.map((value,index)=>`<${index===0?'th scope="row"':'td'}>${escapeHTML(value)}</${index===0?'th':'td'}>`).join('')}</tr>`).join('')}</tbody></table></div>
  <p class="ro-membership-muted">✓ means the tool is available where supported; provider and account limits still apply. “Planned” means not yet unlocked. “Not active” means not available on any plan. Stereo split and pitch assist are basic browser tools, not neural studio mastering.</p></details>
- <p class="ro-membership-muted" style="text-align:center;margin-top:20px">Free includes 3 songs/month when generation is available. Paid plans are previews, not currently purchasable. Higher quotas and quality downloads activate only with verified server-side memberships after the provider, commercial-rights and billing checks.</p></section>`;
+ <p class="ro-membership-muted" style="text-align:center;margin-top:20px">Free includes 3 songs/month when generation is available. Displayed Premium/Pro prices are provisional; final prices are confirmed at verified checkout. Paid quotas and quality downloads unlock only after a server-verified subscription. Paid checkout is not active yet.</p></section>`;
  document.body.appendChild(overlay);
  overlay.querySelector('.ro-membership-close').onclick=()=>overlay.remove();
  overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};
  overlay.querySelectorAll('[data-cycle]').forEach(b=>b.onclick=()=>{annual=b.dataset.cycle==='annual';openMemberships(reason)});
+ overlay.querySelectorAll('[data-select-plan]').forEach(button=>button.onclick=async()=>{
+  const plan=button.dataset.selectPlan,message=overlay.querySelector('#roPlanSelectionStatus');
+  if(!message)return;
+  message.textContent='Checking secure checkout for '+plan.toUpperCase()+'…';
+  try{
+   const result=await window.roPlayBilling?.check?.();
+   message.textContent=result?.enabled&&result?.supported?
+    'Google Play detected; server-side purchase verification must be activated before checkout. No payment collected.':
+    'Paid checkout is awaiting merchant approval and secure purchase verification. No payment collected.';
+  }catch{message.textContent='Payment is temporarily unavailable. No payment collected.'}
+ });
  overlay.querySelector('.ro-membership-close').focus();
  showBalance();
  // Billing readiness is server-controlled. Never offer a paid button based on browser detection alone.
