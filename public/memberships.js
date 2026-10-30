@@ -201,8 +201,10 @@ async function loadSandboxControls(overlay){
     const result=await response.json().catch(()=>({}));
     if(!response.ok)throw Error(result.error||'Google Play connection check failed');
     const lines=(result.subscriptions||[]).map(item=>item.productId+': '+(item.available?'Connected':item.status));
+    const links=result.appLinksConfigured===true?'App Signing fingerprint configured.':'Android App Links missing: set PLAY_APP_SIGNING_SHA256 in Cloudflare from the Google Play App Signing certificate.';
     googleResult.textContent=(result.oauthConnected?'Google API authentication successful.':'Google Play auth not yet ready.')+
-     ' '+lines.join(' | ')+' Real purchases remain disabled until subscription verification is tested.';
+     ' '+lines.join(' | ')+' '+links+
+     ' Real charges remain disabled until receipt verification and cancellation tests pass.';
    }catch(err){googleResult.textContent=err.message||'Google Play connection is not ready'}
    finally{googleCheck.disabled=false}
   };
