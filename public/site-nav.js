@@ -7,6 +7,7 @@
     { label: 'Listen & Chill', href: '/#listen', icon: 'music' },
     { label: 'Sing Your Song', href: '/sing-your-song', icon: 'mic' },
     { label: 'AI Studio', href: '/#studio', icon: 'sparkles' },
+    { label: 'Creator Lab · 20 tools', href: '/creator-lab', icon: 'sliders-horizontal' },
     { label: 'Video Maker', href: '/video-maker', icon: 'film' },
     { label: 'Vocal Lab', href: '/vocal-lab', icon: 'headphones' },
     { label: 'AI Lyrics', href: '/ai-lyrics-generator', icon: 'pen' },
