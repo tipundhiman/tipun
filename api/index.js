@@ -423,6 +423,8 @@ export async function handleApi(req, res) {
       const s = subscription.data?.[0];
       const u = usage.data?.[0];
       const active = !s || (s.status === 'active' && (!s.expires_at || Date.parse(s.expires_at) > Date.now()));
+      // Inactive or expired paid access falls back to Free, never grants paid HQ privileges.
+      // UTC calendar-month usage is shared by song counts and their 100-credit display.
       // Only the server-verified, active subscription grants premium downloads.
       // Never trust user-editable profile metadata or a client-supplied plan.
       const paidCap = s?.plan === 'pro' ? 75 : s?.plan === 'premium' ? 35 : 0;
@@ -431,10 +433,22 @@ export async function handleApi(req, res) {
       const downloadHighQuality = Boolean(s && active && paidCap > 0 && paidLimit > 0);
       // A paid entitlement only exists in the protected subscriptions table.
       // Test-checkout records never appear there, so they cannot grant access.
-      const limit = !active ? 0 : !s || s.plan === 'free' ? 3 : paidLimit;
-      const used = u?.songs_used || 0;
-      const reserved = u?.songs_reserved || 0;
-      return send(res, 200, { plan: s?.plan || 'free', downloadHighQuality, monthlyLimit: limit, used, reserved, remaining: Math.max(0, limit - used - reserved), monthStart: month });
+      const plan = active && paidCap && paidLimit > 0 ? s.plan : 'free';
+      const limit = plan === 'free' ? 3 : paidLimit;
+      const used = Math.max(0, Number(u?.songs_used)||0);
+      const reserved = Math.max(0, Number(u?.songs_reserved)||0);
+      const remaining = Math.max(0, limit - used - reserved);
+      const creditCostPerSong = 100;
+      return send(res, 200, {
+        plan, downloadHighQuality, monthlyLimit:limit, used, reserved, remaining, monthStart:month,
+        creditUnit:'orbit', creditCostPerSong,
+        creditBalance:{
+          monthly:limit*creditCostPerSong,
+          used:used*creditCostPerSong,
+          reserved:reserved*creditCostPerSong,
+          remaining:remaining*creditCostPerSong
+        }
+      });
     }
 
     if (req.method === 'GET' && path === '/api/music/library') {
