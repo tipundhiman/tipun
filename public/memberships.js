@@ -250,7 +250,7 @@ function openMemberships(reason){
  <div class="ro-membership-amount" data-ro-local-price>₹${p.monthly.toLocaleString('en-IN')}<span style="font-size:13px;color:#b3aebe;font-weight:500"> / month</span></div>
  <p class="ro-membership-muted">${i===0?'No payment required':'India reference price · monthly billing · no payment collected'}</p>
  <p><strong>${p.songs} ${i===0?'included':'proposed'} songs</strong> / month<br><span class="ro-membership-muted">${i===0?'Free monthly allowance':'Subject to paid activation'} · ${p.credits.toLocaleString('en-IN')} Orbit Credits when eligible</span></p>
- <ul>${p.perks.map(x=>'<li>'+escapeHTML(x)+'</li>').join('')}</ul><button type="button" ${i===0?'disabled':`data-select-plan="${escapeHTML(p.name.toLowerCase())}"`}>${i===0?'✓ Current free plan':'Select '+escapeHTML(p.name)}</button></article>`).join('')}</div>
+ <ul>${p.perks.map(x=>'<li>'+escapeHTML(x)+'</li>').join('')}</ul><button type="button" ${i===0?'disabled':`data-select-plan="${escapeHTML(p.name.toLowerCase())}"`}>${i===0?'✓ Current free plan':'Check '+escapeHTML(p.name)+' availability'}</button></article>`).join('')}</div>
  <p id="roPlanSelectionStatus" role="status" aria-live="polite" class="ro-membership-muted" style="text-align:center;margin-top:14px">No payment will be collected before verified checkout becomes available.</p>
  <details class="ro-membership-details"><summary>Compare all 18 creator features ↓</summary>
  <div class="ro-membership-matrix-wrap"><table class="ro-membership-matrix"><thead><tr><th scope="col">Feature</th><th scope="col">Free</th><th scope="col">Premium</th><th scope="col">Pro</th></tr></thead>
