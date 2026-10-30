@@ -9,7 +9,10 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/.well-known/assetlinks.json"]
+    "run_worker_first": [
+      "/api/*",
+      "/.well-known/assetlinks.json"
+    ]
   },
   "r2_buckets": [
     {
@@ -21,7 +24,18 @@
     {
       "name": "MEDIA_UPLOAD_RATE_LIMITER",
       "namespace_id": "739421",
-      "simple": { "limit": 3, "period": 60 }
+      "simple": {
+        "limit": 3,
+        "period": 60
+      }
+    },
+    {
+      "name": "MUSIC_GENERATION_RATE_LIMITER",
+      "namespace_id": "739422",
+      "simple": {
+        "limit": 6,
+        "period": 60
+      }
     }
   ]
 }
