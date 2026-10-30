@@ -17,6 +17,23 @@ export default {
     const path = new URL(request.url).pathname;
     if (path === '/.well-known/assetlinks.json') return serveAppAssetLinks(request, env);
     if (path.startsWith('/api/')) {
+      // Edge-level cost control: 6 AI generation requests/minute per Cloudflare
+      // client IP, on top of the atomic per-user Supabase monthly song cap.
+      // Never use the user-controlled x-forwarded-for header as an identity.
+      if (path === '/api/music/generate' && request.method === 'POST' && env.MUSIC_GENERATION_RATE_LIMITER) {
+        const clientIp=String(request.headers.get('cf-connecting-ip')||'unknown').slice(0,90);
+        try{
+          const limit=await env.MUSIC_GENERATION_RATE_LIMITER.limit({key:'music:'+clientIp});
+          if(!limit.success)return new Response(JSON.stringify({error:'Too many song requests. Try again shortly.'}),{
+            status:429,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Retry-After':'60'}
+          });
+        }catch{
+          // Fail closed for expensive operations when abuse control is down.
+          return new Response(JSON.stringify({error:'Music generation protection is temporarily unavailable'}),{
+            status:503,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}
+          });
+        }
+      }
       // Admin-only Google API authentication/catalog check. No payment can be made here.
       if (path === '/api/play-billing/readiness') return handlePlayBillingReadiness(request,env);
       // Play Billing is staged in Android v1.1, but digital checkout MUST
