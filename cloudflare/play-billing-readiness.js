@@ -4,6 +4,7 @@
  * token and read our TWO Play Console subscription product IDs. Does NOT charge,
  * acknowledge, modify subscriptions, or enable checkout.
  */
+import {assetLinksForFingerprint} from './asset-links.js';
 const PRODUCT_IDS=['rhymeorbit_premium','rhymeorbit_pro'];
 const PACKAGE='in.rhymeorbit.app';
 const json=(value,status=200)=>new Response(JSON.stringify(value),{
@@ -79,6 +80,7 @@ export async function handlePlayBillingReadiness(request,env){
   }));
   return json({
    checkoutEnabled:false,configured:true,oauthConnected:true,
+   appLinksConfigured:Boolean(assetLinksForFingerprint(env.PLAY_APP_SIGNING_SHA256)),
    subscriptions:checks,
    readyForCheckout:false,
    message:checks.every(x=>x.available)?'Google Play catalog connected; real checkout still requires purchase verification and lifecycle handling.':'Google Play subscription catalog needs attention.'
