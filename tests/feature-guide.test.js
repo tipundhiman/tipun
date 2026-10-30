@@ -4,12 +4,12 @@ import { readFileSync } from 'node:fs';
 
 const read = file => readFileSync(new URL('../' + file, import.meta.url), 'utf8');
 
-test('Guide has sixteen unique findable destinations and a four-step tour', () => {
+test('Guide has seventeen unique findable destinations and a four-step tour', () => {
   const source = read('public/feature-guide.js');
   const linkBlock = source.split('const links = [')[1]?.split('];')[0];
   assert.ok(linkBlock);
   const entries = [...linkBlock.matchAll(/^    \['[^']+', '([^']+)'/gm)].map(match => match[1]);
-  assert.equal(entries.length, 16);
+  assert.equal(entries.length, 17);
   assert.equal(new Set(entries).size, entries.length);
   for (const section of ['Create', 'Video', 'Audio', 'Library', 'Explore', 'Account'])
     assert.ok(source.includes("'" + section + "'"));
@@ -17,8 +17,8 @@ test('Guide has sixteen unique findable destinations and a four-step tour', () =
   assert.match(source, /navigateToFeature/);
   assert.match(source, /ro_guide_target_20261025/);
   assert.match(source, /ro-backend-ready/);
-  assert.match(source, /const essentials = new Set\(\[0,1,2,4,7,8\]\)/);
-  assert.match(source, /See all 16 creator tools/);
+  assert.match(source, /const essentials = new Set\(\[0,1,2,5,8,9\]\)/);
+  assert.match(source, /See all creator features/);
   assert.match(source, /showAll \|\| q \|\| essentials\.has\(index\)/);
 });
 
