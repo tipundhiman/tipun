@@ -10,10 +10,12 @@ import { handlePrivateVideoRequest } from './private-videos.js';
 import { handleCreatorLyricsRequest } from './creator-lyrics.js';
 import { handleLicensedLyricsRequest } from './licensed-lyrics.js';
 import { handlePlayBillingReadiness } from './play-billing-readiness.js';
+import { serveAppAssetLinks } from './asset-links.js';
 
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
+    if (path === '/.well-known/assetlinks.json') return serveAppAssetLinks(request, env);
     if (path.startsWith('/api/')) {
       // Admin-only Google API authentication/catalog check. No payment can be made here.
       if (path === '/api/play-billing/readiness') return handlePlayBillingReadiness(request,env);
