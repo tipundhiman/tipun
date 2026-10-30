@@ -19,6 +19,11 @@
 /sing-your-song*
   Permissions-Policy: camera=(), microphone=(self), geolocation=()
 
+# Creator Lab's private voice memo is the only section needing microphone permission.
+# Microphone is prompted by the browser and recordings are not sent to our API.
+/creator-lab*
+  Permissions-Policy: camera=(), microphone=(self), geolocation=()
+
 # Prevent Kids Studio from making network API calls or loading third-party frames.
 # It stores only a nickname and writing drafts on the current device.
 /kids.html
