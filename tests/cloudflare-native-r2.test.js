@@ -32,6 +32,7 @@ test('existing Cloudflare SONGS_BUCKET accesses private songs without S3 credent
   globalThis.fetch=async(url)=>{
     const target=String(url);
     if(target.endsWith('/auth/v1/user'))return fakeResponse({id:user});
+    if(target.includes('/rest/v1/ro_account_ages'))return fakeResponse([{user_id:user}]);
     if(target.includes('/rest/v1/generated_songs'))return fakeResponse([{
       task_id:task,storage_path:'r2:'+key,status:'ready',title:'Private song',voice:'auto'
     }]);
@@ -77,6 +78,7 @@ test('Cloudflare native R2 archives generated song audio without any S3 key',asy
   globalThis.fetch=async(url,opts={})=>{
     const str=String(url);
     if(str.endsWith('/auth/v1/user'))return fakeResponse({id:user});
+    if(str.includes('/rest/v1/ro_account_ages'))return fakeResponse([{user_id:user}]);
     if(str.includes('/rest/v1/admin_users'))return fakeResponse([]);
     if(str.includes('/rest/v1/music_generation_reservations'))return fakeResponse([{id:'reservation'}]);
     if(str.includes('/rest/v1/generated_songs')){
