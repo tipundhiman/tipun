@@ -1279,11 +1279,15 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       const remaining=Math.max(0,Math.min(limit,Number(balance.remaining)||0));
       const tier=['premium','pro'].includes(balance.plan)?balance.plan.toUpperCase():'Free';
       if(responses[1].ok&&status.publicGenerationEnabled===false){
-        out.textContent='♫ Song generation is temporarily unavailable. Your monthly balance is '+remaining+'/'+limit+'.';
+        out.textContent='♫ Generation paused · '+(remaining*100).toLocaleString()+' Orbit Credits ('+remaining+' songs) still in your monthly allowance.';
         if(button)button.disabled=true;
         return;
       }
-      out.textContent='♫ '+remaining+' of '+limit+' '+tier+' songs left this month · Resets monthly (UTC)';
+      const unit=Number(balance.creditCostPerSong)===100?100:0;
+      const shownCredits=unit?Math.max(0,Math.floor(Number(balance.creditBalance?.remaining)||0)):remaining*100;
+      const monthlyCredits=unit?Math.max(0,Math.floor(Number(balance.creditBalance?.monthly)||0)):limit*100;
+      out.textContent='♫ '+shownCredits.toLocaleString()+' / '+monthlyCredits.toLocaleString()+
+        ' Orbit Credits · 100 credits = 1 song · '+remaining+' '+tier+' songs left · Resets monthly (UTC)';
       if(button)button.disabled=remaining===0||!!window.roSongBusy;
     }catch(error){out.textContent='Monthly song balance unavailable right now.';if(button)button.disabled=!!window.roSongBusy}
   };
