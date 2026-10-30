@@ -5,6 +5,7 @@
   const links = [
     ['🎤', 'Make an AI song', 'Create complete original songs with vocals and music.', '/#studio', 'Create', 'song,generate,vocals,beats,music'],
     ['✍️', 'Write song lyrics', 'Get AI ideas, change the lines and save your drafts.', '/#studio', 'Create', 'write,text,words,lyrics'],
+    ['🎼', 'Creator Lab · 20 free tools', 'Rhyme pockets, tempo, metronome, LRC lyrics, release planning and more.', '/creator-lab', 'Create', 'rhymes,practice,bpm,metronome,metadata,split,toolkit'],
     ['💖', 'Shayari & spoken poetry', 'Write Shayari and listen with voice or soft music.', '/#studio', 'Create', 'poetry,hindi,speak,voice'],
     ['✨', 'Chat with Riya', 'Get friendly writing and website help.', '/#help', 'Create', 'chat,bot,assistant,guide'],
     ['🎬', 'Animate my lyrics', 'Make cartoon lyric videos with original background music.', '/video-maker', 'Video', 'animation,movie,reel,shorts'],
