@@ -121,9 +121,9 @@ checklist.forEach(c=>c.addEventListener('change',updateChecklist));updateCheckli
 const actions={
  hook:()=>invoke('clHookOut',()=>hookIdea(value('clHookLanguage'),value('clHookMood'))),
  structure:()=>invoke('clStructureOut',()=>{
-  const plan=arrangement(value('clStructure'),number('clBpm',30,240));
+  const plan=arrangement(value('clStructure'),number('clStructureBpm',30,240));
   return plan.sections.map(x=>x.name+' · '+x.bars+' bars · '+formatDuration(x.start)+'–'+formatDuration(x.until)).join('\n')+
-   '\nTotal: '+plan.bars+' bars · '+formatDuration(plan.seconds)+' at '+value('clBpm')+' BPM (4/4).';
+   '\nTotal: '+plan.bars+' bars · '+formatDuration(plan.seconds)+' at '+value('clStructureBpm')+' BPM (4/4).';
  }),
  rhyme:()=>invoke('clRhymeOut',()=>{
   const matches=findRhyme(value('clRhymeWord'));
@@ -171,7 +171,7 @@ const actions={
   const note=noteFrequency(number('clMidi',0,127));
   return note.name+' ≈ '+note.hz.toFixed(2)+' Hz (A4 = 440 Hz).';
  }),
- bars:()=>invoke('clBarsOut',()=>number('clBars',1,1000)+' bars at '+value('clBpm')+' BPM ≈ '+formatDuration(barDuration(number('clBars',1,1000),number('clBpm',30,240)))+' (4/4).'),
+ bars:()=>invoke('clBarsOut',()=>number('clBars',1,1000)+' bars at '+value('clBarsBpm')+' BPM ≈ '+formatDuration(barDuration(number('clBars',1,1000),number('clBarsBpm',30,240)))+' (4/4).'),
  'record-start':()=>startRecording(),
  'record-stop':()=>stopRecording(),
  metadata:()=>invoke('clMetadataOut',()=>metadataBrief({title:value('clSongTitle'),artist:value('clArtist'),genre:value('clGenre'),credits:value('clCredits')})),
