@@ -1,6 +1,17 @@
 # RhymeOrbit — production audit and engineering handoff
 **31 October 2026 | Scope:** GitHub `tipundhiman/tipun` `master`, Cloudflare Worker `tipun` serving `rhymeorbit.in`, Supabase project `ixpeheebqofrqedonnyf`, Android TWA `in.rhymeorbit.app`.
 
+## Follow-up audit: 100-credit billing presentation and RLS (31 Oct 2026)
+
+- **100 Orbit Credits = 1 song.** Protected `GET /api/music/credits` now returns exact numerical `creditCostPerSong` and `creditBalance` from the same server-backed `songs_used`, `songs_reserved` and monthly song limit that the quota RPC uses. Free 300, Premium up to 3,500 and Pro up to 7,500 represent **allowance**, not cash, top-ups, refunds or payment receipts.
+- Cancelled or expired paid subscriptions fall back to Free 3 per calendar month; usage in that same UTC month is still counted. No paid HQ downloads on expired/inactive plans. Database `ro_reserve_song` was updated alongside API to keep behavior consistent.
+- Supabase's **11 auth.uid RLS initplan warnings were fixed** by wrapping `auth.uid()` in `(SELECT auth.uid())` in ownership policies. A fresh advisor run showed no performance WARN findings, only unused-index INFO items. RLS authorization rules were not broadened.
+- Reviewed three intentional `SECURITY DEFINER` helper functions: `can_message` checks the caller is participant A, `can_read_conversation` checks caller is participant A or B, and `ro_is_adult` uses the authenticated user's own age record; advisors still warn about their callable status. Keep these under review and never remove caller checks.
+- **Supabase leaked-password protection is still disabled**; enable it in Supabase Dashboard Auth security settings. No available connector can safely change this setting in chat.
+- Creator Lab microphone Permissions-Policy inheritance fixed for `/creator-lab`; manual browser/microphone validation still required.
+- Google Play admin diagnostic now displays whether the **Play App Signing** fingerprint has been configured, without exposing credentials. Real charges remain intentionally disabled until purchase-token verification, acknowledgement, restore and cancellation are tested.
+- Verified GitHub Code Quality run [here](https://github.com/tipundhiman/tipun/actions/runs/41143793270); this is source automation, not a licensed Google Play purchase test.
+
 ## What has actually been checked
 
 | Area | Evidence inspected | Current conclusion |
