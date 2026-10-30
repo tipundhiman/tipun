@@ -28,6 +28,13 @@ if(!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(base)) {
   if(!s.includes('CREATE ORIGINAL MUSIC'))return 'Latest homepage markup not deployed';
   return '';
  });
+ await probe('Creator Lab · 20 real tools', '/creator-lab', (r,s)=>{
+  if(r.status!==200)return 'HTTP '+r.status;
+  const tools=[...s.matchAll(/id="tool(\d+)"/g)].map(x=>Number(x[1]));
+  if(tools.length!==20||tools.some((x,i)=>x!==i+1))return 'Expected 20 actual tool cards in production';
+  if(!s.includes('/creator-lab.js'))return 'Interactive Creator Lab code is not linked';
+  return '';
+ });
  await probe('Install page', '/install', (r,s)=>{
   if(r.status!==200)return 'HTTP '+r.status;
   if(/Free public beta/i.test(s))return 'Outdated install copy still deployed';
