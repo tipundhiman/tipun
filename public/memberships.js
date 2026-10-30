@@ -140,15 +140,16 @@ async function launchRazorpaySandbox(plan,cycle,button,status){
 async function loadSandboxControls(overlay){
  try{
   const status=await sandboxRequest('status');
-  if(!status.testMode||!status.databaseReady)return;
+  // This endpoint is admin-authenticated. Google Play diagnostics must remain
+  // available even if the independent Razorpay sandbox database is missing.
   if(!document.body.contains(overlay))return;
   const panel=document.createElement('section');
   panel.className='ro-membership-test-panel';
   panel.style.cssText='margin-top:20px;padding:16px;border:1px dashed #e5c9a27a;border-radius:15px;';
   const heading=document.createElement('strong');
-  heading.textContent='🧪 Admin-only Razorpay Sandbox';
+  heading.textContent='Admin payment diagnostics · Google Play & Razorpay TEST';
   const note=document.createElement('p');note.className='ro-membership-muted';
-  note.textContent='Test transactions only. Live checkout remains disabled for everyone and test payments never grant paid credits.';
+  note.textContent='Read-only Google Play subscription check and optional Razorpay TEST tools. No charges or paid credits are issued.';
   panel.append(heading,note);
   const diagnose=document.createElement('button');
   diagnose.type='button';
