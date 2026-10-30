@@ -12,6 +12,17 @@
 - Google Play admin diagnostic now displays whether the **Play App Signing** fingerprint has been configured, without exposing credentials. Real charges remain intentionally disabled until purchase-token verification, acknowledgement, restore and cancellation are tested.
 - Verified GitHub Code Quality run [here](https://github.com/tipundhiman/tipun/actions/runs/41143793270); this is source automation, not a licensed Google Play purchase test.
 
+## International and cost-control patch (31 October 2026)
+
+- UI now uses server-backed **100 Orbit Credits = 1 generated song**, Free 300 / Premium 3,500 / Pro 7,500 monthly allowance; no real-money wallet/top-ups.
+- Official [Treblo v3 API docs](https://treblo.com/developers/docs) confirm **100 upstream provider credits per generation and 1 song per v3 generation**. [Provider API pricing](https://treblo.com/developers/pricing) quotes Starter $11 for 20,000 upstream credits/month (about 200 songs) and top-up prices. Internal Orbit Credits are **not transferable upstream or cash**. Keep attribution required by provider terms.
+- Google Play monthly subscription products are configured, but annual base plans are **not**; removed the fake annual-switch preview. Android TWA Digital Goods API can now **read** actual localized subscription prices without starting a payment. Web shows indicative INR pricing until genuine checkout exists.
+- Removed misleading "Select Premium/Pro" CTAs: they now perform a real **availability check** and inform users that no purchase has been made.
+- Added Cloudflare **MUSIC_GENERATION_RATE_LIMITER** (6 POST generation requests per minute per Cloudflare client IP). This is **approximate per Cloudflare colo**, layered on server-verified and atomically reserved per-user Supabase monthly quotas, not a perfect global anti-abuse spend cap. If the rate-limit binding throws, the expensive request fails closed with 503.
+- Verified the existing `ro_refund_failed_song` function is service-only and idempotent on submitted task + owner. Backend invokes it only after checking the provider's trusted FAILURE status. Paid receipt verification and refund/restore for Google Play are **separate incomplete work**.
+- The new Creator Lab microphone header uses an explicit Cloudflare inherited-header removal before enabling opt-in mic access. Full physical-device testing still needs human validation.
+- Automated code regressions reached **207 passed, 0 failed** at run [41144523345](https://github.com/tipundhiman/tipun/actions/runs/41144523345). Later source commits require rechecking their own CI status.
+
 ## What has actually been checked
 
 | Area | Evidence inspected | Current conclusion |
