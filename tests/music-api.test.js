@@ -44,6 +44,7 @@ test('Public song API enforces 3 credits, ownership, vocal payload and no provid
  globalThis.fetch=async(url,opts={})=>{
   const u=String(url);
   if(u.includes('/auth/v1/user'))return response({id:'user-a'});
+   if(u.includes('/rest/v1/ro_account_ages'))return response([{user_id:'user-a'}]);
   if(u.includes('/rest/v1/admin_users'))return response(adminMode?[{user_id:'user-a'}]:[]);
   if(u.includes('/rest/v1/music_generation_reservations')){
     return response(u.includes('task_id=eq.owned_task')?[{id:'reservation-a'}]:[]);
@@ -124,6 +125,7 @@ test('High-quality download entitlement is only granted for active, unexpired Pr
  globalThis.fetch=async url=>{
    const u=String(url);
    if(u.includes('/auth/v1/user'))return response({id:'user-a'});
+   if(u.includes('/rest/v1/ro_account_ages'))return response([{user_id:'user-a'}]);
    if(u.includes('/rest/v1/subscriptions'))return response([record]);
    if(u.includes('/rest/v1/music_usage'))return response([{songs_used:0,songs_reserved:0}]);
    throw Error('Unexpected request: '+u);
