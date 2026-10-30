@@ -6,6 +6,10 @@ on:
       - .github/workflows/live-production-smoke.yml
       - public/index.html
       - public/install.html
+      - public/creator-lab.html
+      - public/creator-lab.js
+      - public/creator-lab-core.js
+      - public/creator-lab.css
       - cloudflare/worker.js
       - cloudflare/asset-links.js
       - wrangler.jsonc
