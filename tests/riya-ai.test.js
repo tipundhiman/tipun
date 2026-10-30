@@ -7,7 +7,7 @@ import { createContext, runInContext } from 'node:vm';
 import { handleApi } from '../api/index.js';
 
 function mockResponse(data, status=200) {
-  return { status, ok:status>=200&&status<300, async json(){return data} };
+  return { status, ok:status>=200&&status<300, async json(){return data}, async text(){return JSON.stringify(data)} };
 }
 async function sendAI(payload) {
   let status, body;
@@ -27,6 +27,7 @@ test('Riya uses a supported Gemini model and returns a real help response',async
   let chosenModel='',prompt='';
   globalThis.fetch=async(url,options={})=>{
     if(String(url).includes('/auth/v1/user'))return mockResponse({id:'test-user'});
+    if(String(url).includes('/rest/v1/ro_account_ages'))return mockResponse([{user_id:'test-user'}]);
     if(String(url).includes('generativelanguage.googleapis.com')){
       chosenModel=String(url);prompt=JSON.parse(options.body).systemInstruction.parts[0].text;
       return mockResponse({candidates:[{content:{parts:[{text:'Namaste! Main Riya hoon.'}]}}]});
@@ -55,6 +56,7 @@ test('Riya recovers from an inaccessible legacy Gemini model without exposing pr
   const attempts=[];
   globalThis.fetch=async url=>{
     if(String(url).includes('/auth/v1/user'))return mockResponse({id:'test-user'});
+    if(String(url).includes('/rest/v1/ro_account_ages'))return mockResponse([{user_id:'test-user'}]);
     attempts.push(String(url));
     if(attempts.length===1)return mockResponse({error:{status:'NOT_FOUND',message:'restricted model'}},404);
     return mockResponse({candidates:[{content:{parts:[{text:'Try a gentle piano chord.'}]}}]});
