@@ -80,7 +80,10 @@ test('Membership popup blocks guests, shows all three plans and closes on signou
  runInContext("window.roOpenPricing('plans')",ctx);
  assert.equal(dialogs.length,1);
  for(const name of ['Free','Premium','Pro'])assert.ok(dialogs[0].innerHTML.includes('<h3>'+name+'</h3>'));
- assert.equal((dialogs[0].innerHTML.match(/<button type="button" disabled>/g)||[]).length,3);
+ assert.equal((dialogs[0].innerHTML.match(/<button type="button" disabled>/g)||[]).length,1);
+ assert.match(dialogs[0].innerHTML,/Select Premium/);
+ assert.match(dialogs[0].innerHTML,/Select Pro/);
+ assert.doesNotMatch(dialogs[0].innerHTML,/coming soon/i);
  runInContext('window.roCloseMemberships()',ctx);
  assert.equal(dialogs[0].removed,true);
 });
