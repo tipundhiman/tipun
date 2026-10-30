@@ -39,6 +39,12 @@ Tech: vanilla HTML/CSS/ES Modules on existing Cloudflare Worker tipun. No new AP
 - Root index, features, site navigation, mobile feature sheet, feature finder and sitemap link to the same page.
 - scripts/production-smoke.mjs: public delivery check after deployment.
 
+## Full-song provider economics (not Creator Lab costs)
+
+The separate paid music backend currently submits **one** Treblo v3 song per request to `https://api.treblo.com/v1/generations/v3`. Treblo's developer docs say one v3 generation costs **100 provider credits** and produces **one song**; failed tasks are not charged by the provider. The current [Treblo API pricing page](https://treblo.com/developers/pricing) lists Starter $11/month for 20,000 provider credits (~200 songs) and pay-as-you-go $0.06/100 credits. These prices can change; **do not promise users these are RhymeOrbit retail rates**.
+
+RhymeOrbit exposes a **separate** 100 Orbit Credits per successful song/accounting reservation mapping. Provider balance, cash payment, plan entitlement and Orbit Credits are **not interchangeable**, and a billing screen cannot activate paid rights without Google Play purchase verification. Treblo's [API pricing](https://treblo.com/developers/pricing) also requires user-facing attribution; do not silently remove the existing "Powered by Treblo" credit without confirming provider API terms.
+
 ## Cost and safety
 
 The 20 tools use browser CPU and local storage, not the paid AI song provider. They are separate from full-vocal AI song generation, which still consumes RhymeOrbit music quotas. No voice recording is uploaded to server; users should download before closing the tab. Lyrics draft and the release checklist remain in this browser only; clearing local storage removes them.
