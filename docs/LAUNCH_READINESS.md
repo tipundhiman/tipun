@@ -32,6 +32,6 @@ For the audited evidence, developer change map and device checklists:
 - SEO sitemap, verified canonical URL, mobile performance, accessibility, and accurate app listing.
 
 ## What counts as deployment verification
-GitHub Actions passing proves tests; Cloudflare `Ready` proves a build exists; **neither proves live traffic or app store publication**. Compare latest GitHub commit SHA with Cloudflare active version, confirm **100% traffic**, and manually test `https://rhymeorbit.in/` from real network and device. This audit environment could not independently access the live domain.
+GitHub Actions passing proves tests; Cloudflare `Ready` proves a build exists; **neither proves live traffic or app store publication**. Compare latest GitHub commit SHA with Cloudflare active version, confirm **100% traffic**, and manually test `https://rhymeorbit.in/` from real network and device. A network-connected GitHub Actions public production smoke test subsequently checked the live domain: homepage, install page, health and billing-disabled endpoints passed; Android assetlinks.json returned HTTP 404 pending Play App Signing SHA-256. See the production smoke workflow log. Full browser/device acceptance testing is still pending.
 
 Do not activate real checkout just by changing UI wording or the `checkoutEnabled:false` flag.
