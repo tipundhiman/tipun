@@ -1,26 +1,45 @@
-# RhymeOrbit source-of-truth map
+# RhymeOrbit · single production source of truth
 
-Canonical codebase: `tipundhiman/tipun`, production branch `master`. The existing Vercel project serves `rhymeorbit.in` and its configured aliases. Do not create another project for UI changes.
+**Last reviewed:** 31 October 2026. **Source:** `tipundhiman/tipun` on `master`. **Deployment:** existing Cloudflare Worker **`tipun`**, domain **https://rhymeorbit.in**; static directory `public/`, API `/api/*`, existing R2 bucket **`rhymeorbit-songs`**.
 
-## Where to make each change
+**Old Vercel documentation is historical. Vercel is not the canonical site.** Do not create a second Cloudflare Worker, Vercel deployment, Supabase project or duplicate frontend for changes to RhymeOrbit.
 
-- `public/index.html`: single-page shell, primary navigation, authenticated header, page templates, and the shared **Memberships** navigation entry. Login UI visibility uses `state.user`, populated only from authenticated Supabase sessions.
-- `public/integration.js`: Supabase authentication, session-to-`state.user` synchronization, backend-connected projects and AI requests. This is the **single frontend authentication source**. Do not add a second membership-specific login polling loop.
-- `public/memberships.js`: one pricing modal, Free/Premium/Pro display, monthly usage query, and quota-upgrade handling. **Do not create another floating Memberships button here.** The header in `index.html` owns that button.
-- `api/index.js`: authenticated server API, provider integration, subscription/credit enforcement. Never use frontend UI visibility as authorization.
-- `public/creator-kit.js`: beta EPK/creator kit implementation. No floating homepage CTA.
-- `public/admin-music-visibility.js`: admin-only recovery controls, backed by server-side admin verification.
-- `public/media.js`, `public/social.js`, `public/community-feed.js`: feature extensions. Some wrap core rendering to add behavior; **do not remove wrappers without validating the feature they add**.
-- `public/index.html` and `api/index.js`: Riya Grover assistant UI and server AI instructions, respectively.
+## Find the code in seconds
 
-## Production change checklist
+| User-facing feature | Change here | Server-side authority |
+| --- | --- | --- |
+| Home/SPA navigation, studio/dashboard, admin | `public/index.html` | `cloudflare/worker.js` |
+| Signup, age declaration, session, saved projects | `public/integration.js` | Supabase Auth + `public.ro_account_ages` |
+| Pricing and plan comparison | `public/memberships.js` | `public.subscriptions`, `api/index.js` |
+| Google Play Billing detection | `public/play-billing.js`, Android TWA files | **Purchases disabled pending verified backend** |
+| Google Play catalog-only diagnostic | `cloudflare/play-billing-readiness.js` | Play Developer API service account secret; admin only |
+| App links / Android fullscreen verification | `cloudflare/asset-links.js` + `wrangler.jsonc` | `PLAY_APP_SIGNING_SHA256` (Play *app-signing* cert) |
+| Songs and quotas | `api/index.js`, `api/r2.js` | Supabase `ro_reserve_song`, `music_usage`, private R2 |
+| Riya/lyrics | `public/riya-chat.js`, `cloudflare/creator-lyrics.js` | `/api/ai`, configured Gemini |
+| Listen & Chill | `public/listen-player.js`, `public/jamendo-indie.js` | licensed/discovery APIs, source-specific rights |
+| Sing/karaoke and voice | `public/sing-your-song.js`, `public/vocal-lab.js` | browser microphone permission |
+| My Videos and uploads | `public/video-maker.js`, `public/media.js` | `cloudflare/private-videos.js`, `cloudflare/media-storage.js` |
+| Community/UGC | `public/community-feed.js`, `public/social.js` | Supabase RLS + moderation |
+| Mobile nav, theme, walkthrough | `public/mobile-app.js`, `public/ro-design.js`, `public/feature-guide.js` | one existing site |
+| Android app, Play AAB, signing | `android/`, `.github/workflows/android-aab-signed.yml` | Google Play Console tracks |
 
-1. Edit only the canonical repository's `master` branch.
-2. Check for existing implementations before adding another UI element or renderer.
-3. Confirm the latest commit is actually deployed to the existing Vercel production project.
-4. Test as guest, normal signed-in user, and admin. Verify login/logout transitions.
-5. Validate JS syntax, feature routes, and server-side authorization. Do not claim live verification based on a GitHub commit alone.
+## Contract for backend work
 
-## Remaining refactor work
+- Only verified server data can grant subscriptions, generate song credits, authorize private downloads or access admin functions. Never trust `localStorage`, client plan selectors, `user_metadata` or PaymentRequest success screen.
+- **Free 3 / Premium up to 35 / Pro up to 75 songs per month.** Both API and `ro_reserve_song` enforce quota, and manual admin RPC must stay aligned. Paid credits only after verified purchases or explicit manual administrator grants.
+- New signup has a date of birth and old accounts declare DOB once. `ro_account_ages` is private, with adult-only social controls. This does not constitute independently verified age assurance or parental consent.
+- All new song/media data uses **private Cloudflare R2**. Auth and other application state remain in Supabase.
+- `/api/play-billing/status` and purchases remain **fail-closed**. Google catalog diagnostic is read-only, and **does not** authorize charging.
+- `/.well-known/assetlinks.json` must contain Play **app-signing** SHA-256, not the uploaded signing keystore SHA-256.
+- Secrets stay in Cloudflare encrypted runtime vars or GitHub Actions encrypted signing secrets. No keys in GitHub, HTML or chat.
 
-The site still has a large `public/index.html` and intentional feature wrappers in `integration.js`/`media.js`. A full file-by-file deduplication and regression test pass has **not** been completed. Consolidate these incrementally with tests, not bulk deletion.
+## Regression and deploy rules
+
+1. `npm test` (Node >=20), inspect `.github/workflows/code-quality.yml` results.
+2. Make one focused change. The legacy `public/index.html` is large; avoid untested mass splitting, rewriting wrappers or duplicating logins.
+3. Confirm existing Cloudflare Worker **tipun** Production deployment receives the **new SHA and 100% of traffic**, not only `Ready`.
+4. Smoke-test actual `rhymeorbit.in` on desktop + mobile + logged-out/teen/adult/admin accounts. Automated CI does not prove media playback or native delegation.
+5. Android website-only changes appear inside TWA after web deploy; Java/Gradle changes require a new signed release with increased version code, and Play testing/review.
+6. Record residual blockers in `docs/PRODUCTION_AUDIT_20261031.md` and never claim full public or paid launch without explicit device/merchant verification.
+
+The full new-developer guide is in root `README.md`. Historical Vercel instructions are archived context, not deployment authority.
