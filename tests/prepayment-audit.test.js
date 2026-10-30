@@ -18,7 +18,8 @@ test('Paid checkout is disabled until entitlement and provider limits match pric
  assert.match(memberships,/Paid checkout is not active yet/);
  assert.match(memberships,/No payment will be collected before verified checkout/);
  assert.match(api,/const limit = plan === 'free' \? 3 : paidLimit;/);
-  assert.match(api,/const creditCostPerSong = 100;/);
+  assert.match(api,/creditBalance\(limit, used, reserved\)/);
+  assert.match(api,/creditUnit:'orbit'/);
   assert.match(api,/downloadHighQuality, monthlyLimit:limit/);
  assert.match(api,/const paidCap = s\?\.plan === 'pro' \? 75 : s\?\.plan === 'premium' \? 35 : 0;/);
  const sql=read('supabase/commercial_entitlements.sql');
