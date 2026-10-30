@@ -84,7 +84,7 @@ test('Only the existing tipun Worker and R2 bucket are configured',async()=>{
   assert.equal(cfg.name,'tipun');
   assert.equal(cfg.main,'cloudflare/worker.js');
   assert.equal(cfg.compatibility_date,'2026-10-24');
-  assert.deepEqual(cfg.assets.run_worker_first,['/api/*']);
+  assert.deepEqual(cfg.assets.run_worker_first,['/api/*','/.well-known/assetlinks.json']);
   assert.equal(cfg.assets.directory,'./public');
   assert.equal(cfg.r2_buckets[0].binding,'SONGS_BUCKET');
   assert.equal(cfg.r2_buckets[0].bucket_name,'rhymeorbit-songs');
