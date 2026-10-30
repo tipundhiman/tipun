@@ -43,6 +43,7 @@ test('Install guide supports Android, iPhone and desktop without promising nativ
     assert.ok(page.includes(label), label);
   assert.match(page, /beforeinstallprompt/);
   assert.match(page, /appinstalled/);
-  assert.match(page, /not yet a Play Store or App Store release/);
+  assert.match(page, /Android app is available to invited Google Play testers/);
+  assert.match(page, /No public App Store release is available yet/);
   assert.match(read('site-nav.js'), /href: '\/install'/);
 });
