@@ -42,6 +42,15 @@ jobs:
           trap 'rm -f "$store"' EXIT
           printf '%s' "$RHYMEORBIT_UPLOAD_KEYSTORE_B64" | base64 --decode > "$store"
           keytool -list -keystore "$store" -storepass:env RHYMEORBIT_UPLOAD_STORE_PASSWORD -alias "$RHYMEORBIT_UPLOAD_KEY_ALIAS" >/dev/null
+          # Match the certificate against Google Play's UPLOAD-key SHA-256 (not app-signing key).
+          # Only the public certificate digest is compared; never echo the private key/password.
+          expected_fingerprint="60E7C6AD8EE0418671B2596307983B1669A28F79A20D0DBBA301D9BC06C0E869"
+          actual_fingerprint="$(keytool -exportcert -keystore "$store" -storepass:env RHYMEORBIT_UPLOAD_STORE_PASSWORD -alias "$RHYMEORBIT_UPLOAD_KEY_ALIAS" | openssl dgst -sha256 | awk '{print $NF}' | tr '[:lower:]' '[:upper:]')"
+          if [[ "$actual_fingerprint" != "$expected_fingerprint" ]]; then
+            echo "::error::Upload-key certificate does not match the registered Google Play upload key. Stopped before signing."
+            exit 1
+          fi
+          echo "Upload-key certificate matches Google Play SHA-256."
           unsigned="android/app/build/outputs/bundle/release/app-release.aab"
           signed="android/app/build/outputs/bundle/release/rhymeorbit-v1.1.0-signed.aab"
           test -s "$unsigned"
