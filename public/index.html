@@ -517,12 +517,12 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
             <label class="ro-admin-label" for="roPlan">Subscription plan</label>
             <select class="ro-admin-input" id="roPlan">
               <option value="free">Free — 3 songs/month</option>
-              <option value="premium">Premium</option>
+              <option value="premium">Premium — up to 35 songs/month</option>\n              <option value="pro">Pro — up to 75 songs/month</option>
             </select>
 
             <label class="ro-admin-label" for="roLimit">Monthly song limit</label>
             <input class="ro-admin-input" id="roLimit"
-              type="number" min="1" max="10000" value="3" required>
+              type="number" min="1" max="75" value="3" required>
 
             <label class="ro-admin-label" for="roExpiry">
               Expiration (optional)
@@ -614,13 +614,11 @@ const initial=location.hash.slice(1);if(['home','discover','studio','projects','
       const limit = document.getElementById('roLimit');
 
       plan.onchange = ()=>{
-        if(plan.value === 'free'){
-          limit.value = '3';
-          limit.disabled = true;
-        }else{
-          limit.disabled = false;
-          limit.value = '10';
-        }
+        const caps = {free: 3, premium: 35, pro: 75};
+        const cap = caps[plan.value] || 3;
+        limit.max = String(cap);
+        limit.value = String(cap);
+        limit.disabled = plan.value === 'free';
       };
       plan.onchange();
 
