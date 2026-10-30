@@ -5,8 +5,25 @@ RhymeOrbit uses a Trusted Web Activity at `https://rhymeorbit.in` and Android pa
 ## Product decision
 Creator confirms Premium and Pro benefits can be fulfilled. This is a product claim, not a billing verification. Never bill users without a tested subscription-to-entitlement path. Current preview prices in `public/memberships.js` are ₹599 monthly Premium and ₹1299 monthly Pro; confirm actual prices in Play Console and use Play product price as source of truth.
 
+## Current release and merchant status (31 October 2026)
+- Android versionCode **2**, versionName **1.1.0** has successfully been signed with the registered Play upload key and published to **Internal testing** (available to invited internal testers).
+- Same version is submitted to **Closed testing – Alpha**, currently in review. This does NOT constitute production/public release.
+- Age-based account declaration is now recorded in a protected Supabase table, with DB adult-only protections for social interactions.
+- **Real digital subscription checkout is OFF for all users**. Never flip the flag merely because merchant KYC has been scheduled or submitted.
+- BillDesk/other web-payment KYC approval does NOT mean Google Play merchant profile and Google Play Billing service access are approved. Treat these as separate systems.
+
+## Safe launch gate — block billing until all are confirmed
+1. Google Play Console **merchant/payments profile shows verified/active** (not pending).
+2. Two Play subscription products and base plans created/activated; exact product IDs, monthly/annual pricing, and which tier each product unlocks are known. Preview amounts in the UI are NOT checkout source of truth.
+3. Secure Cloudflare backend receives a properly authorized Play Developer API identity. Never paste its private key into source code or chat.
+4. Server verifies package name, subscription product ID, purchase token status/expiry and ownership, records unique token/idempotency, acknowledges eligible purchases, and grants/revokes Premium/Pro only through protected DB tables.
+5. RTDN / periodic reconciliation processes renewal, payment hold, cancellation, expiry, refunds, and revoked purchases.
+6. License testers successfully complete purchase, restore purchase, renew/cancel/refund, download/credits entitlement, and age eligibility tests **before** real-money launch.
+7. Merchant owner explicitly approves go-live; only then remove the fail-closed gate on the Android checkout endpoint.
+8. Website real subscriptions can be enabled separately **after the website PSP's production KYC, webhook signature validation, billing entitlement and tax/compliance steps** are complete. Do not route Play-installed TWA digital subscriptions to Razorpay/BillDesk instead of Play Billing.
+
 ## Prepared in code, on master
-- Future Android versionCode 2, versionName 1.1.0 (currently uploaded release versionCode 1, which is unchanged).
+- Android versionCode 2 / versionName 1.1.0 is already uploaded to Internal testing; the Alpha release is in review.
 - TWA Play Billing feature flag enabled; Android Browser Helper billing 1.2.0 dependency (Play Billing Library 8.3.0), Android DelegationService/DigitalGoodsRequestHandler, PaymentActivity and PaymentService declared.
 - Digital Goods API capability detection exists at `public/play-billing.js`.
 - /api/play-billing/status returns `checkoutEnabled:false`, and all /api/play-billing/* unknown operations fail closed with 503. No money can be charged through this integration.
