@@ -1,3 +1,5 @@
+> **Historical reference (superseded 31 Oct 2026):** Production is the existing Cloudflare Worker `tipun` at `rhymeorbit.in`, NOT Vercel. Use root `README.md`, `docs/RHYMEORBIT_SOURCE_OF_TRUTH.md`, and `docs/PRODUCTION_AUDIT_20261031.md` for the current release and deployment steps. Do not follow old Vercel env/DNS directions.
+
 # RhymeOrbit — pre-payment launch audit (24 October 2026)
 
 **Project source:** `tipundhiman/tipun` → `master` → the existing RhymeOrbit Vercel project. No new project/deployment created. Reviewed repository modules, recent 27-test CI baseline, live connected Supabase schema/permissions, and official gateway/hosting terms. Browser-level production walkthrough was not available; do not describe this as a fully tested live UI.
