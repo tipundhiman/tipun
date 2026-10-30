@@ -7,7 +7,7 @@
 
 1. Open `docs/RHYMEORBIT_SOURCE_OF_TRUTH.md` for the file map and `docs/PRODUCTION_AUDIT_20261031.md` for the verified vs unverified status.
 2. Install **Node.js 20+**. This repo uses built-in Node test runner, no project dependency install required for source tests.
-3. Run `npm test` at repo root. Do not merge on failing CI. Workflow: `.github/workflows/code-quality.yml`.
+3. Run `npm test` at repo root. For a no-login live endpoint check from a network-connected machine use `npm run audit:live`; it checks homepage/install copy, `/api/health`, payment gate and Android asset links. Do not merge on failing CI. Workflow: `.github/workflows/code-quality.yml`.
 4. Modify only the necessary file; add/update its test. Push to **master**. Check both GitHub Actions **and** Cloudflare `tipun → Deployments → active version/traffic`; a green GitHub check is *not* proof that live traffic received the change.
 5. Validate site as guest, 13–17 user, 18+ user, and authorized admin. Test mobile widths, browser navigation and actual saved media.
 6. For Android-native changes, increment versionCode/versionName and create a signed AAB using the existing **upload signing key** workflow. **Website-only changes automatically appear in the TWA after deployment; no AAB is needed.**
