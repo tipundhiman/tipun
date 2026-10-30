@@ -1,3 +1,5 @@
+> **Historical reference (superseded 31 Oct 2026):** Production is the existing Cloudflare Worker `tipun` at `rhymeorbit.in`, NOT Vercel. Use root `README.md`, `docs/RHYMEORBIT_SOURCE_OF_TRUTH.md`, and `docs/PRODUCTION_AUDIT_20261031.md` for the current release and deployment steps. Do not follow old Vercel env/DNS directions.
+
 # RhymeOrbit — migration from Vercel Hobby to Cloudflare Workers (test site)
 
 The existing GitHub repository `tipundhiman/tipun` is deployed to **one existing Cloudflare Worker: `tipun`**. Vercel Git integration was disconnected by the user on October 24, 2026. The current `rhymeorbit.in` DNS and existing Vercel deployment must remain unchanged for rollback until the end-to-end checklist passes.
