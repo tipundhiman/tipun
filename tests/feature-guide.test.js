@@ -37,6 +37,6 @@ test('Membership comparison names eighteen features without activating unverifie
   assert.ok(matrix);
   assert.equal((matrix.match(/^ \['/gm) || []).length, 18);
   assert.match(source, /Compare all 18 creator features/);
-  assert.match(source, /Higher quotas and quality downloads activate only with verified server-side memberships/);
-  assert.match(source, /Checkout unavailable/);
+  assert.match(source, /Paid quotas and quality downloads unlock only after a server-verified subscription/);
+  assert.match(source, /Paid checkout is not active yet/);
 });
