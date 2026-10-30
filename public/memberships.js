@@ -246,8 +246,8 @@ function openMemberships(reason){
  <p id="roMembershipBalance" class="ro-membership-muted" aria-live="polite">Checking your song balance…</p></div>
  <p class="ro-membership-muted" style="text-align:center">Compare creator plans. Paid checkout requires merchant approval and purchase verification before real charges can begin.</p>
  <p class="ro-membership-muted" style="text-align:center">Monthly plans only. INR prices below are India previews, not final regional quotes; Google Play will show the actual local amount before any eligible purchase.</p>
- <div class="ro-membership-grid">${plans.map((p,i)=>`<article class="ro-membership-card"><div style="color:#e5c9a2;font-size:11px">${escapeHTML(p.tag)}</div><div class="ro-plan-state">${i===0?'✓ Free account':'Payment setup in progress'}</div><h3>${escapeHTML(p.name)}</h3>
- <div class="ro-membership-amount">₹${p.monthly.toLocaleString('en-IN')}<span style="font-size:13px;color:#b3aebe;font-weight:500"> / month</span></div>
+ <div class="ro-membership-grid">${plans.map((p,i)=>`<article class="ro-membership-card" data-ro-plan="${escapeHTML(p.name.toLowerCase())}"><div style="color:#e5c9a2;font-size:11px">${escapeHTML(p.tag)}</div><div class="ro-plan-state">${i===0?'✓ Free account':'Payment setup in progress'}</div><h3>${escapeHTML(p.name)}</h3>
+ <div class="ro-membership-amount" data-ro-local-price>₹${p.monthly.toLocaleString('en-IN')}<span style="font-size:13px;color:#b3aebe;font-weight:500"> / month</span></div>
  <p class="ro-membership-muted">${i===0?'No payment required':'India reference price · monthly billing · no payment collected'}</p>
  <p><strong>${p.songs} ${i===0?'included':'proposed'} songs</strong> / month<br><span class="ro-membership-muted">${i===0?'Free monthly allowance':'Subject to paid activation'} · ${p.credits.toLocaleString('en-IN')} Orbit Credits when eligible</span></p>
  <ul>${p.perks.map(x=>'<li>'+escapeHTML(x)+'</li>').join('')}</ul><button type="button" ${i===0?'disabled':`data-select-plan="${escapeHTML(p.name.toLowerCase())}"`}>${i===0?'✓ Current free plan':'Select '+escapeHTML(p.name)}</button></article>`).join('')}</div>
@@ -274,6 +274,22 @@ function openMemberships(reason){
  });
  overlay.querySelector('.ro-membership-close').focus();
  showBalance();
+ // Google Play's Digital Goods API is read-only here; it can return accurate
+ // international prices without creating PaymentRequest or collecting money.
+ Promise.resolve(window.roPlayBilling?.previewProducts?.(['rhymeorbit_premium','rhymeorbit_pro'])).then(result=>{
+  if(!document.body.contains(overlay)||!result?.supported)return;
+  const byId={rhymeorbit_premium:'premium',rhymeorbit_pro:'pro'};
+  for(const item of result.products||[]){
+   const key=byId[item.productId];
+   if(!key||!item.priceText)continue;
+   const card=overlay.querySelector('[data-ro-plan="'+key+'"]');
+   const price=card?.querySelector('[data-ro-local-price]');
+   if(!price)continue;
+   price.textContent=item.priceText+' / month';
+   const note=card.querySelector('.ro-membership-muted');
+   if(note)note.textContent='Google Play price for your region · purchase not enabled yet';
+  }
+ }).catch(()=>{});
  // Billing readiness is server-controlled. Never offer a paid button based on browser detection alone.
  Promise.resolve(window.roPlayBilling?.check?.()).then(result=>{
    if(!document.body.contains(overlay))return;
