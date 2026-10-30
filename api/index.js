@@ -246,6 +246,15 @@ const bearer = req => String(req.headers.authorization || '').replace(/^Bearer\s
 async function auth(req, res) {
   const user = await userFromToken(bearer(req));
   if (!user?.id) { send(res, 401, { error: 'Sign in required or Supabase authentication unavailable' }); return null; }
+  // A mutable client age selector or raw_user_meta_data is never authorization.
+  // New users have an immutable row from the auth trigger; existing accounts
+  // must first declare their DOB in the login flow before using cloud APIs.
+  const age = await supaFetch('/rest/v1/ro_account_ages?user_id=eq.'+encodeURIComponent(user.id)+'&select=user_id&limit=1');
+  if (!age.ok) { send(res, 503, { error: 'Age eligibility check is temporarily unavailable' }); return null; }
+  if (!Array.isArray(age.data) || age.data.length !== 1) {
+    send(res, 403, { error: 'Please confirm your date of birth in RhymeOrbit before using this feature' });
+    return null;
+  }
   return user;
 }
 async function isAdmin(userId) {
