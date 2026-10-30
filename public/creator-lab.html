@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f7f8fc"><meta name="robots" content="index,follow">
+<meta name="description" content="20 free, practical songwriting, music practice and release tools for creators worldwide. Private, in-browser and available without a paid music API.">
+<link rel="canonical" href="https://rhymeorbit.in/creator-lab">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/rhymeorbit.svg" type="image/svg+xml">
+<title>Creator Lab — 20 Free Music Tools | RhymeOrbit</title>
+<link rel="stylesheet" href="/creator-lab.css?v=20261031-1">
+<script>
+(function(){try{var band=localStorage.getItem('ro_age_band_v1');if(band==='under13')location.replace('/kids.html');else if(!['teen','adult'].includes(band))location.replace('/age-check.html')}catch(e){location.replace('/age-check.html')}})();
+</script>
+<script src="/ro-design.js?v=20261025-palette-2" defer></script>
+<link rel="stylesheet" href="/ro-design.css?v=20261025-mobile-3">
+</head>
+<body>
+<header class="cl-header">
+  <a href="/" class="cl-logo" aria-label="RhymeOrbit Home">Rhyme<span>Orbit</span></a>
+  <nav aria-label="Creator Lab main navigation"><a href="/#studio">AI Studio</a><a href="/sing-your-song">Sing</a><a href="/features">Features</a><a href="/#profile">Memberships</a></nav>
+</header>
+<main class="cl-main">
+<section class="cl-hero">
+ <p class="cl-eyebrow">RHYMEORBIT / CREATOR LAB • WORLDWIDE</p>
+ <h1>Ideas to releases.<br><em>One creative space.</em></h1>
+ <p>20 working tools for writing songs, keeping rhythm and preparing your next release. All processing happens in your browser. No paid API, account or music credits required for these tools.</p>
+ <div class="cl-hero-actions"><a class="cl-primary" href="#writing">Start writing</a><a class="cl-secondary" href="/#studio">Generate a song in AI Studio</a></div>
+ <p class="cl-privacy">Local-first. Drafts and checklist stay in this browser only. Voice memo uses your microphone only after permission, and never uploads the audio.</p>
+</section>
+<div class="cl-sticky-tabs" role="navigation" aria-label="Creator Lab sections">
+ <a href="#writing">Lyrics & ideas <small>01–08</small></a><a href="#music">Sound & timing <small>09–16</small></a><a href="#release">Release & growth <small>17–20</small></a>
+</div>
+<div class="cl-status" role="status" aria-live="polite" id="clStatus"></div>
+<section id="writing" class="cl-section" aria-labelledby="writingTitle">
+ <div class="cl-section-head"><span>01 / SONGWRITING</span><h2 id="writingTitle">Make every word count.</h2><p>Multilingual prompts and practical lyric helpers. Text is private to your device.</p></div>
+ <div class="cl-grid">
+ <article class="cl-card" id="tool1"><h3><b>01</b> Hook spark generator</h3><p>Turn a mood and language into a concrete song-writing prompt, not AI-generated lyrics.</p><label>Language<select id="clHookLanguage"><option value="en">English</option><option value="hi">Hindi</option><option value="es">Español</option><option value="pt">Português</option><option value="fr">Français</option><option value="ur">Urdu</option></select></label><label>Mood<select id="clHookMood"><option value="hope">Hope</option><option value="love">Love</option><option value="heartbreak">Heartbreak</option><option value="party">Celebration</option></select></label><button type="button" data-action="hook">Give me an idea</button><output id="clHookOut"></output></article>
+ <article class="cl-card" id="tool2"><h3><b>02</b> Song structure planner</h3><p>Arrange sections and estimate the full song timeline at your own tempo.</p><label>Sections (one per line)<textarea id="clStructure" rows="5">Intro:4
+Verse:16
+Chorus:8
+Verse:16
+Chorus:8
+Bridge:8
+Chorus:8
+Outro:4</textarea></label><button type="button" data-action="structure">Plan arrangement</button><output id="clStructureOut"></output></article>
+ <article class="cl-card" id="tool3"><h3><b>03</b> Rhyme pocket</h3><p>Quick English near-rhyme word bank for common song endings. Suggestions, not a dictionary.</p><label>Keyword<input id="clRhymeWord" value="night" maxlength="40" autocomplete="off"></label><button type="button" data-action="rhyme">Find rhyme ideas</button><output id="clRhymeOut"></output></article>
+ <article class="cl-card" id="tool4"><h3><b>04</b> Multilingual word counter</h3><p>Count words, characters and lines, including scripts with no spaces when supported by your browser.</p><label>Lyric draft<textarea id="clLyrics" rows="6" placeholder="Paste your original lyrics in any language..." dir="auto"></textarea></label><output id="clWordsOut">Add lyrics to get live counts.</output></article>
+ <article class="cl-card" id="tool5"><h3><b>05</b> Syllable guide</h3><p>Approximate **English-only** syllable estimate; singing pronunciation varies.</p><button type="button" data-action="syllables">Analyze lyric lines</button><output id="clSyllableOut"></output></article>
+ <article class="cl-card" id="tool6"><h3><b>06</b> Repeated-line finder</h3><p>Discover your recurring chorus or phrases (case-insensitive).</p><button type="button" data-action="repeat">Analyze repeated lines</button><output id="clRepeatOut"></output></article>
+ <article class="cl-card" id="tool7"><h3><b>07</b> Lyric delivery estimator</h3><p>Estimate spoken delivery at your selected words-per-minute rate.</p><label>Words per minute<input id="clWpm" type="number" min="60" max="250" value="125"></label><button type="button" data-action="reading">Estimate length</button><output id="clReadingOut"></output></article>
+ <article class="cl-card" id="tool8"><h3><b>08</b> Timed LRC lyrics exporter</h3><p>Enter timestamps and lines, then save a synced lyric file. Edit timing to match your own audio.</p><label>Time | Lyric (one per line)<textarea id="clLrc" rows="5" placeholder="00:10.50 | Your first line&#10;00:15.00 | Your next line"></textarea></label><button type="button" data-action="lrc">Export .lrc</button><output id="clLrcOut"></output></article>
+ </div>
+</section>
+<section id="music" class="cl-section" aria-labelledby="musicTitle">
+ <div class="cl-section-head"><span>02 / MUSIC PRACTICE</span><h2 id="musicTitle">Find your rhythm.</h2><p>Browser-based tools for composing and rehearsal. Sound controls require your own click.</p></div>
+ <div class="cl-grid">
+ <article class="cl-card" id="tool9"><h3><b>09</b> Tap tempo</h3><p>Tap repeatedly in time with the beat; the last intervals determine BPM.</p><button type="button" id="clTap" data-action="tap">Tap beat</button><button type="button" class="cl-ghost" data-action="tap-reset">Reset</button><output id="clTapOut">Start tapping...</output></article>
+ <article class="cl-card" id="tool10"><h3><b>10</b> Metronome</h3><p>A simple click track generated locally with Web Audio.</p><label>Tempo (BPM)<input id="clBpm" type="number" value="100" min="30" max="240"></label><button type="button" data-action="metro" id="clMetro">Start metronome</button><output id="clMetroOut">Not playing.</output></article>
+ <article class="cl-card" id="tool11"><h3><b>11</b> Key transposer</h3><p>Transpose a major or minor key by semitones.</p><label>Starting key<select id="clKey"></select></label><label>Semitones<input id="clTranspose" type="number" min="-12" max="12" value="2"></label><button type="button" data-action="transpose">Transpose key</button><output id="clTransposeOut"></output></article>
+ <article class="cl-card" id="tool12"><h3><b>12</b> Scale notes finder</h3><p>See the 7 notes in major or natural minor scales.</p><label>Root<select id="clScaleRoot"></select></label><label>Scale<select id="clScaleMode"><option value="major">Major</option><option value="minor">Natural minor</option></select></label><button type="button" data-action="scale">Build scale</button><output id="clScaleOut"></output></article>
+ <article class="cl-card" id="tool13"><h3><b>13</b> Chord progression builder</h3><p>Common diatonic four-chord loops, transposed to your key.</p><label>Root<select id="clChordRoot"></select></label><label>Type<select id="clChordMode"><option value="major">Major: I–V–vi–IV</option><option value="minor">Minor: i–VI–III–VII</option></select></label><button type="button" data-action="chords">Show progression</button><output id="clChordOut"></output></article>
+ <article class="cl-card" id="tool14"><h3><b>14</b> Note frequency calculator</h3><p>Equal-temperament note frequencies at A4 = 440 Hz.</p><label>MIDI note (0–127)<input id="clMidi" type="number" value="69" min="0" max="127"></label><button type="button" data-action="frequency">Calculate</button><output id="clFreqOut"></output></article>
+ <article class="cl-card" id="tool15"><h3><b>15</b> Bars-to-time calculator</h3><p>Estimate recording length in 4/4 at your chosen BPM.</p><label>Number of bars<input id="clBars" type="number" min="1" max="1000" value="64"></label><button type="button" data-action="bars">Calculate duration</button><output id="clBarsOut"></output></article>
+ <article class="cl-card" id="tool16"><h3><b>16</b> Private voice memo</h3><p>Record and play a short melody in your browser. No server upload; download format is browser-dependent.</p><div class="cl-actions"><button type="button" data-action="record-start" id="clRecStart">Record</button><button type="button" data-action="record-stop" id="clRecStop" disabled>Stop</button></div><audio id="clVoiceAudio" controls hidden></audio><a id="clVoiceDownload" class="cl-save" href="#" download hidden>Download voice memo</a><output id="clVoiceOut">Microphone permission required.</output></article>
+ </div>
+</section>
+<section id="release" class="cl-section" aria-labelledby="releaseTitle">
+ <div class="cl-section-head"><span>03 / GLOBAL RELEASE</span><h2 id="releaseTitle">Release smarter.</h2><p>Plan credits and promotion wherever your music is heard. Tools do not distribute or publish your music.</p></div>
+ <div class="cl-grid">
+ <article class="cl-card" id="tool17"><h3><b>17</b> Track metadata sheet</h3><p>Prepare a copyable brief for distributors and collaborators.</p><label>Song title<input id="clSongTitle" maxlength="120" placeholder="Your original song"></label><label>Artist<input id="clArtist" maxlength="120" placeholder="Artist name"></label><label>Language / genre<input id="clGenre" maxlength="100" placeholder="English / Afrobeats"></label><label>Songwriting / production credits<textarea id="clCredits" rows="2" maxlength="500" placeholder="People who contributed"></textarea></label><button type="button" data-action="metadata">Create metadata brief</button><output id="clMetadataOut"></output><button type="button" class="cl-ghost" data-copy="clMetadataOut">Copy brief</button></article>
+ <article class="cl-card" id="tool18"><h3><b>18</b> Collaboration split checker</h3><p>Enter creators and their ownership shares. Check the total is exactly 100% before signing any split sheet.</p><label>Contributor | Percent<textarea id="clSplit" rows="5" placeholder="Alex | 50&#10;Sam | 30&#10;Pat | 20"></textarea></label><button type="button" data-action="split">Check splits</button><output id="clSplitOut"></output><button type="button" class="cl-ghost" data-copy="clSplitOut">Copy splits</button></article>
+ <article class="cl-card" id="tool19"><h3><b>19</b> Campaign URL tracker</h3><p>Build a URL tagged for campaign analytics (no tracking happens here).</p><label>Destination URL<input id="clUrl" type="url" placeholder="https://example.com/song"></label><label>Source<input id="clSource" placeholder="instagram" maxlength="80"></label><label>Campaign name<input id="clCampaign" placeholder="single-launch" maxlength="80"></label><button type="button" data-action="utm">Build URL</button><output id="clUtmOut"></output><button type="button" class="cl-ghost" data-copy="clUtmOut">Copy link</button></article>
+ <article class="cl-card" id="tool20"><h3><b>20</b> Release readiness checklist</h3><p>Track key steps locally. Completing them does not guarantee store acceptance or rights clearance.</p>
+ <fieldset class="cl-checks" id="clChecklist"><legend>Before your launch</legend>
+ <label><input type="checkbox" value="rights"> Check I own/licensed samples, beats, lyrics and artwork</label>
+ <label><input type="checkbox" value="mix"> Review clean mix/master on speakers and headphones</label>
+ <label><input type="checkbox" value="credits"> Confirm creator names and split agreement</label>
+ <label><input type="checkbox" value="art"> Validate cover art format and publisher requirements</label>
+ <label><input type="checkbox" value="metadata"> Confirm title, language, lyrics and release date</label>
+ <label><input type="checkbox" value="promo"> Prepare artwork, short clips and release links</label>
+ <label><input type="checkbox" value="policy"> Review distributor, platform and AI-output licensing rules</label>
+ </fieldset><output id="clChecklistOut">0 of 7 complete.</output><button type="button" class="cl-ghost" data-action="checklist-reset">Reset checklist</button></article>
+ </div>
+</section>
+<section class="cl-next"><h2>Ready for the full studio?</h2><p>Use AI Studio for connected song generation, Sing Your Song for karaoke, and Vocal Lab for recording cleanup. These are separate features with their own availability and consent rules.</p><div class="cl-hero-actions"><a class="cl-primary" href="/#studio">Open AI Studio</a><a class="cl-secondary" href="/sing-your-song">Sing Your Song</a><a class="cl-secondary" href="/vocal-lab">Vocal Lab</a></div></section>
+</main>
+<footer class="cl-footer"><span>© 2026 RhymeOrbit · Made for independent creators</span><nav aria-label="Legal"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/child-safety.html">Safety</a><a href="/delete-account.html">Account deletion</a></nav></footer>
+<script type="module" src="/creator-lab.js?v=20261031-1"></script>
+<script src="/site-nav.js?v=20261025-1" defer></script>
+</body></html>
