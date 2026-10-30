@@ -28,6 +28,7 @@
   ];
   const features = [
     { title: 'AI Studio', subtitle: 'Make original music', icon: 'sparkles', href: '/#studio' },
+    { title: 'Creator Lab', subtitle: '20 free creation tools', icon: 'sparkles', href: '/creator-lab' },
     { title: 'Listen & Chill', subtitle: 'Free music & videos', icon: 'music', href: '/#listen' },
     { title: 'Sing Your Song', subtitle: 'Your karaoke stage', icon: 'mic', href: '/sing-your-song' },
     { title: 'Video Maker', subtitle: 'Turn songs into visuals', icon: 'film', href: '/video-maker' },
