@@ -34,7 +34,8 @@ test('Payment APIs remain fail-closed until checkout authorization is implemente
  assert.match(web,/getDigitalGoodsService/);
  assert.match(web,/readyForCheckout:\(\)=>false/);
  assert.doesNotMatch(web,/new PaymentRequest\(/);
- assert.match(membership,/disabled>\$\{i===0/);
+ assert.match(membership,/No payment will be collected before verified checkout/);
+ assert.match(membership,/data-select-plan/);
  assert.doesNotThrow(()=>new Function(web));
 });
 
