@@ -177,6 +177,33 @@ async function loadSandboxControls(overlay){
    finally{diagnose.disabled=false}
   };
   panel.append(diagnose,diagnosticLines);
+  const googleCheck=document.createElement('button');
+  googleCheck.type='button';
+  googleCheck.className='ro-membership-test-button';
+  googleCheck.textContent='Check Google Play Billing connection';
+  googleCheck.style.cssText='margin:5px 10px 14px 0;padding:10px 15px;border-radius:24px;border:1px solid #e5c9a2;background:#251f2c;color:#f7e6c6;cursor:pointer;';
+  const googleResult=document.createElement('p');
+  googleResult.className='ro-membership-muted';
+  googleResult.setAttribute('role','status');
+  googleResult.setAttribute('aria-live','polite');
+  googleCheck.onclick=async()=>{
+   googleCheck.disabled=true;
+   googleResult.textContent='Checking secure Google Play API connection (no payment)…';
+   try{
+    const token=await sandboxAuthToken();
+    if(!token)throw Error('Sign in again to check Google Play');
+    const response=await fetch('/api/play-billing/readiness',{
+     headers:{Authorization:'Bearer '+token,Accept:'application/json'},cache:'no-store'
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw Error(result.error||'Google Play connection check failed');
+    const lines=(result.subscriptions||[]).map(item=>item.productId+': '+(item.available?'Connected':item.status));
+    googleResult.textContent=(result.oauthConnected?'Google API authentication successful.':'Google Play auth not yet ready.')+
+     ' '+lines.join(' | ')+' Real purchases remain disabled until subscription verification is tested.';
+   }catch(err){googleResult.textContent=err.message||'Google Play connection is not ready'}
+   finally{googleCheck.disabled=false}
+  };
+  panel.append(googleCheck,googleResult);
   const result=document.createElement('p');result.className='ro-membership-muted';
   result.setAttribute('role','status');result.setAttribute('aria-live','polite');
   if(!status.configured){
