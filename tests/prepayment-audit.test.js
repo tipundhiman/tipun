@@ -15,8 +15,8 @@ test('Only AI Studio owns the public song-generation request',()=>{
 });
 test('Paid checkout is disabled until entitlement and provider limits match prices',()=>{
  const memberships=read('public/memberships.js'),api=read('api/index.js');
- assert.match(memberships,/Checkout unavailable/);
- assert.match(memberships,/disabled>/);
+ assert.match(memberships,/Paid checkout is not active yet/);
+ assert.match(memberships,/No payment will be collected before verified checkout/);
  assert.match(api,/const limit = !active \? 0 : !s \|\| s\.plan === 'free' \? 3 : paidLimit;/);
  assert.match(api,/const paidCap = s\?\.plan === 'pro' \? 75 : s\?\.plan === 'premium' \? 35 : 0;/);
  const sql=read('supabase/commercial_entitlements.sql');
