@@ -5,6 +5,7 @@ import {handleTestBilling,handleTestWebhook} from './razorpay-test.js';
 import {handleJamendoApi} from './jamendo.js';
 import {handleGaanaCatalog} from './gaana-catalog.js';
 import {handleAudiusCatalog} from './audius.js';
+import { creditBalance } from './orbit-credits.js';
 
 const env = k => process.env[k] || '';
 const limits = new Map();
@@ -437,17 +438,12 @@ export async function handleApi(req, res) {
       const limit = plan === 'free' ? 3 : paidLimit;
       const used = Math.max(0, Number(u?.songs_used)||0);
       const reserved = Math.max(0, Number(u?.songs_reserved)||0);
-      const remaining = Math.max(0, limit - used - reserved);
-      const creditCostPerSong = 100;
+      const {creditCostPerSong,creditBalance:balance,songsRemaining} = creditBalance(limit, used, reserved);
+      const remaining = songsRemaining;
       return send(res, 200, {
         plan, downloadHighQuality, monthlyLimit:limit, used, reserved, remaining, monthStart:month,
         creditUnit:'orbit', creditCostPerSong,
-        creditBalance:{
-          monthly:limit*creditCostPerSong,
-          used:used*creditCostPerSong,
-          reserved:reserved*creditCostPerSong,
-          remaining:remaining*creditCostPerSong
-        }
+        creditBalance:balance
       });
     }
 
