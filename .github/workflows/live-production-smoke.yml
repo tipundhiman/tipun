@@ -1,0 +1,43 @@
+name: RhymeOrbit production smoke
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/live-production-smoke.yml
+      - public/index.html
+      - public/install.html
+      - cloudflare/worker.js
+      - cloudflare/asset-links.js
+      - wrangler.jsonc
+      - scripts/production-smoke.mjs
+      - package.json
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production-smoke-master
+  cancel-in-progress: true
+jobs:
+  verify-public-origin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check production after Cloudflare auto deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          sleep 25
+          for attempt in 1 2 3; do
+            echo "Live production smoke attempt ${attempt}/3"
+            if npm run audit:live -- https://rhymeorbit.in; then
+              echo "All public origin checks passed."
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then sleep 20; fi
+          done
+          echo "::error::Public origin smoke check failed. Review output and Cloudflare traffic/version; Android App Signing fingerprint may still be unconfigured."
+          exit 1
