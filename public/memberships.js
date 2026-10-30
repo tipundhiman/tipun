@@ -244,7 +244,7 @@ function openMemberships(reason){
  <h2 id="roMembershipTitle">${reason==='limit'?'Your free song limit is reached 🎵':'Choose your creator plan ✦'}</h2>
  <p class="ro-membership-muted">Create music, connect with creators and grow your orbit. <strong>100 Orbit Credits = 1 AI song.</strong></p>
  <p id="roMembershipBalance" class="ro-membership-muted" aria-live="polite">Checking your song balance…</p></div>
- <p class="ro-membership-muted" style="text-align:center">Compare creator plans. Paid checkout requires merchant approval and purchase verification before real charges can begin.</p>
+ <p class="ro-membership-muted" style="text-align:center">Compare creator plans. Google Play products are set up, but receipt verification, automatic plan unlock and test purchases must pass before real charges begin.</p>
  <p class="ro-membership-muted" style="text-align:center">Monthly plans only. INR prices below are India previews, not final regional quotes; Google Play will show the actual local amount before any eligible purchase.</p>
  <div class="ro-membership-grid">${plans.map((p,i)=>`<article class="ro-membership-card" data-ro-plan="${escapeHTML(p.name.toLowerCase())}"><div style="color:#e5c9a2;font-size:11px">${escapeHTML(p.tag)}</div><div class="ro-plan-state">${i===0?'✓ Free account':'Payment setup in progress'}</div><h3>${escapeHTML(p.name)}</h3>
  <div class="ro-membership-amount" data-ro-local-price>₹${p.monthly.toLocaleString('en-IN')}<span style="font-size:13px;color:#b3aebe;font-weight:500"> / month</span></div>
