@@ -245,10 +245,10 @@ function openMemberships(reason){
  <p class="ro-membership-muted">Create music, connect with creators and grow your orbit. <strong>100 Orbit Credits = 1 AI song.</strong></p>
  <p id="roMembershipBalance" class="ro-membership-muted" aria-live="polite">Checking your song balance…</p></div>
  <p class="ro-membership-muted" style="text-align:center">Compare creator plans. Paid checkout requires merchant approval and purchase verification before real charges can begin.</p>
- <div class="ro-membership-cycle" role="group" aria-label="Billing period"><button type="button" data-cycle="monthly" aria-pressed="${!annual}">Monthly</button><button type="button" data-cycle="annual" aria-pressed="${annual}">Annual · Save more</button></div>
+ <p class="ro-membership-muted" style="text-align:center">Monthly plans only. INR prices below are India previews, not final regional quotes; Google Play will show the actual local amount before any eligible purchase.</p>
  <div class="ro-membership-grid">${plans.map((p,i)=>`<article class="ro-membership-card"><div style="color:#e5c9a2;font-size:11px">${escapeHTML(p.tag)}</div><div class="ro-plan-state">${i===0?'✓ Free account':'Payment setup in progress'}</div><h3>${escapeHTML(p.name)}</h3>
- <div class="ro-membership-amount">₹${(annual?p.annual:p.monthly).toLocaleString('en-IN')}<span style="font-size:13px;color:#b3aebe;font-weight:500"> / month</span></div>
- <p class="ro-membership-muted">${i===0?'No payment required':annual?'Preview: ₹'+(p.annual*12).toLocaleString('en-IN')+' billed annually':'Preview price · monthly billing'}</p>
+ <div class="ro-membership-amount">₹${p.monthly.toLocaleString('en-IN')}<span style="font-size:13px;color:#b3aebe;font-weight:500"> / month</span></div>
+ <p class="ro-membership-muted">${i===0?'No payment required':'India reference price · monthly billing · no payment collected'}</p>
  <p><strong>${p.songs} ${i===0?'included':'proposed'} songs</strong> / month<br><span class="ro-membership-muted">${i===0?'Free monthly allowance':'Subject to paid activation'} · ${p.credits.toLocaleString('en-IN')} Orbit Credits when eligible</span></p>
  <ul>${p.perks.map(x=>'<li>'+escapeHTML(x)+'</li>').join('')}</ul><button type="button" ${i===0?'disabled':`data-select-plan="${escapeHTML(p.name.toLowerCase())}"`}>${i===0?'✓ Current free plan':'Select '+escapeHTML(p.name)}</button></article>`).join('')}</div>
  <p id="roPlanSelectionStatus" role="status" aria-live="polite" class="ro-membership-muted" style="text-align:center;margin-top:14px">No payment will be collected before verified checkout becomes available.</p>
@@ -256,7 +256,7 @@ function openMemberships(reason){
  <div class="ro-membership-matrix-wrap"><table class="ro-membership-matrix"><thead><tr><th scope="col">Feature</th><th scope="col">Free</th><th scope="col">Premium</th><th scope="col">Pro</th></tr></thead>
  <tbody>${featureMatrix.map(row=>`<tr>${row.map((value,index)=>`<${index===0?'th scope="row"':'td'}>${escapeHTML(value)}</${index===0?'th':'td'}>`).join('')}</tr>`).join('')}</tbody></table></div>
  <p class="ro-membership-muted">✓ means the tool is available where supported; provider and account limits still apply. “Planned” means not yet unlocked. “Not active” means not available on any plan. Stereo split and pitch assist are basic browser tools, not neural studio mastering.</p></details>
- <p class="ro-membership-muted" style="text-align:center;margin-top:20px">Free includes 3 songs/month when generation is available. Displayed Premium/Pro prices are provisional; final prices are confirmed at verified checkout. Paid quotas and quality downloads unlock only after a server-verified subscription. Paid checkout is not active yet.</p></section>`;
+ <p class="ro-membership-muted" style="text-align:center;margin-top:20px">Free includes 3 songs/month when generation is available. Displayed Premium/Pro prices are India reference prices; actual regional Google Play prices may differ and are shown at checkout. Paid quotas and quality downloads unlock only after a server-verified subscription. Paid checkout is not active yet.</p></section>`;
  document.body.appendChild(overlay);
  overlay.querySelector('.ro-membership-close').onclick=()=>overlay.remove();
  overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};
