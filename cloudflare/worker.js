@@ -9,11 +9,14 @@ import { handleMediaStorageRequest } from './media-storage.js';
 import { handlePrivateVideoRequest } from './private-videos.js';
 import { handleCreatorLyricsRequest } from './creator-lyrics.js';
 import { handleLicensedLyricsRequest } from './licensed-lyrics.js';
+import { handlePlayBillingReadiness } from './play-billing-readiness.js';
 
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
     if (path.startsWith('/api/')) {
+      // Admin-only Google API authentication/catalog check. No payment can be made here.
+      if (path === '/api/play-billing/readiness') return handlePlayBillingReadiness(request,env);
       // Play Billing is staged in Android v1.1, but digital checkout MUST
       // remain off until Play merchant setup, signed purchase verification,
       // acknowledgement, renewals and paid quota accounting are completed.
