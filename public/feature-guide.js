@@ -81,7 +81,7 @@
   const categories = find('roGuideCategories');
   const list = find('roGuideGrid');
   let category = 'All';let step = 0;let mode = 'finder';let showAll = false;
-  const essentials = new Set([0,1,2,4,7,8]);
+  const essentials = new Set([0,1,2,5,8,9]);
   const route = item => item[3];
   function card(item) {
     const a = document.createElement('a');
