@@ -1,3 +1,5 @@
+> **Historical reference (superseded 31 Oct 2026):** Production is the existing Cloudflare Worker `tipun` at `rhymeorbit.in`, NOT Vercel. Use root `README.md`, `docs/RHYMEORBIT_SOURCE_OF_TRUTH.md`, and `docs/PRODUCTION_AUDIT_20261031.md` for the current release and deployment steps. Do not follow old Vercel env/DNS directions.
+
 # RhymeOrbit: music readiness and account recovery
 
 This project stays at \`tipundhiman/tipun\` → \`master\` → existing Vercel project for \`rhymeorbit.in\`.
