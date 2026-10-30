@@ -57,7 +57,7 @@ Verify website served source, browser onboarding, signed-in session, media playb
 
 ## Developers: practical smoke-test checklist
 
-1. `npm test` on Node 20+. Require GitHub CI green.
+1. `npm test` on Node 20+. Require GitHub CI green. Then run `npm run audit:live` from a network-connected machine to check public origin, actual deployed beta copy, billing-disabled status and Android certificate association.
 2. Check same new GitHub commit deployed in **Cloudflare `tipun`**, monitor error rates and 100% live traffic.
 3. In clean browsers test `/`, `/install`, `/features`, `/privacy`, `/terms`, `/delete-account.html`, `/child-safety.html` and `/.well-known/assetlinks.json`.
 4. Check `/api/health`, `/api/music/status`, `/api/play-billing/status` (must be `checkoutEnabled:false`).
